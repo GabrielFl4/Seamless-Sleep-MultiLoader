@@ -1,0 +1,16 @@
+{
+  "itemGroup.seamlesssleep.general": "Seamless Sleep",
+  "block.seamlesssleep.sleep_barrier": "Barreira do sono",
+  "seamlesssleep.text.sleeping": "Passando a noite",
+
+  "modmenu.nameTranslation.seamlesssleep": "Seamless Sleep",
+  "modmenu.summaryTranslation.seamlesssleep": "Animação de sono sincronizada e HUD mais suave.",
+  "modmenu.descriptionTranslation.seamlesssleep": "Repensa a forma como os jogadores dormem: animação sincronizada, overlay mais claro e chat menos intrusivo.",
+
+  "config.seamlesssleep.title": "Seamless Sleep",
+  "config.seamlesssleep.category.chat": "Chat durante o sono",
+  "config.seamlesssleep.sleep.chat_text_opacity": "Opacidade do texto do chat ao dormir",
+  "config.seamlesssleep.sleep.chat_text_opacity.desc": "Multiplicador aplicado à opacidade do texto do chat enquanto você está na cama.",
+  "config.seamlesssleep.sleep.chat_background_opacity": "Opacidade do fundo do chat ao dormir",
+  "config.seamlesssleep.sleep.chat_background_opacity.desc": "Multiplicador aplicado ao fundo do chat enquanto você está na cama."
+}

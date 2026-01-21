@@ -1,0 +1,21 @@
+{
+	"required": true,
+	"package": "net.aqualoco.sec.mixin",
+	"compatibilityLevel": "JAVA_21",
+	"mixins": [
+		"ServerWorldSleepAnimationMixin",
+		"PlayerEntitySleepAnimationMixin"
+	],
+	"client": [
+		"client.ChatHudSleepMixin",
+		"client.CameraSleepAnimationMixin",
+		"client.SleepOverlayOpacityMixin",
+		"client.InGameHudSleepMessageMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	},
+	"overwrites": {
+		"requireAnnotations": true
+	}
+}

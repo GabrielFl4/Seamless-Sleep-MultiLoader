@@ -16,7 +16,7 @@
     "environment": "*",
     "entrypoints": {
         "main": [
-          "net.aqualoco.sec.ExampleMod"
+            "net.aqualoco.sec.SeamlessSleep"
         ]
     },
     "mixins": [
