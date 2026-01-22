@@ -1,6 +1,7 @@
 package net.aqualoco.sec;
 
 import net.aqualoco.sec.registry.ModBlocks;
+import net.aqualoco.sec.registry.ModItems;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
@@ -22,9 +23,10 @@ public class SeamlessSleep {
     public SeamlessSleep(FMLJavaModLoadingContext context) {
 
         eventBus = context.getModEventBus();
-        CommonClass.init();
+        SeamlessSleepCommon.init();
 
         bind(Registries.BLOCK, ModBlocks::register);
+        bind(Registries.ITEM, ModItems::register);
     }
 
     /** Adapted from <a href="https://github.com/VazkiiMods/Botania">Botania</a>*/

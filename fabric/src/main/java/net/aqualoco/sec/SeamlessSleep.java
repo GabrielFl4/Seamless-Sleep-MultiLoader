@@ -1,10 +1,10 @@
 package net.aqualoco.sec;
 
 import net.aqualoco.sec.registry.ModBlocks;
+import net.aqualoco.sec.registry.ModItems;
 import net.fabricmc.api.ModInitializer;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 
 import java.util.function.BiConsumer;
@@ -14,9 +14,10 @@ public class SeamlessSleep implements ModInitializer {
     
     @Override
     public void onInitialize() {
-        CommonClass.init();
+        SeamlessSleepCommon.init();
 
         bind(BuiltInRegistries.BLOCK, ModBlocks::register);
+        bind(BuiltInRegistries.ITEM, ModItems::register);
     }
 
     /** Adapted from <a href="https://github.com/VazkiiMods/Botania">Botania</a>*/

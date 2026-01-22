@@ -4,13 +4,18 @@
   "package": "net.aqualoco.sec.mixin",
   "refmap": "${mod_id}.refmap.json",
   "compatibilityLevel": "JAVA_18",
-  "mixins": [],
+  "mixins": [
+    "ServerWorldSleepAnimationMixin",
+    "PlayerEntitySleepAnimationMixin"
+  ],
   "client": [
-    "MixinMinecraft"
+    "client.ChatHudSleepMixin",
+    "client.CameraSleepAnimationMixin",
+    "client.SleepOverlayOpacityMixin",
+    "client.InGameHudSleepMessageMixin"
   ],
   "server": [],
   "injectors": {
     "defaultRequire": 1
   }
 }
-
