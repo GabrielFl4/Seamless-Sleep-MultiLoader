@@ -49,6 +49,6 @@ public final class SleepStatusOverlay {
             x = 6;
             y = 6;
         }
-        graphics.drawString(client.font, text, x, y, color);
+        graphics.drawString(client.font, text, x, y, color, true);
     }
 }

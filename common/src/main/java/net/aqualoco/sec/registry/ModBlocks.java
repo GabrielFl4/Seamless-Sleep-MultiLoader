@@ -10,19 +10,31 @@ import java.util.function.BiConsumer;
 
 public class ModBlocks {
 
-    public static final Block SLEEP_BARRIER = new SleepBarrier(
-            BlockBehaviour.Properties.of()
-                    .strength(-1.0F, 3600000.0F)
-                    .noLootTable()
-                    .noTerrainParticles()
-                    .noOcclusion()
-    );
+    private static Block sleepBarrier;
 
     public static void register(BiConsumer<Block, ResourceLocation> consumer) {
-        consumer.accept(SLEEP_BARRIER, ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, "sleep_barrier"));
+        sleepBarrier = createSleepBarrier();
+        consumer.accept(sleepBarrier, ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, "sleep_barrier"));
     }
 
     public static void registerModBlocks() {
         Constants.LOG.info("Registrando blocos do Seamless Sleep");
+    }
+
+    public static Block getSleepBarrier() {
+        if (sleepBarrier == null) {
+            throw new IllegalStateException("Sleep barrier ainda nao foi registrado.");
+        }
+        return sleepBarrier;
+    }
+
+    private static Block createSleepBarrier() {
+        return new SleepBarrier(
+                BlockBehaviour.Properties.of()
+                        .strength(-1.0F, 3600000.0F)
+                        .noLootTable()
+                        .noTerrainParticles()
+                        .noOcclusion()
+        );
     }
 }

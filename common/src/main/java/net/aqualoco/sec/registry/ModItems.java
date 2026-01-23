@@ -9,13 +9,20 @@ import java.util.function.BiConsumer;
 
 public final class ModItems {
 
-    public static final Item SLEEP_BARRIER_ITEM =
-            new BlockItem(ModBlocks.SLEEP_BARRIER, new Item.Properties());
+    private static Item sleepBarrierItem;
 
     private ModItems() {
     }
 
     public static void register(BiConsumer<Item, ResourceLocation> consumer) {
-        consumer.accept(SLEEP_BARRIER_ITEM, ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, "sleep_barrier"));
+        sleepBarrierItem = new BlockItem(ModBlocks.getSleepBarrier(), new Item.Properties());
+        consumer.accept(sleepBarrierItem, ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, "sleep_barrier"));
+    }
+
+    public static Item getSleepBarrierItem() {
+        if (sleepBarrierItem == null) {
+            throw new IllegalStateException("Sleep barrier item ainda nao foi registrado.");
+        }
+        return sleepBarrierItem;
     }
 }
