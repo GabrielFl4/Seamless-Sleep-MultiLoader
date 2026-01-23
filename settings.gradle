@@ -11,9 +11,11 @@ pluginManagement {
             }
             filter {
                 includeGroup('net.fabricmc')
+                includeGroup('net.fabricmc.unpick')   // <- FALTAVA ISSO
                 includeGroup('fabric-loom')
             }
         }
+        maven { url = 'https://maven.neoforged.net/releases' }
         exclusiveContent {
             forRepository {
                 maven {
@@ -34,6 +36,8 @@ pluginManagement {
             }
             filter {
                 includeGroupAndSubgroups('net.minecraftforge')
+                includeGroupAndSubgroups('net.minecraftforge.gradle')
+                includeGroupAndSubgroups('net.minecraftforge.gradleutils')
             }
         }
     }

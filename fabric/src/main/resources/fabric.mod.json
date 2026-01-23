@@ -12,11 +12,17 @@
         "sources": "https://github.com/FabricMC/fabric-example-mod"
     },
     "license": "${license}",
-    "icon": "${mod_id}.png",
+    "icon": "icon.png",
     "environment": "*",
     "entrypoints": {
         "main": [
             "net.aqualoco.sec.SeamlessSleep"
+        ],
+        "client": [
+            "net.aqualoco.sec.SeamlessSleepClient"
+        ],
+        "modmenu": [
+            "net.aqualoco.sec.client.ModMenuIntegration"
         ]
     },
     "mixins": [

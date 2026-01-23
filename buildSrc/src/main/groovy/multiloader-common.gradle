@@ -16,6 +16,14 @@ java {
 repositories {
     mavenCentral()
     // https://docs.gradle.org/current/userguide/declaring_repositories.html#declaring_content_exclusively_found_in_one_repository
+    maven {
+        name = "TerraformersMC"
+        url = "https://maven.terraformersmc.com/"
+    }
+    maven {
+        name = "YACL"
+        url = "https://maven.isxander.dev/releases"
+    }
     exclusiveContent {
         forRepository {
             maven {
