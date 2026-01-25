@@ -1,6 +1,8 @@
 package net.aqualoco.sec.platform;
 
 import net.aqualoco.sec.client.SeamlessSleepClientState;
+import net.aqualoco.sec.config.SeamlessSleepServerConfigSnapshot;
+import net.aqualoco.sec.network.ServerConfigSyncPayload;
 import net.aqualoco.sec.network.SleepAnimationStartPayload;
 import net.aqualoco.sec.network.SleepAnimationStopPayload;
 import net.minecraft.client.Minecraft;
@@ -49,5 +51,10 @@ final class NeoForgeClientNetworkHandler implements NeoForgeNetworkHelper.Client
         }
 
         SeamlessSleepClientState.SLEEP_ANIMATION.reset();
+    }
+
+    @Override
+    public void handleServerConfig(ServerConfigSyncPayload payload) {
+        SeamlessSleepServerConfigSnapshot.update(payload.sleepClearsWeather());
     }
 }

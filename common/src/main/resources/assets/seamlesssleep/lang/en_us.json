@@ -1,16 +1,20 @@
 {
   "itemGroup.seamlesssleep.general": "Seamless Sleep",
   "block.seamlesssleep.sleep_barrier": "Sleep Barrier",
-  "seamlesssleep.text.sleeping": "Sleeping through this night",
+  "seamlesssleep.text.sleeping": "Sleeping through the night",
 
   "modmenu.nameTranslation.seamlesssleep": "Seamless Sleep",
-  "modmenu.summaryTranslation.seamlesssleep": "Smooth, synchronized sleep transition with visual tweaks.",
-  "modmenu.descriptionTranslation.seamlesssleep": "Adds a synced sleep animation, softer overlays, and optional chat dimming so passing the night feels better in multiplayer.",
+  "modmenu.summaryTranslation.seamlesssleep": "Never blink through the night again.",
+  "modmenu.descriptionTranslation.seamlesssleep": "Rethinks the way players sleep:\n\n§8-§r Smooth & Synced animation\n§8-§r Visual improvements\n§8-§r Minimal server impact\n\nNow available for: §3§lForge§r, §6§lNeoForge§r and §f§lFabric§r!\nDiscord: gabrielfl4",
 
-  "config.seamlesssleep.title": "Seamless Sleep",
-  "config.seamlesssleep.category.chat": "Sleep chat overlay",
-  "config.seamlesssleep.sleep.chat_text_opacity": "Chat text opacity while sleeping",
-  "config.seamlesssleep.sleep.chat_text_opacity.desc": "Multiplier applied to chat text opacity when you are in bed.",
-  "config.seamlesssleep.sleep.chat_background_opacity": "Chat background opacity while sleeping",
-  "config.seamlesssleep.sleep.chat_background_opacity.desc": "Multiplier applied to chat background opacity when you are in bed."
+  "config.seamlesssleep.title": "Seamless Sleep Settings",
+  "config.seamlesssleep.category.chat": "Chat Overlay",
+  "config.seamlesssleep.category.sleep": "Sleep Behavior",
+  "config.seamlesssleep.sleep.chat_text_opacity": "Chat Text Opacity",
+  "config.seamlesssleep.sleep.chat_text_opacity.desc": "Adjusts chat text transparency while you are in bed.",
+  "config.seamlesssleep.sleep.chat_background_opacity": "Chat Background Opacity",
+  "config.seamlesssleep.sleep.chat_background_opacity.desc": "Adjusts chat background transparency while you are in bed.",
+  "config.seamlesssleep.sleep.clears_weather": "Clear Weather on Sleep",
+  "config.seamlesssleep.sleep.clears_weather.desc": "Resets rain and thunder when the night passes.\n§cREQUIRES /seamlesssleep reload",
+  "config.seamlesssleep.server_controlled": "\n§6Controlled by the server."
 }

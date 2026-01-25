@@ -2,6 +2,7 @@ package net.aqualoco.sec.mixin;
 
 import net.aqualoco.sec.Constants;
 import net.aqualoco.sec.SeamlessSleepCommon;
+import net.aqualoco.sec.config.SeamlessSleepServerConfigManager;
 import net.aqualoco.sec.network.SleepAnimationNetworking;
 import net.aqualoco.sec.sleep.SleepAnimationState;
 import net.minecraft.server.level.ServerLevel;
@@ -62,8 +63,9 @@ public abstract class ServerWorldSleepAnimationMixin {
 
         state.start(currentTime, newTime);
         this.seamlesssleep$sleepAnimationWakePlayers = true;
-        this.seamlesssleep$sleepAnimationResetWeather =
-                world.getGameRules().getBoolean(GameRules.RULE_WEATHER_CYCLE);
+        this.seamlesssleep$sleepAnimationResetWeather = world.getGameRules()
+                .getBoolean(GameRules.RULE_WEATHER_CYCLE)
+                && SeamlessSleepServerConfigManager.get().sleepClearsWeather;
         this.seamlesssleep$sleepSubtitleTicks = 0;
 
         SleepAnimationNetworking.sendStart(world, state);
@@ -97,7 +99,8 @@ public abstract class ServerWorldSleepAnimationMixin {
     private void seamlesssleep$redirectResetWeather(ServerLevel world) {
         if (world.dimension().equals(Level.OVERWORLD)
                 && this.seamlesssleep$sleepAnimationWakePlayers
-                && this.seamlesssleep$sleepAnimationResetWeather) {
+                && (this.seamlesssleep$sleepAnimationResetWeather
+                || !SeamlessSleepServerConfigManager.get().sleepClearsWeather)) {
             return;
         }
 

@@ -1,6 +1,7 @@
 package net.aqualoco.sec.platform;
 
 import net.aqualoco.sec.SeamlessSleep;
+import net.aqualoco.sec.network.ServerConfigSyncPayload;
 import net.aqualoco.sec.network.SleepAnimationStartPayload;
 import net.aqualoco.sec.network.SleepAnimationStopPayload;
 import net.aqualoco.sec.platform.services.INetworkHelper;
@@ -16,6 +17,7 @@ public class NeoForgeNetworkHelper implements INetworkHelper {
     interface ClientHandler {
         void handleStart(SleepAnimationStartPayload payload);
         void handleStop(SleepAnimationStopPayload payload);
+        void handleServerConfig(ServerConfigSyncPayload payload);
     }
 
     private static boolean registered;
@@ -42,6 +44,11 @@ public class NeoForgeNetworkHelper implements INetworkHelper {
                 SleepAnimationStopPayload.ID,
                 SleepAnimationStopPayload.CODEC.cast(),
                 NeoForgeNetworkHelper::handleStop
+        );
+        registrar.playToClient(
+                ServerConfigSyncPayload.ID,
+                ServerConfigSyncPayload.CODEC.cast(),
+                NeoForgeNetworkHelper::handleServerConfig
         );
     }
 
@@ -71,6 +78,15 @@ public class NeoForgeNetworkHelper implements INetworkHelper {
             ClientHandler handler = clientHandler;
             if (handler != null) {
                 handler.handleStop(payload);
+            }
+        });
+    }
+
+    private static void handleServerConfig(ServerConfigSyncPayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            ClientHandler handler = clientHandler;
+            if (handler != null) {
+                handler.handleServerConfig(payload);
             }
         });
     }

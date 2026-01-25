@@ -1,16 +1,20 @@
-{
+﻿{
   "itemGroup.seamlesssleep.general": "Seamless Sleep",
   "block.seamlesssleep.sleep_barrier": "Barreira do sono",
   "seamlesssleep.text.sleeping": "Passando a noite",
 
   "modmenu.nameTranslation.seamlesssleep": "Seamless Sleep",
-  "modmenu.summaryTranslation.seamlesssleep": "Animação de sono sincronizada e HUD mais suave.",
-  "modmenu.descriptionTranslation.seamlesssleep": "Repensa a forma como os jogadores dormem: animação sincronizada, overlay mais claro e chat menos intrusivo.",
+  "modmenu.summaryTranslation.seamlesssleep": "Nunca mais feche os olhos durante a noite.",
+  "modmenu.descriptionTranslation.seamlesssleep": "Repensa a forma como os jogadores dormem:\n\n§8-§r Animação suave e sincronizada\n§8-§r Melhorias visuais\n§8-§r Menor custo para o servidor\n\nAgora disponível para: §3§lForge§r, §6§lNeoForge§r e §f§lFabric§r!\nDiscord: gabrielfl4",
 
   "config.seamlesssleep.title": "Seamless Sleep",
   "config.seamlesssleep.category.chat": "Chat durante o sono",
+  "config.seamlesssleep.category.sleep": "Sono",
   "config.seamlesssleep.sleep.chat_text_opacity": "Opacidade do texto do chat ao dormir",
   "config.seamlesssleep.sleep.chat_text_opacity.desc": "Multiplicador aplicado à opacidade do texto do chat enquanto você está na cama.",
   "config.seamlesssleep.sleep.chat_background_opacity": "Opacidade do fundo do chat ao dormir",
-  "config.seamlesssleep.sleep.chat_background_opacity.desc": "Multiplicador aplicado ao fundo do chat enquanto você está na cama."
+  "config.seamlesssleep.sleep.chat_background_opacity.desc": "Multiplicador aplicado ao fundo do chat enquanto você está na cama.",
+  "config.seamlesssleep.sleep.clears_weather": "Dormir limpa o clima",
+  "config.seamlesssleep.sleep.clears_weather.desc": "Ao pular a noite, remove chuva e trovoada.\n§cREQUER /seamlesssleep reload",
+  "config.seamlesssleep.server_controlled": "\n§6Controlado pelo servidor."
 }

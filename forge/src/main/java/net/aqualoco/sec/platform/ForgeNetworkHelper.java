@@ -1,6 +1,7 @@
 package net.aqualoco.sec.platform;
 
 import net.aqualoco.sec.Constants;
+import net.aqualoco.sec.network.ServerConfigSyncPayload;
 import net.aqualoco.sec.network.SleepAnimationStartPayload;
 import net.aqualoco.sec.network.SleepAnimationStopPayload;
 import net.aqualoco.sec.platform.services.INetworkHelper;
@@ -18,6 +19,7 @@ public class ForgeNetworkHelper implements INetworkHelper {
     interface ClientHandler {
         void handleStart(SleepAnimationStartPayload payload);
         void handleStop(SleepAnimationStopPayload payload);
+        void handleServerConfig(ServerConfigSyncPayload payload);
     }
 
     private static final ResourceLocation CHANNEL_ID =
@@ -47,6 +49,11 @@ public class ForgeNetworkHelper implements INetworkHelper {
                         SleepAnimationStopPayload.ID,
                         SleepAnimationStopPayload.CODEC.cast(),
                         ForgeNetworkHelper::handleStop
+                )
+                .addMain(
+                        ServerConfigSyncPayload.ID,
+                        ServerConfigSyncPayload.CODEC.cast(),
+                        ForgeNetworkHelper::handleServerConfig
                 )
                 .build();
     }
@@ -88,6 +95,17 @@ public class ForgeNetworkHelper implements INetworkHelper {
         ClientHandler handler = clientHandler;
         if (handler != null) {
             handler.handleStop(payload);
+        }
+    }
+
+    private static void handleServerConfig(ServerConfigSyncPayload payload, CustomPayloadEvent.Context context) {
+        if (!context.isClientSide()) {
+            return;
+        }
+
+        ClientHandler handler = clientHandler;
+        if (handler != null) {
+            handler.handleServerConfig(payload);
         }
     }
 }
