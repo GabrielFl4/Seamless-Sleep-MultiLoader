@@ -8,6 +8,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.fml.ModLoadingContext;
 import net.minecraftforge.fml.common.Mod;
@@ -31,6 +32,9 @@ public class SeamlessSleep {
 
         bind(Registries.BLOCK, ModBlocks::register);
         bind(Registries.ITEM, ModItems::register);
+
+        MinecraftForge.EVENT_BUS.addListener(SeamlessSleepCommandRegistration::register);
+        MinecraftForge.EVENT_BUS.addListener(SeamlessSleepServerEvents::onPlayerLoggedIn);
 
         if (FMLEnvironment.dist == Dist.CLIENT) {
             ForgeConfigScreens.register(context);

@@ -1,6 +1,8 @@
 package net.aqualoco.sec.platform;
 
 import net.aqualoco.sec.client.SeamlessSleepClientState;
+import net.aqualoco.sec.config.SeamlessSleepServerConfigSnapshot;
+import net.aqualoco.sec.network.ServerConfigSyncPayload;
 import net.aqualoco.sec.network.SleepAnimationStartPayload;
 import net.aqualoco.sec.network.SleepAnimationStopPayload;
 import net.fabricmc.api.EnvType;
@@ -61,6 +63,13 @@ final class FabricClientNetworkHandler {
 
                     client.execute(() -> SeamlessSleepClientState.SLEEP_ANIMATION.reset());
                 }
+        );
+
+        ClientPlayNetworking.registerGlobalReceiver(
+                ServerConfigSyncPayload.ID,
+                (payload, context) -> context.client().execute(
+                        () -> SeamlessSleepServerConfigSnapshot.update(payload.sleepClearsWeather())
+                )
         );
     }
 }

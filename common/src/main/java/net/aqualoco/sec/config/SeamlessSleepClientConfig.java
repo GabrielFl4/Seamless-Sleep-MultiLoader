@@ -3,14 +3,10 @@ package net.aqualoco.sec.config;
 public final class SeamlessSleepClientConfig {
     public double sleepChatTextOpacityMultiplier = 0.5D;
     public double sleepChatBackgroundOpacityMultiplier = 0.4D;
-    public Boolean sleepClearsWeather = true;
 
     public void clamp() {
         sleepChatTextOpacityMultiplier = clamp01(sleepChatTextOpacityMultiplier, 0.5D);
         sleepChatBackgroundOpacityMultiplier = clamp01(sleepChatBackgroundOpacityMultiplier, 0.4D);
-        if (sleepClearsWeather == null) {
-            sleepClearsWeather = true;
-        }
     }
 
     private static double clamp01(double value, double fallback) {

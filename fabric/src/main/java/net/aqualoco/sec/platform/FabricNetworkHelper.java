@@ -1,5 +1,6 @@
 package net.aqualoco.sec.platform;
 
+import net.aqualoco.sec.network.ServerConfigSyncPayload;
 import net.aqualoco.sec.network.SleepAnimationStartPayload;
 import net.aqualoco.sec.network.SleepAnimationStopPayload;
 import net.aqualoco.sec.platform.services.INetworkHelper;
@@ -20,6 +21,10 @@ public class FabricNetworkHelper implements INetworkHelper {
         PayloadTypeRegistry.playS2C().register(
                 SleepAnimationStopPayload.ID,
                 SleepAnimationStopPayload.CODEC
+        );
+        PayloadTypeRegistry.playS2C().register(
+                ServerConfigSyncPayload.ID,
+                ServerConfigSyncPayload.CODEC
         );
     }
 

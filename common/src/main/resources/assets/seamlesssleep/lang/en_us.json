@@ -15,5 +15,6 @@
   "config.seamlesssleep.sleep.chat_background_opacity": "Chat Background Opacity",
   "config.seamlesssleep.sleep.chat_background_opacity.desc": "Adjusts chat background transparency while you are in bed.",
   "config.seamlesssleep.sleep.clears_weather": "Clear Weather on Sleep",
-  "config.seamlesssleep.sleep.clears_weather.desc": "Resets rain and thunder when the night passes."
+  "config.seamlesssleep.sleep.clears_weather.desc": "Resets rain and thunder when the night passes.\n§cREQUIRES /seamlesssleep reload",
+  "config.seamlesssleep.server_controlled": "\n§6Controlled by the server."
 }

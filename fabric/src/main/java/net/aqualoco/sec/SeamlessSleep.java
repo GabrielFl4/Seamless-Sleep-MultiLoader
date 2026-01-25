@@ -15,6 +15,8 @@ public class SeamlessSleep implements ModInitializer {
     @Override
     public void onInitialize() {
         SeamlessSleepCommon.init();
+        SeamlessSleepServerEvents.register();
+        SeamlessSleepCommandRegistration.register();
 
         bind(BuiltInRegistries.BLOCK, ModBlocks::register);
         bind(BuiltInRegistries.ITEM, ModItems::register);

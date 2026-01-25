@@ -1,4 +1,4 @@
-{
+﻿{
   "itemGroup.seamlesssleep.general": "Seamless Sleep",
   "block.seamlesssleep.sleep_barrier": "Barreira do sono",
   "seamlesssleep.text.sleeping": "Passando a noite",
@@ -15,5 +15,6 @@
   "config.seamlesssleep.sleep.chat_background_opacity": "Opacidade do fundo do chat ao dormir",
   "config.seamlesssleep.sleep.chat_background_opacity.desc": "Multiplicador aplicado ao fundo do chat enquanto você está na cama.",
   "config.seamlesssleep.sleep.clears_weather": "Dormir limpa o clima",
-  "config.seamlesssleep.sleep.clears_weather.desc": "Ao pular a noite, remove chuva e trovoada."
+  "config.seamlesssleep.sleep.clears_weather.desc": "Ao pular a noite, remove chuva e trovoada.\n§cREQUER /seamlesssleep reload",
+  "config.seamlesssleep.server_controlled": "\n§6Controlado pelo servidor."
 }
