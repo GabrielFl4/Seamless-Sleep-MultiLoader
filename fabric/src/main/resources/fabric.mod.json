@@ -5,11 +5,12 @@
     "name": "${mod_name}",
     "description": "${description}",
     "authors": [
-        "${mod_author}"
+        "§aA§eq§9u§aa§eL§9o§ac§eo"
     ],
     "contact": {
-        "homepage": "https://fabricmc.net/",
-        "sources": "https://github.com/FabricMC/fabric-example-mod"
+        "homepage": "https://github.com/GabrielFl4",
+        "sources": "https://github.com/GabrielFl4/Seamless-Sleep-MultiLoader",
+        "issues": "https://github.com/GabrielFl4/Seamless-Sleep-MultiLoader/issues"
     },
     "license": "${license}",
     "icon": "icon.png",
@@ -34,9 +35,6 @@
         "fabric-api": "*",
         "minecraft": "${minecraft_version}",
         "java": ">=${java_version}"
-    },
-    "suggests": {
-        "another-mod": "*"
     }
 }
   

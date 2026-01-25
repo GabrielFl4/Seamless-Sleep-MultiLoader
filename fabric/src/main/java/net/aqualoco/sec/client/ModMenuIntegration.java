@@ -6,6 +6,7 @@ import dev.isxander.yacl3.api.ConfigCategory;
 import dev.isxander.yacl3.api.Option;
 import dev.isxander.yacl3.api.OptionDescription;
 import dev.isxander.yacl3.api.YetAnotherConfigLib;
+import dev.isxander.yacl3.api.controller.BooleanControllerBuilder;
 import dev.isxander.yacl3.api.controller.DoubleSliderControllerBuilder;
 import net.aqualoco.sec.config.SeamlessSleepClientConfig;
 import net.aqualoco.sec.config.SeamlessSleepClientConfigManager;
@@ -50,6 +51,18 @@ public class ModMenuIntegration implements ModMenuApi {
                                     ))
                                     .build()
                     )
+                    .category(
+                            ConfigCategory.createBuilder()
+                                    .name(Component.translatable("config.seamlesssleep.category.sleep"))
+                                    .option(buildToggle(
+                                            Component.translatable("config.seamlesssleep.sleep.clears_weather"),
+                                            Component.translatable("config.seamlesssleep.sleep.clears_weather.desc"),
+                                            true,
+                                            () -> cfg.sleepClearsWeather,
+                                            val -> cfg.sleepClearsWeather = val
+                                    ))
+                                    .build()
+                    )
                     .save(() -> {
                         cfg.clamp();
                         SeamlessSleepClientConfigManager.save();
@@ -71,6 +84,19 @@ public class ModMenuIntegration implements ModMenuApi {
                 .controller(opt -> DoubleSliderControllerBuilder.create(opt)
                         .range(0.0D, 1.0D)
                         .step(0.05D))
+                .build();
+    }
+
+    private static Option<Boolean> buildToggle(Component name,
+                                               Component description,
+                                               boolean def,
+                                               java.util.function.Supplier<Boolean> getter,
+                                               java.util.function.Consumer<Boolean> setter) {
+        return Option.<Boolean>createBuilder()
+                .name(name)
+                .description(OptionDescription.of(description))
+                .binding(def, getter::get, setter::accept)
+                .controller(opt -> BooleanControllerBuilder.create(opt))
                 .build();
     }
 
