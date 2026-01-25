@@ -14,7 +14,7 @@ https://www.youtube.com/watch?v=xkUT51TaCII
 
 ## Official pages
 
-- **Modrinth:** https://modrinth.com/mod/seamless-sleep  
+- **Modrinth:** https://modrinth.com/mod/seamless-sleep
 - **CurseForge:** https://www.curseforge.com/minecraft/mc-mods/seamless-sleep
 
 ---
