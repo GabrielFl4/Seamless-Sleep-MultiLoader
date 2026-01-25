@@ -21,8 +21,17 @@ repositories {
         url = "https://maven.terraformersmc.com/"
     }
     maven {
+        name = "CLOTH"
+        url "https://maven.shedaniel.me/"
+    }
+    maven {
         name = "YACL"
         url = "https://maven.isxander.dev/releases"
+    }
+    // KotlinForForge (necessário porque YACL NeoForge puxa kotlinforforge-neoforge)
+    maven {
+        name = "Kotlin for Forge"
+        url = "https://thedarkcolour.github.io/KotlinForForge/"
     }
     exclusiveContent {
         forRepository {

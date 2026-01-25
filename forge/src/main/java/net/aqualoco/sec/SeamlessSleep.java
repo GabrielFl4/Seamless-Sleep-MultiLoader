@@ -1,13 +1,17 @@
 package net.aqualoco.sec;
 
+import net.aqualoco.sec.client.ForgeConfigScreens;
 import net.aqualoco.sec.registry.ModBlocks;
 import net.aqualoco.sec.registry.ModItems;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.eventbus.api.IEventBus;
+import net.minecraftforge.fml.ModLoadingContext;
 import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.loading.FMLEnvironment;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.registries.RegisterEvent;
 
@@ -27,6 +31,10 @@ public class SeamlessSleep {
 
         bind(Registries.BLOCK, ModBlocks::register);
         bind(Registries.ITEM, ModItems::register);
+
+        if (FMLEnvironment.dist == Dist.CLIENT) {
+            ForgeConfigScreens.register(context);
+        }
     }
 
     /** Adapted from <a href="https://github.com/VazkiiMods/Botania">Botania</a>*/

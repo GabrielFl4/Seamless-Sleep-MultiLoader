@@ -3,6 +3,18 @@ plugins {
     id 'net.neoforged.moddev'
 }
 
+dependencies {
+    // NeoForge ModDev: mod deps entram como dependências Gradle normais
+    // implementation "dev.isxander:yet-another-config-lib:${project.yacl_version}"
+
+    // Se você preferir NÃO compilar “junto” (apenas compilar e rodar, sem expectativa de embutir),
+    // pode trocar por:
+    compileOnly  "dev.isxander:yet-another-config-lib:${project.yacl_version_forge}"
+    runtimeOnly  "dev.isxander:yet-another-config-lib:${project.yacl_version_forge}"
+
+    implementation "thedarkcolour:kotlinforforge-neoforge:5.6.0"
+}
+
 neoForge {
     version = neoforge_version
     // Automatically enable neoforge AccessTransformers if the file exists
