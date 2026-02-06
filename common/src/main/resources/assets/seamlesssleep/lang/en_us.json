@@ -8,8 +8,8 @@
   "modmenu.descriptionTranslation.seamlesssleep": "Rethinks the way players sleep:\n\n§8-§r Smooth & Synced animation\n§8-§r Visual improvements\n§8-§r Minimal server impact\n\nNow available for: §3§lForge§r, §6§lNeoForge§r and §f§lFabric§r!\nDiscord: gabrielfl4",
 
   "config.seamlesssleep.title": "Seamless Sleep Settings",
-  "config.seamlesssleep.category.chat": "Chat Overlay",
-  "config.seamlesssleep.category.sleep": "Sleep Behavior",
+  "config.seamlesssleep.category.chat": "Client Config",
+  "config.seamlesssleep.category.sleep": "Server Config",
   "config.seamlesssleep.sleep.chat_text_opacity": "Chat Text Opacity",
   "config.seamlesssleep.sleep.chat_text_opacity.desc": "Adjusts chat text transparency while you are in bed.",
   "config.seamlesssleep.sleep.chat_background_opacity": "Chat Background Opacity",
