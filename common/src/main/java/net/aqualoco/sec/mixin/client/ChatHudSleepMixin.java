@@ -14,6 +14,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+// Adjusts chat height and opacity while the player is typing from bed.
 @Mixin(ChatComponent.class)
 public abstract class ChatHudSleepMixin {
 
@@ -30,7 +31,7 @@ public abstract class ChatHudSleepMixin {
 
         double spacing = this.minecraft.options.chatLineSpacing().get();
         int lineHeight = (int) (9.0D * (1.0D + spacing));
-        int maxLines = 4;
+        int maxLines = seamlesssleep$getConfig().sleepChatMaxLines;
         int limitedHeight = Math.min(vanillaHeight, lineHeight * maxLines);
 
         cir.setReturnValue(limitedHeight);
@@ -50,7 +51,13 @@ public abstract class ChatHudSleepMixin {
             return value;
         }
 
-        double factor = seamlesssleep$getConfig().sleepChatBackgroundOpacityMultiplier;
+        SeamlessSleepClientConfig cfg = seamlesssleep$getConfig();
+        double factor = cfg.sleepChatBackgroundOpacityMultiplier * cfg.sleepChatOpacityMultiplier;
+        if (factor < 0.0D) {
+            factor = 0.0D;
+        } else if (factor > 1.0D) {
+            factor = 1.0D;
+        }
         return value * factor;
     }
 
@@ -68,7 +75,13 @@ public abstract class ChatHudSleepMixin {
             return value;
         }
 
-        double factor = seamlesssleep$getConfig().sleepChatTextOpacityMultiplier;
+        SeamlessSleepClientConfig cfg = seamlesssleep$getConfig();
+        double factor = cfg.sleepChatTextOpacityMultiplier * cfg.sleepChatOpacityMultiplier;
+        if (factor < 0.0D) {
+            factor = 0.0D;
+        } else if (factor > 1.0D) {
+            factor = 1.0D;
+        }
         return value * factor;
     }
 

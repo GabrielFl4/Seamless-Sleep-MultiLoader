@@ -12,6 +12,7 @@ import net.minecraft.world.level.Level;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 
+// Forge client packet handlers that start/stop animation and apply synced server config.
 @OnlyIn(Dist.CLIENT)
 final class ForgeClientNetworkHandler implements ForgeNetworkHelper.ClientHandler {
 
@@ -58,6 +59,9 @@ final class ForgeClientNetworkHandler implements ForgeNetworkHelper.ClientHandle
 
     @Override
     public void handleServerConfig(ServerConfigSyncPayload payload) {
-        SeamlessSleepServerConfigSnapshot.update(payload.sleepClearsWeather());
+        SeamlessSleepServerConfigSnapshot.update(
+                payload.sleepClearsWeather(),
+                payload.sleepAnimationDurationMultiplier()
+        );
     }
 }

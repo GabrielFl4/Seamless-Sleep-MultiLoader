@@ -10,6 +10,7 @@ import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
 
 import java.util.function.Supplier;
 
+// Registers the NeoForge config screen entry point and fallback when YACL is missing.
 public final class NeoForgeConfigScreens {
 
     private NeoForgeConfigScreens() {
@@ -27,6 +28,7 @@ public final class NeoForgeConfigScreens {
         return NeoForgeYaclConfigScreen.create(parent);
     }
 
+    // Lightweight fallback screen shown when YACL is unavailable.
     private static final class MissingYaclScreen extends Screen {
         private final Screen parent;
 

@@ -9,6 +9,7 @@ import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.world.level.Level;
 
+// Fabric client entry point that updates sleep animation and HUD hooks.
 public class SeamlessSleepClient implements ClientModInitializer {
 
     @Override

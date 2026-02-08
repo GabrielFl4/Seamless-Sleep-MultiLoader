@@ -7,6 +7,7 @@ import net.minecraftforge.fml.loading.FMLPaths;
 
 import java.nio.file.Path;
 
+// Forge implementation of platform metadata and config directory lookups.
 public class ForgePlatformHelper implements IPlatformHelper {
 
     @Override

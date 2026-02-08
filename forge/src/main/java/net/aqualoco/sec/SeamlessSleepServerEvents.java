@@ -7,6 +7,7 @@ import net.aqualoco.sec.platform.Services;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 
+// Forge-side server event hooks used to sync config when players log in.
 final class SeamlessSleepServerEvents {
 
     private SeamlessSleepServerEvents() {
@@ -20,7 +21,10 @@ final class SeamlessSleepServerEvents {
         SeamlessSleepServerConfig cfg = SeamlessSleepServerConfigManager.get();
         Services.NETWORK.sendToPlayers(
                 player.serverLevel(),
-                new ServerConfigSyncPayload(cfg.sleepClearsWeather)
+                new ServerConfigSyncPayload(
+                        cfg.sleepClearsWeather,
+                        cfg.sleepAnimationDurationMultiplier
+                )
         );
     }
 }

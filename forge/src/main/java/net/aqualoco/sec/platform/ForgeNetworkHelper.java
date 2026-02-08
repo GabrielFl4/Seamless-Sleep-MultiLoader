@@ -14,8 +14,10 @@ import net.minecraftforge.network.Channel;
 import net.minecraftforge.network.ChannelBuilder;
 import net.minecraftforge.network.PacketDistributor;
 
+// Forge networking bridge that owns channel setup and payload dispatch.
 public class ForgeNetworkHelper implements INetworkHelper {
 
+    // Small client-only handler contract used by channel callbacks.
     interface ClientHandler {
         void handleStart(SleepAnimationStartPayload payload);
         void handleStop(SleepAnimationStopPayload payload);

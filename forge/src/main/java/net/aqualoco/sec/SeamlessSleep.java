@@ -20,6 +20,7 @@ import net.minecraftforge.registries.RegisterEvent;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
+// Forge bootstrap that initializes shared logic and wires Forge events/registries.
 @Mod(Constants.MOD_ID)
 public class SeamlessSleep {
 

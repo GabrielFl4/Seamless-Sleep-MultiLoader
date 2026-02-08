@@ -12,8 +12,10 @@ import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
+// NeoForge networking bridge that registers payload handlers and dispatches to clients.
 public class NeoForgeNetworkHelper implements INetworkHelper {
 
+    // Small client-only handler contract used by payload callbacks.
     interface ClientHandler {
         void handleStart(SleepAnimationStartPayload payload);
         void handleStop(SleepAnimationStopPayload payload);

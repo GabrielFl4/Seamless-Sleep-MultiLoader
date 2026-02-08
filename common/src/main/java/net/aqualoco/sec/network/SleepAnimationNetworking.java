@@ -6,6 +6,7 @@ import net.aqualoco.sec.sleep.SleepAnimationState;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 
+// Common helpers to register and dispatch sleep animation packets.
 public final class SleepAnimationNetworking {
 
     private SleepAnimationNetworking() {

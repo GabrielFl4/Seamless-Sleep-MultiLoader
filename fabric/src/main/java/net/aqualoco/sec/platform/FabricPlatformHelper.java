@@ -5,6 +5,7 @@ import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.file.Path;
 
+// Fabric implementation of platform metadata and config directory lookups.
 public class FabricPlatformHelper implements IPlatformHelper {
 
     @Override

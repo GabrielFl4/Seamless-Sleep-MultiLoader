@@ -2,6 +2,7 @@ package net.aqualoco.sec.sleep;
 
 import net.minecraft.client.multiplayer.ClientLevel;
 
+// Client-side mirror of the sleep transition timing sent by the server.
 public final class ClientSleepAnimationState {
 
     private boolean active;

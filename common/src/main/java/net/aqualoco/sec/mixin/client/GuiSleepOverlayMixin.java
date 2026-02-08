@@ -10,6 +10,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+// Hooks GUI rendering to draw the custom sleep status text.
 @Mixin(Gui.class)
 public abstract class GuiSleepOverlayMixin {
 

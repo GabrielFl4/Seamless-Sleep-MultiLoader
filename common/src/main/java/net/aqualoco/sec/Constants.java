@@ -3,6 +3,7 @@ package net.aqualoco.sec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+// Shared identifiers and logger used across every module.
 public class Constants {
 
 	public static final String MOD_ID = "seamlesssleep";

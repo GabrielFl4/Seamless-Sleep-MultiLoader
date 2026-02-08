@@ -19,6 +19,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.function.BooleanSupplier;
 
+// Replaces instant overworld sleep-skip with a timed transition and synced client animation.
 @Mixin(ServerLevel.class)
 public abstract class ServerWorldSleepAnimationMixin {
 
@@ -166,6 +167,7 @@ public abstract class ServerWorldSleepAnimationMixin {
             return false;
         }
 
+        // Match vanilla behavior: at least one player and enough sleepers for the configured percentage.
         int required = Math.max(1, total * percentage / 100);
         return sleeping >= required;
     }

@@ -5,16 +5,44 @@
 
   "modmenu.nameTranslation.seamlesssleep": "Seamless Sleep",
   "modmenu.summaryTranslation.seamlesssleep": "Never blink through the night again.",
-  "modmenu.descriptionTranslation.seamlesssleep": "Rethinks the way players sleep:\n\n§8-§r Smooth & Synced animation\n§8-§r Visual improvements\n§8-§r Minimal server impact\n\nNow available for: §3§lForge§r, §6§lNeoForge§r and §f§lFabric§r!\nDiscord: gabrielfl4",
+  "modmenu.descriptionTranslation.seamlesssleep": "Rethinks the way players sleep:\n\n\u00A78-\u00A7r Smooth & Synced animation\n\u00A78-\u00A7r Visual improvements\n\u00A78-\u00A7r Minimal server impact\n\nNow available for: \u00A73\u00A7lForge\u00A7r, \u00A76\u00A7lNeoForge\u00A7r and \u00A7f\u00A7lFabric\u00A7r!\nDiscord: gabrielfl4",
 
   "config.seamlesssleep.title": "Seamless Sleep Settings",
-  "config.seamlesssleep.category.chat": "Client Config",
+  "config.seamlesssleep.category.chat": "Chat",
+  "config.seamlesssleep.category.overlay": "Overlay",
+  "config.seamlesssleep.category.camera": "Camera",
   "config.seamlesssleep.category.sleep": "Server Config",
+
   "config.seamlesssleep.sleep.chat_text_opacity": "Chat Text Opacity",
   "config.seamlesssleep.sleep.chat_text_opacity.desc": "Adjusts chat text transparency while you are in bed.",
   "config.seamlesssleep.sleep.chat_background_opacity": "Chat Background Opacity",
   "config.seamlesssleep.sleep.chat_background_opacity.desc": "Adjusts chat background transparency while you are in bed.",
+
+  "config.seamlesssleep.overlay.enabled": "Sleep Overlay Text",
+  "config.seamlesssleep.overlay.enabled.desc": "Shows the \"sleeping\" overlay message during the transition.",
+  "config.seamlesssleep.overlay.darkness": "Screen Dimming",
+  "config.seamlesssleep.overlay.darkness.desc": "Controls how dark the screen gets while sleeping.",
+
+  "config.seamlesssleep.chat.dim_multiplier": "Chat Dimming Strength",
+  "config.seamlesssleep.chat.dim_multiplier.desc": "Adjusts the chat dimming intensity while sleeping (keeps text/background ratio).",
+  "config.seamlesssleep.chat.max_lines": "Chat Lines While Sleeping",
+  "config.seamlesssleep.chat.max_lines.desc": "Limits the number of chat lines visible while in bed. Set to 0 to hide chat.",
+
+  "config.seamlesssleep.camera.tilt_degrees": "Camera Tilt (Degrees)",
+  "config.seamlesssleep.camera.tilt_degrees.desc": "Direct camera tilt angle while sleeping. 0 matches vanilla horizon.",
+
   "config.seamlesssleep.sleep.clears_weather": "Clear Weather on Sleep",
-  "config.seamlesssleep.sleep.clears_weather.desc": "Resets rain and thunder when the night passes.\n§cREQUIRES /seamlesssleep reload",
-  "config.seamlesssleep.server_controlled": "\n§6Controlled by the server."
+  "config.seamlesssleep.sleep.clears_weather.desc": "Resets rain and thunder when the night passes.\n\u00A7cREQUIRES /seamlesssleep reload",
+  "config.seamlesssleep.sleep.duration_multiplier": "Sleep Duration Multiplier",
+  "config.seamlesssleep.sleep.duration_multiplier.desc": "Scales the duration of the sleep transition.\n\u00A7cREQUIRES /seamlesssleep reload",
+  "config.seamlesssleep.server_controlled": "\n\u00A76Controlled by the server.",
+
+  "command.seamlesssleep.reload.success": "Server config reloaded.",
+  "command.seamlesssleep.reload.created": "Config not found. Created default and reloaded.",
+  "command.seamlesssleep.reload.error": "Failed to read config. Defaults loaded.",
+  "command.seamlesssleep.reload.synced": "All clients were synchronized with the current server config.",
+  "command.seamlesssleep.set.sleep_clears_weather.current": "sleepClearsWeather is currently %s.",
+  "command.seamlesssleep.set.sleep_clears_weather.updated": "sleepClearsWeather updated to %s.",
+  "command.seamlesssleep.set.sleep_duration.current": "sleepDurationMultiplier is currently %s (valid range: %s to %s).",
+  "command.seamlesssleep.set.sleep_duration.updated": "sleepDurationMultiplier updated to %s (valid range: %s to %s)."
 }

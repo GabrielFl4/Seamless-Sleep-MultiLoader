@@ -11,6 +11,7 @@ import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+// Handles disk persistence for the client config JSON.
 public final class SeamlessSleepClientConfigManager {
 
     private static final String FILE_NAME = "seamless_sleep.json";

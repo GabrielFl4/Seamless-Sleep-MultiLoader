@@ -7,6 +7,7 @@ import net.minecraft.world.item.Item;
 
 import java.util.function.BiConsumer;
 
+// Registers item forms for the mod blocks.
 public final class ModItems {
 
     private static Item sleepBarrierItem;

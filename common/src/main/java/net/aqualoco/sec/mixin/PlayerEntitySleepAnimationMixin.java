@@ -5,6 +5,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 
+// Keeps the vanilla wake-up call path intact while this mod controls timing elsewhere.
 @Mixin(Player.class)
 public abstract class PlayerEntitySleepAnimationMixin {
 
