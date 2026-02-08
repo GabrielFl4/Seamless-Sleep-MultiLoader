@@ -1,5 +1,6 @@
 package net.aqualoco.sec.sleep;
 
+import net.aqualoco.sec.Constants;
 import net.aqualoco.sec.config.SeamlessSleepServerConfigManager;
 import net.minecraft.server.level.ServerLevel;
 
@@ -34,6 +35,13 @@ public final class SleepAnimationState {
         this.startTimeOfDay = currentTime;
         this.endTimeOfDay = targetTime;
         this.startMillis = System.currentTimeMillis();
+
+        Constants.LOG.info(
+                "Sleep animation started on server ({} -> {}, duration {} ticks)",
+                this.startTimeOfDay,
+                this.endTimeOfDay,
+                this.durationTicks
+        );
     }
 
     public void cancel() {

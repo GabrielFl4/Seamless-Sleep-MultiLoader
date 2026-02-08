@@ -24,3 +24,7 @@ run
 runs
 /tmp
 /ReferenciasExternas
+ReplayMod_Analise_Tecnica_Compatibilidade.txt
+*.bin
+*.lock
+/.gradle-user-home

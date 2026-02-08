@@ -1,5 +1,7 @@
 package net.aqualoco.sec.sleep;
 
+import net.aqualoco.sec.Constants;
+import net.aqualoco.sec.client.ReplayModCompat;
 import net.minecraft.client.multiplayer.ClientLevel;
 
 // Client-side mirror of the sleep transition timing sent by the server.
@@ -21,15 +23,29 @@ public final class ClientSleepAnimationState {
 
     public void start(long startTimeOfDay, long endTimeOfDay, int durationTicks, long serverStartMillis) {
         long now = System.currentTimeMillis();
-
+        boolean replayCompatActive = ReplayModCompat.isReplayPlaybackActive();
         long elapsedSinceServerStart = Math.max(0L, now - serverStartMillis);
-        int adjustedDuration = (int) Math.max(1L, durationTicks - elapsedSinceServerStart / 50L);
+        int adjustedDuration;
+        if (replayCompatActive) {
+            adjustedDuration = Math.max(1, durationTicks);
+        } else {
+            adjustedDuration = (int) Math.max(1L, durationTicks - elapsedSinceServerStart / 50L);
+        }
 
         this.startTimeOfDay = startTimeOfDay;
         this.endTimeOfDay = endTimeOfDay;
         this.durationTicks = adjustedDuration;
         this.startMillis = now;
         this.active = true;
+
+        Constants.LOG.info(
+                "Sleep animation started on client [{}] ({} -> {}, duration {} ticks, server delta {} ms)",
+                replayCompatActive ? "REPLAY_COMPAT" : "NORMAL",
+                startTimeOfDay,
+                endTimeOfDay,
+                this.durationTicks,
+                elapsedSinceServerStart
+        );
     }
 
     public void tick(ClientLevel world) {
