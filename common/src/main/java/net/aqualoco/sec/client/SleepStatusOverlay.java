@@ -2,11 +2,13 @@ package net.aqualoco.sec.client;
 
 import net.aqualoco.sec.platform.Services;
 import net.aqualoco.sec.sleep.ClientSleepAnimationState;
+import net.aqualoco.sec.config.SeamlessSleepClientConfigManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.Level;
 
+// Draws a lightweight "sleeping" status hint while the transition is running.
 public final class SleepStatusOverlay {
 
     private SleepStatusOverlay() {
@@ -23,6 +25,10 @@ public final class SleepStatusOverlay {
         }
 
         if (!state.isActive()) {
+            return;
+        }
+
+        if (!SeamlessSleepClientConfigManager.get().sleepOverlayEnabled) {
             return;
         }
 

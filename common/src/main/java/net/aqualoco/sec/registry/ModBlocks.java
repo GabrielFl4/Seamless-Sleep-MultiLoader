@@ -8,6 +8,7 @@ import net.minecraft.world.level.block.state.BlockBehaviour;
 
 import java.util.function.BiConsumer;
 
+// Registers the custom blocks shared by all loaders.
 public class ModBlocks {
 
     private static Block sleepBarrier;

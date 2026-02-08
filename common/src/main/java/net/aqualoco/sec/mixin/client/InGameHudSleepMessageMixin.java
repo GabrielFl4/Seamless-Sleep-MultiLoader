@@ -8,6 +8,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+// Hides the vanilla "skipping night" toast so the custom overlay owns that feedback.
 @Mixin(Gui.class)
 public abstract class InGameHudSleepMessageMixin {
 

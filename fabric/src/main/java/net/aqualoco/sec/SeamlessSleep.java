@@ -10,6 +10,7 @@ import net.minecraft.resources.ResourceLocation;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
+// Fabric bootstrap that initializes common code and binds vanilla registries.
 public class SeamlessSleep implements ModInitializer {
     
     @Override

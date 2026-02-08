@@ -8,6 +8,7 @@ import net.minecraftforge.client.ConfigScreenHandler;
 import net.minecraftforge.fml.ModList;
 import net.minecraftforge.fml.ModLoadingContext;
 
+// Registers the Forge config screen entry point and fallback when Cloth is missing.
 public final class ForgeConfigScreens {
 
     private ForgeConfigScreens() {
@@ -29,6 +30,7 @@ public final class ForgeConfigScreens {
         return ForgeClothConfigScreen.create(parent);
     }
 
+    // Lightweight fallback screen shown when Cloth Config is unavailable.
     private static final class MissingClothScreen extends Screen {
         private final Screen parent;
 

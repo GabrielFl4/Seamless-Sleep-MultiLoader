@@ -10,6 +10,7 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 
+// Fabric networking bridge for payload registration and player sends.
 public class FabricNetworkHelper implements INetworkHelper {
 
     @Override

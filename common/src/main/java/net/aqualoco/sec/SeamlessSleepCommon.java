@@ -6,6 +6,7 @@ import net.aqualoco.sec.network.SleepAnimationNetworking;
 import net.aqualoco.sec.registry.ModBlocks;
 import net.aqualoco.sec.sleep.SleepAnimationState;
 
+// Common bootstrap that wires configs, networking, and shared registries.
 public final class SeamlessSleepCommon {
 
     public static final SleepAnimationState OVERWORLD_SLEEP_ANIMATION = new SleepAnimationState();

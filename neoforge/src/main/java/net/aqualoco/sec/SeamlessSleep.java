@@ -17,6 +17,7 @@ import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
+// NeoForge bootstrap that initializes shared logic and wires NeoForge events/registries.
 @Mod(Constants.MOD_ID)
 public class SeamlessSleep {
 

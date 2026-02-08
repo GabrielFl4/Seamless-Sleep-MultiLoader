@@ -1,7 +1,9 @@
 package net.aqualoco.sec.sleep;
 
+import net.aqualoco.sec.config.SeamlessSleepServerConfigManager;
 import net.minecraft.server.level.ServerLevel;
 
+// Server-side state machine that eases world time during the sleep transition.
 public final class SleepAnimationState {
     private static final long FULL_NIGHT_TICKS = 12000L;
     private static final int MIN_DURATION_TICKS = 40;   // ~2s
@@ -24,7 +26,9 @@ public final class SleepAnimationState {
         }
 
         long delta = targetTime - currentTime;
-        this.durationTicks = computeDurationTicks(delta);
+        int baseDuration = computeDurationTicks(delta);
+        double multiplier = SeamlessSleepServerConfigManager.get().sleepAnimationDurationMultiplier;
+        this.durationTicks = applyDurationMultiplier(baseDuration, multiplier);
 
         this.active = true;
         this.startTimeOfDay = currentTime;
@@ -102,6 +106,29 @@ public final class SleepAnimationState {
         }
 
         return duration;
+    }
+
+    private static int applyDurationMultiplier(int baseDuration, double multiplier) {
+        if (Double.isNaN(multiplier) || Double.isInfinite(multiplier)) {
+            multiplier = 1.0D;
+        }
+        if (multiplier < 0.25D) {
+            multiplier = 0.25D;
+        } else if (multiplier > 4.0D) {
+            multiplier = 4.0D;
+        }
+
+        int scaled = (int) Math.round(baseDuration * multiplier);
+        int min = Math.max(1, (int) Math.round(MIN_DURATION_TICKS * multiplier));
+        int max = Math.max(min, (int) Math.round(MAX_DURATION_TICKS * multiplier));
+
+        if (scaled < min) {
+            return min;
+        }
+        if (scaled > max) {
+            return max;
+        }
+        return scaled;
     }
 
     public static double integralEase(double x) {

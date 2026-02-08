@@ -6,6 +6,7 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 
+// Packet that tells clients to stop the active sleep transition.
 public record SleepAnimationStopPayload(ResourceLocation worldId) implements CustomPacketPayload {
 
     public static final CustomPacketPayload.Type<SleepAnimationStopPayload> ID =

@@ -1,20 +1,48 @@
-﻿{
+{
   "itemGroup.seamlesssleep.general": "Seamless Sleep",
   "block.seamlesssleep.sleep_barrier": "Barreira do sono",
   "seamlesssleep.text.sleeping": "Passando a noite",
 
   "modmenu.nameTranslation.seamlesssleep": "Seamless Sleep",
   "modmenu.summaryTranslation.seamlesssleep": "Nunca mais feche os olhos durante a noite.",
-  "modmenu.descriptionTranslation.seamlesssleep": "Repensa a forma como os jogadores dormem:\n\n§8-§r Animação suave e sincronizada\n§8-§r Melhorias visuais\n§8-§r Menor custo para o servidor\n\nAgora disponível para: §3§lForge§r, §6§lNeoForge§r e §f§lFabric§r!\nDiscord: gabrielfl4",
+  "modmenu.descriptionTranslation.seamlesssleep": "Repensa a forma como os jogadores dormem:\n\n\u00A78-\u00A7r Animacao suave e sincronizada\n\u00A78-\u00A7r Melhorias visuais\n\u00A78-\u00A7r Menor custo para o servidor\n\nAgora disponivel para: \u00A73\u00A7lForge\u00A7r, \u00A76\u00A7lNeoForge\u00A7r e \u00A7f\u00A7lFabric\u00A7r!\nDiscord: gabrielfl4",
 
   "config.seamlesssleep.title": "Seamless Sleep",
-  "config.seamlesssleep.category.chat": "Chat durante o sono",
-  "config.seamlesssleep.category.sleep": "Sono",
+  "config.seamlesssleep.category.chat": "Chat",
+  "config.seamlesssleep.category.overlay": "Overlay",
+  "config.seamlesssleep.category.camera": "Camera",
+  "config.seamlesssleep.category.sleep": "Config. Servidor",
+
   "config.seamlesssleep.sleep.chat_text_opacity": "Opacidade do texto do chat ao dormir",
-  "config.seamlesssleep.sleep.chat_text_opacity.desc": "Multiplicador aplicado à opacidade do texto do chat enquanto você está na cama.",
+  "config.seamlesssleep.sleep.chat_text_opacity.desc": "Multiplicador aplicado a opacidade do texto do chat enquanto voce esta na cama.",
   "config.seamlesssleep.sleep.chat_background_opacity": "Opacidade do fundo do chat ao dormir",
-  "config.seamlesssleep.sleep.chat_background_opacity.desc": "Multiplicador aplicado ao fundo do chat enquanto você está na cama.",
+  "config.seamlesssleep.sleep.chat_background_opacity.desc": "Multiplicador aplicado ao fundo do chat enquanto voce esta na cama.",
+
+  "config.seamlesssleep.overlay.enabled": "Texto do overlay",
+  "config.seamlesssleep.overlay.enabled.desc": "Mostra a mensagem de \"dormindo\" durante a transicao.",
+  "config.seamlesssleep.overlay.darkness": "Escurecimento da tela",
+  "config.seamlesssleep.overlay.darkness.desc": "Controla o quanto a tela escurece ao dormir.",
+
+  "config.seamlesssleep.chat.dim_multiplier": "Intensidade do escurecimento do chat",
+  "config.seamlesssleep.chat.dim_multiplier.desc": "Ajusta o dimming do chat ao dormir (mantem a proporcao texto/fundo).",
+  "config.seamlesssleep.chat.max_lines": "Linhas do chat ao dormir",
+  "config.seamlesssleep.chat.max_lines.desc": "Limita a quantidade de linhas do chat enquanto estiver na cama. Use 0 para ocultar o chat.",
+
+  "config.seamlesssleep.camera.tilt_degrees": "Angulo da camera (graus)",
+  "config.seamlesssleep.camera.tilt_degrees.desc": "Angulo direto da camera durante o sono. 0 corresponde ao horizonte vanilla.",
+
   "config.seamlesssleep.sleep.clears_weather": "Dormir limpa o clima",
-  "config.seamlesssleep.sleep.clears_weather.desc": "Ao pular a noite, remove chuva e trovoada.\n§cREQUER /seamlesssleep reload",
-  "config.seamlesssleep.server_controlled": "\n§6Controlado pelo servidor."
+  "config.seamlesssleep.sleep.clears_weather.desc": "Ao pular a noite, remove chuva e trovoada.\n\u00A7cREQUER /seamlesssleep reload",
+  "config.seamlesssleep.sleep.duration_multiplier": "Multiplicador da duracao do sono",
+  "config.seamlesssleep.sleep.duration_multiplier.desc": "Escala a duracao da transicao do sono.\n\u00A7cREQUER /seamlesssleep reload",
+  "config.seamlesssleep.server_controlled": "\n\u00A76Controlado pelo servidor.",
+
+  "command.seamlesssleep.reload.success": "Config do servidor recarregada.",
+  "command.seamlesssleep.reload.created": "Config nao encontrada. Arquivo padrao criado e recarregado.",
+  "command.seamlesssleep.reload.error": "Falha ao ler a config. Padroes carregados.",
+  "command.seamlesssleep.reload.synced": "Todos os clientes foram sincronizados com a config atual do servidor.",
+  "command.seamlesssleep.set.sleep_clears_weather.current": "sleepClearsWeather esta atualmente em %s.",
+  "command.seamlesssleep.set.sleep_clears_weather.updated": "sleepClearsWeather atualizado para %s.",
+  "command.seamlesssleep.set.sleep_duration.current": "sleepDurationMultiplier esta atualmente em %s (intervalo valido: %s a %s).",
+  "command.seamlesssleep.set.sleep_duration.updated": "sleepDurationMultiplier atualizado para %s (intervalo valido: %s a %s)."
 }

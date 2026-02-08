@@ -6,17 +6,20 @@ import net.aqualoco.sec.platform.services.IPlatformHelper;
 
 import java.util.ServiceLoader;
 
+// Central access point for cross-loader platform and network services.
 // Service loaders are a built-in Java feature that allow us to locate implementations of an interface that vary from one
 // environment to another. In the context of MultiLoader we use this feature to access a mock API in the common code that
 // is swapped out for the platform specific implementation at runtime.
 public class Services {
 
+    // These are resolved once with Java ServiceLoader from META-INF/services entries.
     // In this example we provide a platform helper which provides information about what platform the mod is running on.
     // For example this can be used to check if the code is running on Forge vs Fabric, or to ask the modloader if another
     // mod is loaded.
     public static final IPlatformHelper PLATFORM = load(IPlatformHelper.class);
     public static final INetworkHelper NETWORK = load(INetworkHelper.class);
 
+    // Fails fast so misconfigured service bindings are obvious at startup.
     // This code is used to load a service for the current environment. Your implementation of the service must be defined
     // manually by including a text file in META-INF/services named with the fully qualified class name of the service.
     // Inside the file you should write the fully qualified class name of the implementation to load for the platform. For

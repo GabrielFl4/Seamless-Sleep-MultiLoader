@@ -7,6 +7,7 @@ import net.neoforged.fml.loading.FMLPaths;
 
 import java.nio.file.Path;
 
+// NeoForge implementation of platform metadata and config directory lookups.
 public class NeoForgePlatformHelper implements IPlatformHelper {
 
     @Override

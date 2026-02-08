@@ -2,6 +2,7 @@ package net.aqualoco.sec.platform.services;
 
 import java.nio.file.Path;
 
+// Loader-agnostic hooks for platform info and config directory access.
 public interface IPlatformHelper {
 
     /**

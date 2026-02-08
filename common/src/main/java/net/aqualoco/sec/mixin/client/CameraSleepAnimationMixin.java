@@ -1,5 +1,7 @@
 package net.aqualoco.sec.mixin.client;
 
+import net.aqualoco.sec.config.SeamlessSleepClientConfig;
+import net.aqualoco.sec.config.SeamlessSleepClientConfigManager;
 import net.minecraft.client.Camera;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
@@ -10,6 +12,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+// Applies a configurable first-person camera tilt while the player is sleeping.
 @Mixin(Camera.class)
 public abstract class CameraSleepAnimationMixin {
 
@@ -35,8 +38,10 @@ public abstract class CameraSleepAnimationMixin {
         float yaw = self.getYRot();
         float pitch = self.getXRot();
 
-        float tilt = -10.0F;
+        SeamlessSleepClientConfig cfg = SeamlessSleepClientConfigManager.get();
+        float tilt = (float) -cfg.sleepCameraTiltDegrees;
 
         this.setRotation(yaw, pitch + tilt);
     }
 }
+

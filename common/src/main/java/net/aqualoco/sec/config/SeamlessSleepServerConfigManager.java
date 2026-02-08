@@ -11,11 +11,13 @@ import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+// Loads, validates, and saves the server config JSON with reload status reporting.
 public final class SeamlessSleepServerConfigManager {
 
     private static final String FILE_NAME = "seamless_sleep-server.json";
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
+    // Distinguishes a clean reload from recovery/fallback scenarios.
     public enum ReloadResult {
         SUCCESS,
         CREATED,
@@ -105,6 +107,7 @@ public final class SeamlessSleepServerConfigManager {
         return new SeamlessSleepServerConfig();
     }
 
+    // Small wrapper so reload can return both config data and a status flag.
     private static final class LoadResult {
         private final SeamlessSleepServerConfig config;
         private final ReloadResult status;
