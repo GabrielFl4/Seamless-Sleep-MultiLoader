@@ -19,12 +19,12 @@ public class ModBlocks {
     }
 
     public static void registerModBlocks() {
-        Constants.LOG.info("Registrando blocos do Seamless Sleep");
+        Constants.info("Registering blocks.");
     }
 
     public static Block getSleepBarrier() {
         if (sleepBarrier == null) {
-            throw new IllegalStateException("Sleep barrier ainda nao foi registrado.");
+            throw new IllegalStateException("Sleep barrier has not been registered yet.");
         }
         return sleepBarrier;
     }

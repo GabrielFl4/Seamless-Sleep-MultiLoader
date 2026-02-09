@@ -36,7 +36,7 @@ public final class SleepAnimationState {
         this.endTimeOfDay = targetTime;
         this.startMillis = System.currentTimeMillis();
 
-        Constants.LOG.info(
+        Constants.debug(
                 "Sleep animation started on server ({} -> {}, duration {} ticks)",
                 this.startTimeOfDay,
                 this.endTimeOfDay,

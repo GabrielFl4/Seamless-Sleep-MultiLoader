@@ -106,6 +106,29 @@ public final class NeoForgeYaclConfigScreen {
                 )
                 .category(
                         ConfigCategory.createBuilder()
+                                .name(Component.translatable("config.seamlesssleep.category.misc"))
+                                .option(buildToggle(
+                                        Component.translatable("config.seamlesssleep.misc.debug_logs"),
+                                        Component.translatable("config.seamlesssleep.misc.debug_logs.desc"),
+                                        Component.empty(),
+                                        false,
+                                        () -> cfg.debugLogsEnabled,
+                                        val -> cfg.debugLogsEnabled = val,
+                                        true
+                                ))
+                                .option(buildToggle(
+                                        Component.translatable("config.seamlesssleep.misc.replay_compatibility"),
+                                        Component.translatable("config.seamlesssleep.misc.replay_compatibility.desc"),
+                                        Component.empty(),
+                                        true,
+                                        () -> cfg.replayCompatibilityEnabled,
+                                        val -> cfg.replayCompatibilityEnabled = val,
+                                        true
+                                ))
+                                .build()
+                )
+                .category(
+                        ConfigCategory.createBuilder()
                                 .name(Component.translatable("config.seamlesssleep.category.sleep"))
                                 .option(buildToggle(
                                         Component.translatable("config.seamlesssleep.sleep.clears_weather"),

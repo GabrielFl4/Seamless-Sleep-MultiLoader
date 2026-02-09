@@ -26,6 +26,7 @@ public final class SeamlessSleepClientConfigManager {
     public static void init() {
         configPath = Services.PLATFORM.getConfigDir().resolve(FILE_NAME);
         config = loadOrCreate(configPath);
+        Constants.setDebugLogsEnabled(config.debugLogsEnabled);
     }
 
     public static SeamlessSleepClientConfig get() {
@@ -49,7 +50,7 @@ public final class SeamlessSleepClientConfigManager {
             save(path, cfg);
             return cfg;
         } catch (Exception e) {
-            Constants.LOG.warn("Falha ao ler config {}, usando padrao. Erro: {}", path, e.getMessage());
+            Constants.warn("Failed to read client config {}, using defaults. Error: {}", path, e.getMessage());
             SeamlessSleepClientConfig cfg = defaultConfig();
             save(path, cfg);
             return cfg;
@@ -60,6 +61,7 @@ public final class SeamlessSleepClientConfigManager {
         if (configPath == null || config == null) {
             return;
         }
+        Constants.setDebugLogsEnabled(config.debugLogsEnabled);
         save(configPath, config);
     }
 
@@ -70,7 +72,7 @@ public final class SeamlessSleepClientConfigManager {
                 GSON.toJson(cfg, writer);
             }
         } catch (IOException e) {
-            Constants.LOG.warn("Nao foi possivel salvar config {}: {}", path, e.getMessage());
+            Constants.warn("Failed to save client config {}: {}", path, e.getMessage());
         }
     }
 

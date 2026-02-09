@@ -9,6 +9,8 @@ public final class SeamlessSleepClientConfig {
     private static final double DEFAULT_CHAT_GROUP_MULTIPLIER = 1.0D;
     private static final int DEFAULT_CHAT_MAX_LINES = 4;
     private static final double DEFAULT_TILT_DEGREES = 10.0D;
+    private static final boolean DEFAULT_REPLAY_COMPATIBILITY_ENABLED = true;
+    private static final boolean DEFAULT_DEBUG_LOGS_ENABLED = false;
 
     public boolean sleepOverlayEnabled = true;
     public double sleepOverlayDarknessMultiplier = DEFAULT_OVERLAY_DARKNESS;
@@ -19,6 +21,8 @@ public final class SeamlessSleepClientConfig {
     public int sleepChatMaxLines = DEFAULT_CHAT_MAX_LINES;
 
     public double sleepCameraTiltDegrees = DEFAULT_TILT_DEGREES;
+    public boolean replayCompatibilityEnabled = DEFAULT_REPLAY_COMPATIBILITY_ENABLED;
+    public boolean debugLogsEnabled = DEFAULT_DEBUG_LOGS_ENABLED;
 
     public void clamp() {
         sleepChatTextOpacityMultiplier = clamp01(sleepChatTextOpacityMultiplier, DEFAULT_CHAT_TEXT_BASE);

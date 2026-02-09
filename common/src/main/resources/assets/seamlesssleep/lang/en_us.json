@@ -11,6 +11,7 @@
   "config.seamlesssleep.category.chat": "Chat",
   "config.seamlesssleep.category.overlay": "Overlay",
   "config.seamlesssleep.category.camera": "Camera",
+  "config.seamlesssleep.category.misc": "MISC",
   "config.seamlesssleep.category.sleep": "Server Config",
 
   "config.seamlesssleep.sleep.chat_text_opacity": "Chat Text Opacity",
@@ -31,11 +32,16 @@
   "config.seamlesssleep.camera.tilt_degrees": "Camera Tilt (Degrees)",
   "config.seamlesssleep.camera.tilt_degrees.desc": "Direct camera tilt angle while sleeping. 0 matches vanilla horizon.",
 
+  "config.seamlesssleep.misc.debug_logs": "Enable Debug Logs",
+  "config.seamlesssleep.misc.debug_logs.desc": "Shows debug logs from Seamless Sleep.",
+  "config.seamlesssleep.misc.replay_compatibility": "Replay Compatibility Mode",
+  "config.seamlesssleep.misc.replay_compatibility.desc": "Enables compatibility flow for replay mods like ReplayMod and Flashback.",
+
   "config.seamlesssleep.sleep.clears_weather": "Clear Weather on Sleep",
-  "config.seamlesssleep.sleep.clears_weather.desc": "Resets rain and thunder when the night passes.\n\u00A7cREQUIRES /seamlesssleep reload",
+  "config.seamlesssleep.sleep.clears_weather.desc": "Resets rain and thunder when the night passes.\n\u00A7cREQUIRES /seamlesssleep reload to sync players",
   "config.seamlesssleep.sleep.duration_multiplier": "Sleep Duration Multiplier",
-  "config.seamlesssleep.sleep.duration_multiplier.desc": "Scales the duration of the sleep transition.\n\u00A7cREQUIRES /seamlesssleep reload",
-  "config.seamlesssleep.server_controlled": "\n\u00A76Controlled by the server.",
+  "config.seamlesssleep.sleep.duration_multiplier.desc": "Scales the duration of the sleep transition.\n\u00A7cREQUIRES /seamlesssleep reload to sync players",
+  "config.seamlesssleep.server_controlled": "\n\u00A76Controlled by the server\n\u00A7r\u00A7o\u00A77Can be tweaked by /sleep or being host",
 
   "command.seamlesssleep.reload.success": "Server config reloaded.",
   "command.seamlesssleep.reload.created": "Config not found. Created default and reloaded.",

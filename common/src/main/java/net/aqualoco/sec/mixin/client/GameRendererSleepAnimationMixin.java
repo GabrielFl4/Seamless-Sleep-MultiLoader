@@ -38,7 +38,7 @@ public abstract class GameRendererSleepAnimationMixin {
         }
 
         if (SeamlessSleepClientState.SLEEP_ANIMATION.isActive()) {
-            SeamlessSleepClientState.SLEEP_ANIMATION.tick(world);
+            SeamlessSleepClientState.SLEEP_ANIMATION.tick(world, deltaTracker);
         }
     }
 }

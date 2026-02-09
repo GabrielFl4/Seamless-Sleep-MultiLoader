@@ -11,6 +11,7 @@
   "config.seamlesssleep.category.chat": "Chat",
   "config.seamlesssleep.category.overlay": "Overlay",
   "config.seamlesssleep.category.camera": "Camera",
+  "config.seamlesssleep.category.misc": "MISC",
   "config.seamlesssleep.category.sleep": "Config. Servidor",
 
   "config.seamlesssleep.sleep.chat_text_opacity": "Opacidade do texto do chat ao dormir",
@@ -31,11 +32,16 @@
   "config.seamlesssleep.camera.tilt_degrees": "Angulo da camera (graus)",
   "config.seamlesssleep.camera.tilt_degrees.desc": "Angulo direto da camera durante o sono. 0 corresponde ao horizonte vanilla.",
 
+  "config.seamlesssleep.misc.debug_logs": "Ativar logs de debug",
+  "config.seamlesssleep.misc.debug_logs.desc": "Exibe logs de debug do Seamless Sleep.",
+  "config.seamlesssleep.misc.replay_compatibility": "Modo de compatibilidade com replay",
+  "config.seamlesssleep.misc.replay_compatibility.desc": "Ativa o fluxo de compatibilidade para mods de replay como ReplayMod e Flashback.",
+
   "config.seamlesssleep.sleep.clears_weather": "Dormir limpa o clima",
   "config.seamlesssleep.sleep.clears_weather.desc": "Ao pular a noite, remove chuva e trovoada.\n\u00A7cREQUER /seamlesssleep reload",
   "config.seamlesssleep.sleep.duration_multiplier": "Multiplicador da duracao do sono",
   "config.seamlesssleep.sleep.duration_multiplier.desc": "Escala a duracao da transicao do sono.\n\u00A7cREQUER /seamlesssleep reload",
-  "config.seamlesssleep.server_controlled": "\n\u00A76Controlado pelo servidor.",
+  "config.seamlesssleep.server_controlled": "\n\u00A76Controlado pelo servidor\n\u00A7r\u00A7o\u00A77Pode ser alterado por /sleep ou sendo host",
 
   "command.seamlesssleep.reload.success": "Config do servidor recarregada.",
   "command.seamlesssleep.reload.created": "Config nao encontrada. Arquivo padrao criado e recarregado.",
