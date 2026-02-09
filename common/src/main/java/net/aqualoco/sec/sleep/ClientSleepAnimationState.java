@@ -1,6 +1,12 @@
 package net.aqualoco.sec.sleep;
 
+import net.aqualoco.sec.Constants;
+import net.aqualoco.sec.client.ReplayPlaybackCompat;
+import net.aqualoco.sec.config.SeamlessSleepClientConfigManager;
+import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.multiplayer.ClientLevel;
+
+import java.util.OptionalLong;
 
 // Client-side mirror of the sleep transition timing sent by the server.
 public final class ClientSleepAnimationState {
@@ -10,6 +16,10 @@ public final class ClientSleepAnimationState {
     private long endTimeOfDay;
     private int durationTicks;
     private long startMillis;
+    private boolean replayCompatMode;
+    private long replayCompatStartTimelineMillis;
+    private float replayCompatElapsedTicksFallback;
+    private boolean loggedReplayTimelineFallback;
 
     public boolean isActive() {
         return this.active;
@@ -17,31 +27,55 @@ public final class ClientSleepAnimationState {
 
     public void reset() {
         this.active = false;
+        this.replayCompatMode = false;
+        this.replayCompatStartTimelineMillis = -1L;
+        this.replayCompatElapsedTicksFallback = 0.0F;
+        this.loggedReplayTimelineFallback = false;
     }
 
     public void start(long startTimeOfDay, long endTimeOfDay, int durationTicks, long serverStartMillis) {
         long now = System.currentTimeMillis();
-
+        boolean replayCompatEnabled = SeamlessSleepClientConfigManager.get().replayCompatibilityEnabled;
+        boolean replayCompatActive = replayCompatEnabled && ReplayPlaybackCompat.isReplayPlaybackActive();
         long elapsedSinceServerStart = Math.max(0L, now - serverStartMillis);
-        int adjustedDuration = (int) Math.max(1L, durationTicks - elapsedSinceServerStart / 50L);
+        int adjustedDuration;
+        if (replayCompatActive) {
+            adjustedDuration = Math.max(1, durationTicks);
+        } else {
+            adjustedDuration = (int) Math.max(1L, durationTicks - elapsedSinceServerStart / 50L);
+        }
 
         this.startTimeOfDay = startTimeOfDay;
         this.endTimeOfDay = endTimeOfDay;
         this.durationTicks = adjustedDuration;
         this.startMillis = now;
         this.active = true;
+        this.replayCompatMode = replayCompatActive;
+        this.replayCompatStartTimelineMillis = -1L;
+        this.replayCompatElapsedTicksFallback = 0.0F;
+        this.loggedReplayTimelineFallback = false;
+
+        if (this.replayCompatMode) {
+            OptionalLong replayTimeline = ReplayPlaybackCompat.getReplayTimelineMillis();
+            if (replayTimeline.isPresent()) {
+                this.replayCompatStartTimelineMillis = replayTimeline.getAsLong();
+            }
+        }
+
+        Constants.debug(
+                "Client sleep animation mode: {}",
+                replayCompatActive ? "REPLAY_COMPAT" : "NORMAL"
+        );
     }
 
-    public void tick(ClientLevel world) {
+    public void tick(ClientLevel world, DeltaTracker deltaTracker) {
         if (!this.active) {
             return;
         }
 
-        long now = System.currentTimeMillis();
-        long elapsedMs = now - this.startMillis;
-        double totalMs = (double) this.durationTicks * 50.0;
-
-        double x = totalMs <= 0.0 ? 1.0 : Math.min(1.0, elapsedMs / totalMs);
+        double x = this.replayCompatMode
+                ? this.computeReplayCompatProgress(deltaTracker)
+                : this.computeNormalProgress();
         double eased = SleepAnimationState.integralEase(x);
 
         long delta = this.endTimeOfDay - this.startTimeOfDay;
@@ -50,7 +84,46 @@ public final class ClientSleepAnimationState {
         world.getLevelData().setDayTime(newTimeOfDay);
 
         if (x >= 1.0) {
-            this.active = false;
+            this.reset();
         }
+    }
+
+    public void tick(ClientLevel world) {
+        this.tick(world, DeltaTracker.ONE);
+    }
+
+    private double computeNormalProgress() {
+        long now = System.currentTimeMillis();
+        long elapsedMs = now - this.startMillis;
+        double totalMs = (double) this.durationTicks * 50.0;
+        return totalMs <= 0.0 ? 1.0 : Math.min(1.0, elapsedMs / totalMs);
+    }
+
+    private double computeReplayCompatProgress(DeltaTracker deltaTracker) {
+        OptionalLong replayTimeline = ReplayPlaybackCompat.getReplayTimelineMillis();
+        if (replayTimeline.isPresent()) {
+            long replayNowMs = replayTimeline.getAsLong();
+
+            if (this.replayCompatStartTimelineMillis < 0L) {
+                long fallbackElapsedMs = (long) (this.replayCompatElapsedTicksFallback * 50.0F);
+                this.replayCompatStartTimelineMillis = replayNowMs - fallbackElapsedMs;
+            }
+
+            long elapsedReplayMs = Math.max(0L, replayNowMs - this.replayCompatStartTimelineMillis);
+            double totalMs = (double) this.durationTicks * 50.0;
+            return totalMs <= 0.0 ? 1.0 : Math.min(1.0, elapsedReplayMs / totalMs);
+        }
+
+        this.replayCompatElapsedTicksFallback += Math.max(0.0F, deltaTracker.getGameTimeDeltaTicks());
+        if (!this.loggedReplayTimelineFallback) {
+            this.loggedReplayTimelineFallback = true;
+            Constants.debug("Replay timeline was unavailable; using DeltaTracker fallback for sleep animation progress.");
+        }
+
+        if (this.durationTicks <= 0) {
+            return 1.0;
+        }
+
+        return Math.min(1.0, this.replayCompatElapsedTicksFallback / (double) this.durationTicks);
     }
 }

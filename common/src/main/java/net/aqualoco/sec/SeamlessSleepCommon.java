@@ -19,6 +19,6 @@ public final class SeamlessSleepCommon {
         SeamlessSleepServerConfigManager.init();
         SleepAnimationNetworking.initCommon();
         ModBlocks.registerModBlocks();
-        Constants.LOG.info("[Seamless Sleep] inicializado. Animacao de sono e bloco sleep_barrier registrados.");
+        Constants.info("Initialized. Sleep animation and sleep_barrier block are registered.");
     }
 }

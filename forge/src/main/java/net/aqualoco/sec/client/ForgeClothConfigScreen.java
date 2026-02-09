@@ -53,6 +53,9 @@ public final class ForgeClothConfigScreen {
         ConfigCategory camera = builder.getOrCreateCategory(
                 Component.translatable("config.seamlesssleep.category.camera")
         );
+        ConfigCategory misc = builder.getOrCreateCategory(
+                Component.translatable("config.seamlesssleep.category.misc")
+        );
         ConfigCategory sleep = builder.getOrCreateCategory(
                 Component.translatable("config.seamlesssleep.category.sleep")
         );
@@ -116,6 +119,28 @@ public final class ForgeClothConfigScreen {
                 .setTextGetter(value -> Component.literal(value + " º"))
                 .setTooltip(Component.translatable("config.seamlesssleep.camera.tilt_degrees.desc"))
                 .setSaveConsumer(value -> cfg.sleepCameraTiltDegrees = value)
+                .build()
+        );
+
+        misc.addEntry(entryBuilder
+                .startBooleanToggle(
+                        Component.translatable("config.seamlesssleep.misc.debug_logs"),
+                        cfg.debugLogsEnabled
+                )
+                .setDefaultValue(false)
+                .setTooltip(Component.translatable("config.seamlesssleep.misc.debug_logs.desc"))
+                .setSaveConsumer(value -> cfg.debugLogsEnabled = value)
+                .build()
+        );
+
+        misc.addEntry(entryBuilder
+                .startBooleanToggle(
+                        Component.translatable("config.seamlesssleep.misc.replay_compatibility"),
+                        cfg.replayCompatibilityEnabled
+                )
+                .setDefaultValue(true)
+                .setTooltip(Component.translatable("config.seamlesssleep.misc.replay_compatibility.desc"))
+                .setSaveConsumer(value -> cfg.replayCompatibilityEnabled = value)
                 .build()
         );
 

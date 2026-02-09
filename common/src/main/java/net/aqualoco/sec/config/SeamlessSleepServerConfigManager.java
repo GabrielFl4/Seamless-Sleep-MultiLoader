@@ -74,7 +74,7 @@ public final class SeamlessSleepServerConfigManager {
         try (Reader reader = Files.newBufferedReader(path)) {
             SeamlessSleepServerConfig cfg = GSON.fromJson(reader, SeamlessSleepServerConfig.class);
             if (cfg == null) {
-                Constants.LOG.warn("Config {} vazia ou invalida, usando padrao.", path);
+                Constants.warn("Server config {} is empty or invalid, using defaults.", path);
                 cfg = defaultConfig();
                 cfg.clamp();
                 save(path, cfg);
@@ -84,7 +84,7 @@ public final class SeamlessSleepServerConfigManager {
             save(path, cfg);
             return new LoadResult(cfg, ReloadResult.SUCCESS);
         } catch (Exception e) {
-            Constants.LOG.warn("Falha ao ler config {}, usando padrao. Erro: {}", path, e.getMessage());
+            Constants.warn("Failed to read server config {}, using defaults. Error: {}", path, e.getMessage());
             SeamlessSleepServerConfig cfg = defaultConfig();
             cfg.clamp();
             save(path, cfg);
@@ -99,7 +99,7 @@ public final class SeamlessSleepServerConfigManager {
                 GSON.toJson(cfg, writer);
             }
         } catch (IOException e) {
-            Constants.LOG.warn("Nao foi possivel salvar config {}: {}", path, e.getMessage());
+            Constants.warn("Failed to save server config {}: {}", path, e.getMessage());
         }
     }
 

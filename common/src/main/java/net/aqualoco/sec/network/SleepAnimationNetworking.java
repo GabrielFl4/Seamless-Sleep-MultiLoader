@@ -14,12 +14,12 @@ public final class SleepAnimationNetworking {
 
     public static void initCommon() {
         Services.NETWORK.registerPayloads();
-        Constants.LOG.info("Registered sleep animation payload types (S2C).");
+        Constants.info("Registered sleep animation payload types (S2C).");
     }
 
     public static void initClient() {
         Services.NETWORK.registerClientHandlers();
-        Constants.LOG.info("Registered client handlers for sleep animation.");
+        Constants.info("Registered client handlers for sleep animation.");
     }
 
     public static void sendStart(ServerLevel world, SleepAnimationState state) {
@@ -35,7 +35,7 @@ public final class SleepAnimationNetworking {
 
         Services.NETWORK.sendToPlayers(world, payload);
 
-        Constants.LOG.debug(
+        Constants.debug(
                 "Sent sleep animation payload (start) to {} players ({} -> {}, {} ticks)",
                 world.players().size(), startTime, endTime, duration
         );
@@ -47,7 +47,7 @@ public final class SleepAnimationNetworking {
 
         Services.NETWORK.sendToPlayers(world, payload);
 
-        Constants.LOG.debug(
+        Constants.debug(
                 "Sent sleep animation payload (stop) to {} players",
                 world.players().size()
         );

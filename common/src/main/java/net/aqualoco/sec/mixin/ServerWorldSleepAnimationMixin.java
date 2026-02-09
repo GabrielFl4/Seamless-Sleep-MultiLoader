@@ -71,7 +71,7 @@ public abstract class ServerWorldSleepAnimationMixin {
 
         SleepAnimationNetworking.sendStart(world, state);
 
-        Constants.LOG.debug("Iniciando animacao de sono: {} -> {}", currentTime, newTime);
+        Constants.debug("Starting sleep animation on server: {} -> {}", currentTime, newTime);
     }
 
     @Redirect(
@@ -128,7 +128,7 @@ public abstract class ServerWorldSleepAnimationMixin {
             this.seamlesssleep$sleepAnimationWakePlayers = false;
             this.seamlesssleep$sleepAnimationResetWeather = false;
             SleepAnimationNetworking.sendStop(self);
-            Constants.LOG.debug("Animacao de sono cancelada: jogadores dormindo insuficientes.");
+            Constants.debug("Sleep animation canceled: not enough players sleeping.");
             return;
         }
 
@@ -140,7 +140,7 @@ public abstract class ServerWorldSleepAnimationMixin {
             this.seamlesssleep$sleepAnimationWakePlayers = false;
             this.seamlesssleep$sleepAnimationResetWeather = false;
 
-            Constants.LOG.debug("Animacao de sono concluida, jogadores acordados.");
+            Constants.debug("Sleep animation finished. Woke up sleeping players.");
         }
     }
 
