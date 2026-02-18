@@ -30,8 +30,8 @@ ordering = "NONE"
 side = "BOTH"
 [[dependencies.${mod_id}]]
 modId = "yet_another_config_lib_v3"
-mandatory = false
-versionRange = "[3.6.2,)"
+mandatory = true
+versionRange = "[3.6.6,)"
 ordering = "NONE"
 side = "CLIENT"
 
