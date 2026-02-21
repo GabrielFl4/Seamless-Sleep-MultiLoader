@@ -50,5 +50,7 @@
   "command.seamlesssleep.set.sleep_clears_weather.current": "Clear Weather is set to %s.",
   "command.seamlesssleep.set.sleep_clears_weather.updated": "Clear Weather updated to %s.",
   "command.seamlesssleep.set.sleep_duration.current": "Sleep Duration is at %s (valid: %s to %s).",
-  "command.seamlesssleep.set.sleep_duration.updated": "Sleep Duration updated to %s (valid: %s to %s)."
+  "command.seamlesssleep.set.sleep_duration.updated": "Sleep Duration updated to %s (valid: %s to %s).",
+  "screen.seamlesssleep.forge_config.notice": "Forge does not support custom config menus",
+  "screen.seamlesssleep.forge_config.hint": "Edit the config file in your config folder for server and client changes."
 }

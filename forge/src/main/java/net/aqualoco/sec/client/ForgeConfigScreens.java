@@ -5,10 +5,9 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraftforge.client.ConfigScreenHandler;
-import net.minecraftforge.fml.ModList;
 import net.minecraftforge.fml.ModLoadingContext;
 
-// Registers the Forge config screen entry point and fallback when Cloth is missing.
+// Registers a simple Forge config screen that points users to file-based configuration.
 public final class ForgeConfigScreens {
 
     private ForgeConfigScreens() {
@@ -18,23 +17,16 @@ public final class ForgeConfigScreens {
         context.registerExtensionPoint(
                 ConfigScreenHandler.ConfigScreenFactory.class,
                 () -> new ConfigScreenHandler.ConfigScreenFactory(
-                        (client, parent) -> createScreen(parent)
+                        (client, parent) -> new FileOnlyConfigScreen(parent)
                 )
         );
     }
 
-    private static Screen createScreen(Screen parent) {
-        if (!ModList.get().isLoaded("cloth_config")) {
-            return new MissingClothScreen(parent);
-        }
-        return ForgeClothConfigScreen.create(parent);
-    }
-
-    // Lightweight fallback screen shown when Cloth Config is unavailable.
-    private static final class MissingClothScreen extends Screen {
+    // Lightweight info screen shown because Forge uses file-only configuration.
+    private static final class FileOnlyConfigScreen extends Screen {
         private final Screen parent;
 
-        private MissingClothScreen(Screen parent) {
+        private FileOnlyConfigScreen(Screen parent) {
             super(Component.literal("Seamless Sleep"));
             this.parent = parent;
         }
@@ -60,20 +52,19 @@ public final class ForgeConfigScreens {
 
         @Override
         public void render(net.minecraft.client.gui.GuiGraphics graphics, int mouseX, int mouseY, float delta) {
-            this.renderBackground(graphics, mouseX, mouseY, delta);
+            super.render(graphics, mouseX, mouseY, delta);
             int x = this.width / 2;
             int y = this.height / 2 - 20;
             graphics.drawCenteredString(this.font,
-                    Component.literal("Cloth Config not found").withStyle(ChatFormatting.RED),
+                    Component.translatable("screen.seamlesssleep.forge_config.notice").withStyle(ChatFormatting.YELLOW),
                     x,
                     y,
                     0xFFFFFF);
             graphics.drawCenteredString(this.font,
-                    Component.literal("Install Cloth Config to edit configs."),
+                    Component.translatable("screen.seamlesssleep.forge_config.hint"),
                     x,
                     y + 12,
                     0xFFFFFF);
-            super.render(graphics, mouseX, mouseY, delta);
         }
     }
 }

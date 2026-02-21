@@ -21,10 +21,6 @@ repositories {
         url = "https://maven.terraformersmc.com/"
     }
     maven {
-        name = "CLOTH"
-        url "https://maven.shedaniel.me/"
-    }
-    maven {
         name = "YACL"
         url = "https://maven.isxander.dev/releases"
     }

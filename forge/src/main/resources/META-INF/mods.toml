@@ -12,7 +12,9 @@ displayName = "${mod_name}" #mandatory
 logoFile = "assets/${mod_id}/icon.png" #optional
 credits = "${credits}" #optional
 authors = "${mod_author}" #optional
-description = '''${description}''' #mandatory (Supports multiline text)
+description = '''${description}
+
+On Forge, configure this mod through the config file only.''' #mandatory (Supports multiline text)
 [[dependencies.${mod_id}]] #optional
 modId = "forge" #mandatory
 mandatory = true #mandatory
