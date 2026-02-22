@@ -20,7 +20,7 @@ final class SeamlessSleepServerEvents {
 
         SeamlessSleepServerConfig cfg = SeamlessSleepServerConfigManager.get();
         Services.NETWORK.sendToPlayers(
-                player.serverLevel(),
+                player.level(),
                 new ServerConfigSyncPayload(
                         cfg.sleepClearsWeather,
                         cfg.sleepAnimationDurationMultiplier

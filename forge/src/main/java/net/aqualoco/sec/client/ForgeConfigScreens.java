@@ -59,12 +59,12 @@ public final class ForgeConfigScreens {
                     Component.translatable("screen.seamlesssleep.forge_config.notice").withStyle(ChatFormatting.YELLOW),
                     x,
                     y,
-                    0xFFFFFF);
+                    0xFFFFFFFF);
             graphics.drawCenteredString(this.font,
                     Component.translatable("screen.seamlesssleep.forge_config.hint"),
                     x,
                     y + 12,
-                    0xFFFFFF);
+                    0xFFFFFFFF);
         }
     }
 }

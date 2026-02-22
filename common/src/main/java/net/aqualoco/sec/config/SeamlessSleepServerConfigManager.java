@@ -6,8 +6,7 @@ import net.aqualoco.sec.Constants;
 import net.aqualoco.sec.platform.Services;
 
 import java.io.IOException;
-import java.io.Reader;
-import java.io.Writer;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -71,8 +70,9 @@ public final class SeamlessSleepServerConfigManager {
             return new LoadResult(cfg, ReloadResult.CREATED);
         }
 
-        try (Reader reader = Files.newBufferedReader(path)) {
-            SeamlessSleepServerConfig cfg = GSON.fromJson(reader, SeamlessSleepServerConfig.class);
+        try {
+            String json = stripJsonLineComments(Files.readString(path, StandardCharsets.UTF_8));
+            SeamlessSleepServerConfig cfg = GSON.fromJson(json, SeamlessSleepServerConfig.class);
             if (cfg == null) {
                 Constants.warn("Server config {} is empty or invalid, using defaults.", path);
                 cfg = defaultConfig();
@@ -95,9 +95,7 @@ public final class SeamlessSleepServerConfigManager {
     private static void save(Path path, SeamlessSleepServerConfig cfg) {
         try {
             Files.createDirectories(path.getParent());
-            try (Writer writer = Files.newBufferedWriter(path)) {
-                GSON.toJson(cfg, writer);
-            }
+            Files.writeString(path, toCommentedJson(cfg), StandardCharsets.UTF_8);
         } catch (IOException e) {
             Constants.warn("Failed to save server config {}: {}", path, e.getMessage());
         }
@@ -105,6 +103,42 @@ public final class SeamlessSleepServerConfigManager {
 
     private static SeamlessSleepServerConfig defaultConfig() {
         return new SeamlessSleepServerConfig();
+    }
+
+    private static String stripJsonLineComments(String raw) {
+        StringBuilder out = new StringBuilder(raw.length());
+        String normalized = raw.replace("\r\n", "\n").replace('\r', '\n');
+        String[] lines = normalized.split("\n", -1);
+        for (int i = 0; i < lines.length; i++) {
+            String line = lines[i];
+            if (!line.stripLeading().startsWith("//")) {
+                out.append(line);
+                if (i < lines.length - 1) {
+                    out.append('\n');
+                }
+            }
+        }
+        return out.toString();
+    }
+
+    private static String toCommentedJson(SeamlessSleepServerConfig cfg) {
+        StringBuilder sb = new StringBuilder(256);
+        sb.append("{\n");
+        appendComment(sb, "Clear rain/thunder after sleeping. Range: true | false. Default: true");
+        sb.append("  \"sleepClearsWeather\": ").append(Boolean.TRUE.equals(cfg.sleepClearsWeather)).append(",\n");
+
+        appendComment(sb, "Sleep animation duration multiplier. Range: 0.25 to 8.0. Default: 1.0");
+        double value = cfg.sleepAnimationDurationMultiplier;
+        if (!Double.isFinite(value)) {
+            value = 1.0D;
+        }
+        sb.append("  \"sleepAnimationDurationMultiplier\": ").append(Double.toString(value)).append('\n');
+        sb.append("}\n");
+        return sb.toString();
+    }
+
+    private static void appendComment(StringBuilder sb, String text) {
+        sb.append("  // ").append(text).append('\n');
     }
 
     // Small wrapper so reload can return both config data and a status flag.

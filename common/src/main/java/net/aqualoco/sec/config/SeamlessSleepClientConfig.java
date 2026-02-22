@@ -43,8 +43,8 @@ public final class SeamlessSleepClientConfig {
         sleepChatMaxLines = clampInt(sleepChatMaxLines, 0, 12, DEFAULT_CHAT_MAX_LINES);
         sleepCameraTiltDegrees = clampRange(
                 sleepCameraTiltDegrees,
-                -45.0D,
-                45.0D,
+                -90.0D,
+                90.0D,
                 DEFAULT_TILT_DEGREES
         );
     }

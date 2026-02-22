@@ -35,7 +35,7 @@ public final class SeamlessSleepCommands {
                                                 ))))
                                 .then(Commands.literal("sleepDurationMultiplier")
                                         .executes(SeamlessSleepCommands::getSleepDurationMultiplier)
-                                        .then(Commands.argument("value", DoubleArgumentType.doubleArg(0.25D, 4.0D))
+                                        .then(Commands.argument("value", DoubleArgumentType.doubleArg(0.25D, 8.0D))
                                                 .executes(ctx -> setSleepDurationMultiplier(
                                                         ctx,
                                                         DoubleArgumentType.getDouble(ctx, "value")
@@ -98,7 +98,7 @@ public final class SeamlessSleepCommands {
                         "command.seamlesssleep.set.sleep_duration.current",
                         formatDecimal(config.sleepAnimationDurationMultiplier),
                         "0.25",
-                        "4.00"
+                        "8.00"
                 ),
                 false
         );
@@ -117,7 +117,7 @@ public final class SeamlessSleepCommands {
                         "command.seamlesssleep.set.sleep_duration.updated",
                         formatDecimal(config.sleepAnimationDurationMultiplier),
                         "0.25",
-                        "4.00"
+                        "8.00"
                 ),
                 true
         );

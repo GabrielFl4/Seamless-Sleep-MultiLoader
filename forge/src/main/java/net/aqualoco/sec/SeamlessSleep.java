@@ -8,9 +8,9 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.eventbus.api.IEventBus;
-import net.minecraftforge.fml.ModLoadingContext;
+import net.minecraftforge.event.RegisterCommandsEvent;
+import net.minecraftforge.event.entity.player.PlayerEvent;
+import net.minecraftforge.eventbus.api.bus.BusGroup;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.loading.FMLEnvironment;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
@@ -24,18 +24,18 @@ import java.util.function.Consumer;
 @Mod(Constants.MOD_ID)
 public class SeamlessSleep {
 
-    public static IEventBus eventBus;
+    public static BusGroup modBusGroup;
 
     public SeamlessSleep(FMLJavaModLoadingContext context) {
 
-        eventBus = context.getModEventBus();
+        modBusGroup = context.getModBusGroup();
         SeamlessSleepCommon.init();
 
         bind(Registries.BLOCK, ModBlocks::register);
         bind(Registries.ITEM, ModItems::register);
 
-        MinecraftForge.EVENT_BUS.addListener(SeamlessSleepCommandRegistration::register);
-        MinecraftForge.EVENT_BUS.addListener(SeamlessSleepServerEvents::onPlayerLoggedIn);
+        RegisterCommandsEvent.BUS.addListener(SeamlessSleepCommandRegistration::register);
+        PlayerEvent.PlayerLoggedInEvent.BUS.addListener(SeamlessSleepServerEvents::onPlayerLoggedIn);
 
         if (FMLEnvironment.dist == Dist.CLIENT) {
             ForgeConfigScreens.register(context);
@@ -44,7 +44,7 @@ public class SeamlessSleep {
 
     /** Adapted from <a href="https://github.com/VazkiiMods/Botania">Botania</a>*/
     private static <T> void bind(ResourceKey<Registry<T>> registry, Consumer<BiConsumer<T, ResourceLocation>> source) {
-        eventBus.addListener((RegisterEvent event) -> {
+        RegisterEvent.getBus(modBusGroup).addListener((RegisterEvent event) -> {
             if (registry.equals(event.getRegistryKey())) {
                 source.accept((t, rl) -> event.register(registry, rl, () -> t));
             }

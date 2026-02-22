@@ -104,8 +104,8 @@ public class ModMenuIntegration implements ModMenuApi {
                                             Component.translatable("config.seamlesssleep.camera.tilt_degrees.desc"),
                                             Component.empty(),
                                             10.0D,
-                                            -45.0D,
-                                            45.0D,
+                                            -90.0D,
+                                            90.0D,
                                             1.0D,
                                             () -> cfg.sleepCameraTiltDegrees,
                                             val -> cfg.sleepCameraTiltDegrees = val,
@@ -160,7 +160,7 @@ public class ModMenuIntegration implements ModMenuApi {
                                             Component.translatable("config.seamlesssleep.server_controlled"),
                                             1.0D,
                                             0.25D,
-                                            4.0D,
+                                            8.0D,
                                             0.05D,
                                             () -> canEditServerConfig
                                                     ? serverCfg.sleepAnimationDurationMultiplier
@@ -300,4 +300,3 @@ public class ModMenuIntegration implements ModMenuApi {
         }
     }
 }
-

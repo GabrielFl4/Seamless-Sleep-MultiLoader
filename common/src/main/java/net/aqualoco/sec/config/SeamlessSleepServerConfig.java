@@ -12,7 +12,7 @@ public final class SeamlessSleepServerConfig {
         sleepAnimationDurationMultiplier = clampRange(
                 sleepAnimationDurationMultiplier,
                 0.25D,
-                4.0D,
+                8.0D,
                 1.0D
         );
     }

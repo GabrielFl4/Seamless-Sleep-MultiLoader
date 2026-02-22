@@ -29,3 +29,4 @@ ReplayMod_Analise_Tecnica_Compatibilidade.txt
 *.lock
 /.gradle-user-home
 *.txt
+/neoforge_exemplo
