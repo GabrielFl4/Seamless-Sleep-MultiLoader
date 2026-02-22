@@ -50,8 +50,8 @@
   "command.seamlesssleep.set.sleep_clears_weather.current": "Limpar Clima está definido como %s.",
   "command.seamlesssleep.set.sleep_clears_weather.updated": "Limpar Clima atualizado para %s.",
   "command.seamlesssleep.set.sleep_duration.current": "Duração do Sono está em %s (válido: %s a %s).",
-  "command.seamlesssleep.set.sleep_duration.updated": "Duração do Sono atualizada para %s (válido: %s a %s)."
-  ,
+  "command.seamlesssleep.set.sleep_duration.updated": "Duração do Sono atualizada para %s (válido: %s a %s).",
+
   "screen.seamlesssleep.forge_config.notice": "Forge não suporta menus de configurações customizadas",
   "screen.seamlesssleep.forge_config.hint": "Edite o arquivo de config na pasta config para customizar cliente e servidor."
 }
