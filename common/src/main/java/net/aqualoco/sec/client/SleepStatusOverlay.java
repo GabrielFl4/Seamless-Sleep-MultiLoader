@@ -55,6 +55,9 @@ public final class SleepStatusOverlay {
             x = 6;
             y = 6;
         }
+        // 1.21.8+ fix
+        graphics.nextStratum();
+
         graphics.drawString(client.font, text, x, y, color, true);
     }
 }

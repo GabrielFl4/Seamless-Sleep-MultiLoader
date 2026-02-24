@@ -1,6 +1,7 @@
 package net.aqualoco.sec;
 
 import net.aqualoco.sec.client.ForgeConfigScreens;
+import net.aqualoco.sec.client.ForgeHudOverlayLayers;
 import net.aqualoco.sec.registry.ModBlocks;
 import net.aqualoco.sec.registry.ModItems;
 import net.minecraft.core.Registry;
@@ -39,6 +40,7 @@ public class SeamlessSleep {
 
         if (FMLEnvironment.dist == Dist.CLIENT) {
             ForgeConfigScreens.register(context);
+            ForgeHudOverlayLayers.register(modBusGroup);
         }
     }
 
