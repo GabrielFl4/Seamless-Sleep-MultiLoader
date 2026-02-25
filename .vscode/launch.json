@@ -19,6 +19,7 @@
         "-Dfml.modFolders\u003dseamlesssleep%%C:\\Users\\Gabriel\\Desktop\\Modding\\Seamless-Sleep-Multi\\Seamless-Sleep-MultiLoader\\neoforge\\bin\\main"
       ],
       "cwd": "${workspaceFolder}\\neoforge\\run",
+      "env": {},
       "console": "internalConsole",
       "shortenCommandLine": "none"
     },
@@ -40,6 +41,7 @@
         "-Dfml.modFolders\u003dseamlesssleep%%C:\\Users\\Gabriel\\Desktop\\Modding\\Seamless-Sleep-Multi\\Seamless-Sleep-MultiLoader\\neoforge\\bin\\main"
       ],
       "cwd": "${workspaceFolder}\\neoforge\\run",
+      "env": {},
       "console": "internalConsole",
       "shortenCommandLine": "none"
     },
@@ -61,6 +63,7 @@
         "-Dfml.modFolders\u003dseamlesssleep%%C:\\Users\\Gabriel\\Desktop\\Modding\\Seamless-Sleep-Multi\\Seamless-Sleep-MultiLoader\\neoforge\\bin\\main"
       ],
       "cwd": "${workspaceFolder}\\neoforge\\run",
+      "env": {},
       "console": "internalConsole",
       "shortenCommandLine": "none"
     }

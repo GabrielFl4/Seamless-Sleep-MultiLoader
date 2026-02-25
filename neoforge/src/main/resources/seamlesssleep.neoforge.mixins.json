@@ -6,7 +6,8 @@
   "mixins": [],
   "client": [
     "client.GameRendererSleepAnimationMixin",
-    "client.GuiSleepOverlayMixin"
+    "client.GuiSleepOverlayMixin",
+    "client.NeoForgeModListScreenMutableSortFixMixin"
   ],
   "server": [],
   "injectors": {
