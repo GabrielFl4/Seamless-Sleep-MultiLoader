@@ -4,25 +4,25 @@ import net.aqualoco.sec.Constants;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 // Packet that tells clients to stop the active sleep transition.
-public record SleepAnimationStopPayload(ResourceLocation worldId) implements CustomPacketPayload {
+public record SleepAnimationStopPayload(Identifier worldId) implements CustomPacketPayload {
 
     public static final CustomPacketPayload.Type<SleepAnimationStopPayload> ID =
             new CustomPacketPayload.Type<>(
-                    ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, "sleep_animation_stop")
+                    Identifier.fromNamespaceAndPath(Constants.MOD_ID, "sleep_animation_stop")
             );
 
     public static final StreamCodec<FriendlyByteBuf, SleepAnimationStopPayload> CODEC =
             CustomPacketPayload.codec(SleepAnimationStopPayload::write, SleepAnimationStopPayload::read);
 
     private static void write(SleepAnimationStopPayload payload, FriendlyByteBuf buf) {
-        buf.writeResourceLocation(payload.worldId());
+        buf.writeIdentifier(payload.worldId());
     }
 
     private static SleepAnimationStopPayload read(FriendlyByteBuf buf) {
-        ResourceLocation worldId = buf.readResourceLocation();
+        Identifier worldId = buf.readIdentifier();
         return new SleepAnimationStopPayload(worldId);
     }
 

@@ -10,6 +10,7 @@ import net.aqualoco.sec.network.ServerConfigSync;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.permissions.Permissions;
 
 import java.util.Locale;
 
@@ -22,7 +23,7 @@ public final class SeamlessSleepCommands {
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(
                 Commands.literal("sleep")
-                        .requires(source -> source.hasPermission(3))
+                        .requires(source -> source.permissions().hasPermission(Permissions.COMMANDS_ADMIN))
                         .then(Commands.literal("reload")
                                 .executes(SeamlessSleepCommands::reload))
                         .then(Commands.literal("set")

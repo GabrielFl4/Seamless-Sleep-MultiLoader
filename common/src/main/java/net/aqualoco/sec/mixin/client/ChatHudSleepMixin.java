@@ -38,7 +38,7 @@ public abstract class ChatHudSleepMixin {
     }
 
     @Redirect(
-            method = "render",
+            method = "render(Lnet/minecraft/client/gui/components/ChatComponent$ChatGraphicsAccess;IIZ)V",
             at = @At(
                     value = "INVOKE",
                     target = "Lnet/minecraft/client/OptionInstance;get()Ljava/lang/Object;",
@@ -62,7 +62,7 @@ public abstract class ChatHudSleepMixin {
     }
 
     @Redirect(
-            method = "render",
+            method = "render(Lnet/minecraft/client/gui/components/ChatComponent$ChatGraphicsAccess;IIZ)V",
             at = @At(
                     value = "INVOKE",
                     target = "Lnet/minecraft/client/OptionInstance;get()Ljava/lang/Object;",

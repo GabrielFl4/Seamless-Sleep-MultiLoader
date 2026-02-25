@@ -7,8 +7,8 @@ import net.aqualoco.sec.network.SleepAnimationNetworking;
 import net.aqualoco.sec.sleep.SleepAnimationState;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.gamerules.GameRules;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.gen.Invoker;
@@ -65,7 +65,7 @@ public abstract class ServerWorldSleepAnimationMixin {
         state.start(currentTime, newTime);
         this.seamlesssleep$sleepAnimationWakePlayers = true;
         this.seamlesssleep$sleepAnimationResetWeather = world.getGameRules()
-                .getBoolean(GameRules.RULE_WEATHER_CYCLE)
+                .get(GameRules.ADVANCE_WEATHER)
                 && SeamlessSleepServerConfigManager.get().sleepClearsWeather;
         this.seamlesssleep$sleepSubtitleTicks = 0;
 
@@ -146,7 +146,7 @@ public abstract class ServerWorldSleepAnimationMixin {
 
     @Unique
     private boolean seamlesssleep$hasEnoughSleeping(ServerLevel world) {
-        int percentage = world.getGameRules().getInt(GameRules.RULE_PLAYERS_SLEEPING_PERCENTAGE);
+        int percentage = world.getGameRules().get(GameRules.PLAYERS_SLEEPING_PERCENTAGE);
         if (percentage <= 0) {
             return false;
         }

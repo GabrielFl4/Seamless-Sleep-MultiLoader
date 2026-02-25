@@ -5,7 +5,7 @@ import net.aqualoco.sec.registry.ModItems;
 import net.fabricmc.api.ModInitializer;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -25,7 +25,7 @@ public class SeamlessSleep implements ModInitializer {
 
     /** Adapted from <a href="https://github.com/VazkiiMods/Botania">Botania</a>*/
     private static <T> void bind(
-            Registry<T> registry, Consumer<BiConsumer<T, ResourceLocation>> source) {
+            Registry<T> registry, Consumer<BiConsumer<T, Identifier>> source) {
         source.accept((t, rl) -> Registry.register(registry, rl, t));
     }
 

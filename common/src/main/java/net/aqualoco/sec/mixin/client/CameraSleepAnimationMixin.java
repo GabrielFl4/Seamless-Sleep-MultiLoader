@@ -5,7 +5,7 @@ import net.aqualoco.sec.config.SeamlessSleepClientConfigManager;
 import net.minecraft.client.Camera;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Level;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -20,7 +20,7 @@ public abstract class CameraSleepAnimationMixin {
     protected abstract void setRotation(float yaw, float pitch);
 
     @Inject(method = "setup", at = @At("TAIL"))
-    private void seamlesssleep$tiltSleepCamera(BlockGetter area,
+    private void seamlesssleep$tiltSleepCamera(Level area,
                                                Entity focusedEntity,
                                                boolean thirdPerson,
                                                boolean inverseView,
@@ -35,8 +35,8 @@ public abstract class CameraSleepAnimationMixin {
         }
 
         Camera self = (Camera) (Object) this;
-        float yaw = self.getYRot();
-        float pitch = self.getXRot();
+        float yaw = self.yRot();
+        float pitch = self.xRot();
 
         SeamlessSleepClientConfig cfg = SeamlessSleepClientConfigManager.get();
         float tilt = (float) -cfg.sleepCameraTiltDegrees;
@@ -44,4 +44,3 @@ public abstract class CameraSleepAnimationMixin {
         this.setRotation(yaw, pitch + tilt);
     }
 }
-

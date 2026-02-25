@@ -4,11 +4,11 @@ import net.aqualoco.sec.Constants;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 // Packet that starts the client sleep transition with timing and world data.
 public record SleepAnimationStartPayload(
-        ResourceLocation worldId,
+        Identifier worldId,
         long startTimeOfDay,
         long endTimeOfDay,
         int durationTicks,
@@ -17,14 +17,14 @@ public record SleepAnimationStartPayload(
 
     public static final CustomPacketPayload.Type<SleepAnimationStartPayload> ID =
             new CustomPacketPayload.Type<>(
-                    ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, "sleep_animation_start")
+                    Identifier.fromNamespaceAndPath(Constants.MOD_ID, "sleep_animation_start")
             );
 
     public static final StreamCodec<FriendlyByteBuf, SleepAnimationStartPayload> CODEC =
             CustomPacketPayload.codec(SleepAnimationStartPayload::write, SleepAnimationStartPayload::read);
 
     private static void write(SleepAnimationStartPayload payload, FriendlyByteBuf buf) {
-        buf.writeResourceLocation(payload.worldId());
+        buf.writeIdentifier(payload.worldId());
         buf.writeLong(payload.startTimeOfDay());
         buf.writeLong(payload.endTimeOfDay());
         buf.writeInt(payload.durationTicks());
@@ -32,7 +32,7 @@ public record SleepAnimationStartPayload(
     }
 
     private static SleepAnimationStartPayload read(FriendlyByteBuf buf) {
-        ResourceLocation worldId = buf.readResourceLocation();
+        Identifier worldId = buf.readIdentifier();
         long startTime = buf.readLong();
         long endTime = buf.readLong();
         int duration = buf.readInt();

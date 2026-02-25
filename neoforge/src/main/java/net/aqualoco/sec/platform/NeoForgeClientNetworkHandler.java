@@ -7,7 +7,7 @@ import net.aqualoco.sec.network.SleepAnimationStartPayload;
 import net.aqualoco.sec.network.SleepAnimationStopPayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.Level;
 
 // NeoForge client packet handlers that start/stop animation and apply synced server config.
@@ -21,7 +21,7 @@ final class NeoForgeClientNetworkHandler implements NeoForgeNetworkHelper.Client
             return;
         }
 
-        ResourceLocation worldId = world.dimension().location();
+        Identifier worldId = world.dimension().identifier();
         if (!worldId.equals(payload.worldId())) {
             return;
         }
@@ -46,7 +46,7 @@ final class NeoForgeClientNetworkHandler implements NeoForgeNetworkHelper.Client
             return;
         }
 
-        ResourceLocation worldId = world.dimension().location();
+        Identifier worldId = world.dimension().identifier();
         if (!worldId.equals(payload.worldId())) {
             return;
         }

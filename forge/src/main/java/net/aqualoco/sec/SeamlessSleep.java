@@ -7,7 +7,7 @@ import net.aqualoco.sec.registry.ModItems;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
@@ -45,7 +45,7 @@ public class SeamlessSleep {
     }
 
     /** Adapted from <a href="https://github.com/VazkiiMods/Botania">Botania</a>*/
-    private static <T> void bind(ResourceKey<Registry<T>> registry, Consumer<BiConsumer<T, ResourceLocation>> source) {
+    private static <T> void bind(ResourceKey<Registry<T>> registry, Consumer<BiConsumer<T, Identifier>> source) {
         RegisterEvent.getBus(modBusGroup).addListener((RegisterEvent event) -> {
             if (registry.equals(event.getRegistryKey())) {
                 source.accept((t, rl) -> event.register(registry, rl, () -> t));

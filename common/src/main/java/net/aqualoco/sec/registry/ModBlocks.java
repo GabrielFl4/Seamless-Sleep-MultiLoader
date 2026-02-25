@@ -4,7 +4,7 @@ import net.aqualoco.sec.Constants;
 import net.aqualoco.sec.block.SleepBarrier;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 
@@ -13,14 +13,14 @@ import java.util.function.BiConsumer;
 // Registers the custom blocks shared by all loaders.
 public class ModBlocks {
 
-    private static final ResourceLocation SLEEP_BARRIER_ID =
-            ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, "sleep_barrier");
+    private static final Identifier SLEEP_BARRIER_ID =
+            Identifier.fromNamespaceAndPath(Constants.MOD_ID, "sleep_barrier");
     private static final ResourceKey<Block> SLEEP_BARRIER_KEY =
             ResourceKey.create(Registries.BLOCK, SLEEP_BARRIER_ID);
 
     private static Block sleepBarrier;
 
-    public static void register(BiConsumer<Block, ResourceLocation> consumer) {
+    public static void register(BiConsumer<Block, Identifier> consumer) {
         sleepBarrier = createSleepBarrier(SLEEP_BARRIER_KEY);
         consumer.accept(sleepBarrier, SLEEP_BARRIER_ID);
     }

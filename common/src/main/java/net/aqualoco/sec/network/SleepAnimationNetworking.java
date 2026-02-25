@@ -3,7 +3,7 @@ package net.aqualoco.sec.network;
 import net.aqualoco.sec.Constants;
 import net.aqualoco.sec.platform.Services;
 import net.aqualoco.sec.sleep.SleepAnimationState;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 
 // Common helpers to register and dispatch sleep animation packets.
@@ -23,7 +23,7 @@ public final class SleepAnimationNetworking {
     }
 
     public static void sendStart(ServerLevel world, SleepAnimationState state) {
-        ResourceLocation worldId = world.dimension().location();
+        Identifier worldId = world.dimension().identifier();
         long startTime = state.getStartTimeOfDay();
         long endTime = state.getEndTimeOfDay();
         int duration = state.getDurationTicks();
@@ -42,7 +42,7 @@ public final class SleepAnimationNetworking {
     }
 
     public static void sendStop(ServerLevel world) {
-        ResourceLocation worldId = world.dimension().location();
+        Identifier worldId = world.dimension().identifier();
         SleepAnimationStopPayload payload = new SleepAnimationStopPayload(worldId);
 
         Services.NETWORK.sendToPlayers(world, payload);
