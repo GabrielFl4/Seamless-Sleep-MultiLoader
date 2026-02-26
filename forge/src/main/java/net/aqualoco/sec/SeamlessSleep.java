@@ -38,7 +38,7 @@ public class SeamlessSleep {
         MinecraftForge.EVENT_BUS.addListener(SeamlessSleepServerEvents::onPlayerLoggedIn);
 
         if (FMLEnvironment.dist == Dist.CLIENT) {
-            ForgeConfigScreens.register(context);
+            ForgeConfigScreens.register(ModLoadingContext.get());
         }
     }
 

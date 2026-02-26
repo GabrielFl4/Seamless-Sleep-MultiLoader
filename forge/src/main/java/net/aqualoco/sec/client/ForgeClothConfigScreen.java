@@ -112,8 +112,8 @@ public final class ForgeClothConfigScreen {
                 .startIntSlider(
                         Component.translatable("config.seamlesssleep.camera.tilt_degrees"),
                         (int) Math.round(cfg.sleepCameraTiltDegrees),
-                        -45,
-                        45
+                        -90,
+                        90
                 )
                 .setDefaultValue(10)
                 .setTextGetter(value -> Component.literal(value + " º"))
@@ -175,7 +175,7 @@ public final class ForgeClothConfigScreen {
                 serverDurationValue,
                 1.0D,
                 0.25D,
-                4.0D,
+                8.0D,
                 canEditServerConfig
                         ? new Component[]{durationDesc}
                         : new Component[]{durationDesc, serverControlled},

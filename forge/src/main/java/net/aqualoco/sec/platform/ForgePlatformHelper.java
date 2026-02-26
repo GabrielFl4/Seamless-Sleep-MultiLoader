@@ -23,6 +23,15 @@ public class ForgePlatformHelper implements IPlatformHelper {
     }
 
     @Override
+    public String getModVersion(String modId) {
+        return ModList.get()
+                .getModContainerById(modId)
+                .map(container -> container.getModInfo().getVersion().toString())
+                .filter(version -> version != null && !version.isBlank())
+                .orElse("unknown");
+    }
+
+    @Override
     public boolean isDevelopmentEnvironment() {
 
         return !FMLLoader.isProduction();

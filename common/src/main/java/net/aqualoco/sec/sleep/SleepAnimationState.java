@@ -122,8 +122,8 @@ public final class SleepAnimationState {
         }
         if (multiplier < 0.25D) {
             multiplier = 0.25D;
-        } else if (multiplier > 4.0D) {
-            multiplier = 4.0D;
+        } else if (multiplier > 8.0D) {
+            multiplier = 8.0D;
         }
 
         int scaled = (int) Math.round(baseDuration * multiplier);
