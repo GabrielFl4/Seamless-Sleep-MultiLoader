@@ -26,9 +26,9 @@ public class SeamlessSleep {
 
     public static IEventBus eventBus;
 
-    public SeamlessSleep(FMLJavaModLoadingContext context) {
+    public SeamlessSleep() {
 
-        eventBus = context.getModEventBus();
+        eventBus = FMLJavaModLoadingContext.get().getModEventBus();
         SeamlessSleepCommon.init();
 
         bind(Registries.BLOCK, ModBlocks::register);
