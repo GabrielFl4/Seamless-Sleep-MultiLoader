@@ -2,11 +2,11 @@ plugins {
     id 'multiloader-loader'
     id 'fabric-loom'
 }
+
 dependencies {
     minecraft "com.mojang:minecraft:${minecraft_version}"
     mappings loom.layered {
         officialMojangMappings()
-        parchment("org.parchmentmc.data:parchment-${parchment_minecraft}:${parchment_version}@zip")
     }
     modImplementation "net.fabricmc:fabric-loader:${fabric_loader_version}"
     modImplementation "net.fabricmc.fabric-api:fabric-api:${fabric_version}"
@@ -20,8 +20,8 @@ dependencies {
     modRuntimeOnly "com.terraformersmc:modmenu:${project.modmenu_version}"
 
     // YACL (Yet Another Config Lib) para tela de config via Mod Menu
-    modCompileOnly "dev.isxander:yet-another-config-lib:${project.yacl_version}"
-    modRuntimeOnly "dev.isxander:yet-another-config-lib:${project.yacl_version}"
+    modCompileOnly "dev.isxander.yacl:yet-another-config-lib-fabric:${project.yacl_version}"
+    modRuntimeOnly "dev.isxander.yacl:yet-another-config-lib-fabric:${project.yacl_version}"
 }
 
 loom {
@@ -30,7 +30,7 @@ loom {
         accessWidenerPath.set(aw)
     }
     mixin {
-        defaultRefmapName.set("${mod_id}.refmap.json")
+        defaultRefmapName.set("mixin.refmap.json")
     }
     runs {
         client {

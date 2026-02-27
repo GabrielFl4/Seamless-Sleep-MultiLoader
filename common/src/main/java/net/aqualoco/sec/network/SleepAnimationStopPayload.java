@@ -2,32 +2,26 @@ package net.aqualoco.sec.network;
 
 import net.aqualoco.sec.Constants;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 
 // Packet that tells clients to stop the active sleep transition.
-public record SleepAnimationStopPayload(ResourceLocation worldId) implements CustomPacketPayload {
+public record SleepAnimationStopPayload(ResourceLocation worldId) implements SeamlessSleepPacket {
 
-    public static final CustomPacketPayload.Type<SleepAnimationStopPayload> ID =
-            new CustomPacketPayload.Type<>(
-                    ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, "sleep_animation_stop")
-            );
+    public static final ResourceLocation ID =
+            new ResourceLocation(Constants.MOD_ID, "sleep_animation_stop");
 
-    public static final StreamCodec<FriendlyByteBuf, SleepAnimationStopPayload> CODEC =
-            CustomPacketPayload.codec(SleepAnimationStopPayload::write, SleepAnimationStopPayload::read);
-
-    private static void write(SleepAnimationStopPayload payload, FriendlyByteBuf buf) {
-        buf.writeResourceLocation(payload.worldId());
+    @Override
+    public void write(FriendlyByteBuf buf) {
+        buf.writeResourceLocation(worldId());
     }
 
-    private static SleepAnimationStopPayload read(FriendlyByteBuf buf) {
+    public static SleepAnimationStopPayload read(FriendlyByteBuf buf) {
         ResourceLocation worldId = buf.readResourceLocation();
         return new SleepAnimationStopPayload(worldId);
     }
 
     @Override
-    public Type<SleepAnimationStopPayload> type() {
+    public ResourceLocation id() {
         return ID;
     }
 }

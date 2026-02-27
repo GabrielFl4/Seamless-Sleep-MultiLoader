@@ -1,24 +1,10 @@
-    plugins {
+plugins {
     id 'multiloader-common'
-    id 'net.neoforged.moddev'
-}
-
-neoForge {
-    neoFormVersion = neo_form_version
-    // Automatically enable AccessTransformers if the file exists
-    def at = file('src/main/resources/META-INF/accesstransformer.cfg')
-    if (at.exists()) {
-        accessTransformers.from(at.absolutePath)
-    }
-    parchment {
-        minecraftVersion = parchment_minecraft
-        mappingsVersion = parchment_version
-    }
 }
 
 dependencies {
     compileOnly group: 'org.spongepowered', name: 'mixin', version: '0.8.5'
-    // fabric and neoforge both bundle mixinextras, so it is safe to use it in common
+    // mixinextras is only needed at compile time here (the current code does not use it directly).
     compileOnly group: 'io.github.llamalad7', name: 'mixinextras-common', version: '0.3.5'
     annotationProcessor group: 'io.github.llamalad7', name: 'mixinextras-common', version: '0.3.5'
 
@@ -43,3 +29,16 @@ artifacts {
     commonResources sourceSets.main.resources.sourceDirectories.singleFile
 }
 
+// For the 1.20.1 workspace we compile shared sources through the loader modules.
+// This keeps the multiloader build working with `common` as a source container.
+tasks.named('compileJava', JavaCompile).configure {
+    enabled = false
+}
+
+tasks.named('javadoc', Javadoc).configure {
+    enabled = false
+}
+
+tasks.named('javadocJar', Jar).configure {
+    enabled = false
+}

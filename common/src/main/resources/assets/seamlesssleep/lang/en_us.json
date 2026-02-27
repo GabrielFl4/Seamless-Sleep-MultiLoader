@@ -5,7 +5,7 @@
 
   "modmenu.nameTranslation.seamlesssleep": "Seamless Sleep",
   "modmenu.summaryTranslation.seamlesssleep": "Never blink through the night again.",
-  "modmenu.descriptionTranslation.seamlesssleep": "Rethinks the way players sleep:\n\n\u00A78-\u00A7r Smooth & Synced animation\n\u00A78-\u00A7r Visual improvements\n\u00A78-\u00A7r Minimal server impact\n\nNow available for: \u00A73\u00A7lForge\u00A7r, \u00A76\u00A7lNeoForge\u00A7r and \u00A7f\u00A7lFabric\u00A7r!\nDiscord: gabrielfl4",
+  "modmenu.descriptionTranslation.seamlesssleep": "Rethinks the way players sleep:\n\n\u00A78-\u00A7r Smooth & Synced animation\n\u00A78-\u00A7r Visual improvements\n\u00A78-\u00A7r Minimal server impact\n\nNow available for: \u00A73\u00A7lForge\u00A7r and \u00A7f\u00A7lFabric\u00A7r!\nDiscord: gabrielfl4",
 
   "config.seamlesssleep.title": "Seamless Sleep Settings",
   "config.seamlesssleep.category.chat": "Chat",

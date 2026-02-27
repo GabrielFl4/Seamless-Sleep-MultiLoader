@@ -283,7 +283,7 @@ public class ModMenuIntegration implements ModMenuApi {
 
         @Override
         public void render(net.minecraft.client.gui.GuiGraphics context, int mouseX, int mouseY, float delta) {
-            this.renderBackground(context, mouseX, mouseY, delta);
+            this.renderBackground(context);
             int x = this.width / 2;
             int y = this.height / 2 - 20;
             context.drawCenteredString(this.font,
@@ -300,4 +300,3 @@ public class ModMenuIntegration implements ModMenuApi {
         }
     }
 }
-

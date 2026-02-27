@@ -23,57 +23,66 @@ final class FabricClientNetworkHandler {
     static void register() {
         ClientPlayNetworking.registerGlobalReceiver(
                 SleepAnimationStartPayload.ID,
-                (payload, context) -> {
-                    Minecraft client = context.client();
-                    ClientLevel world = client.level;
-                    if (world == null) {
-                        return;
-                    }
-
-                    ResourceLocation worldId = world.dimension().location();
-                    if (!worldId.equals(payload.worldId())) {
-                        return;
-                    }
-
-                    if (!world.dimension().equals(Level.OVERWORLD)) {
-                        return;
-                    }
-
-                    client.execute(() -> SeamlessSleepClientState.SLEEP_ANIMATION.start(
-                            payload.startTimeOfDay(),
-                            payload.endTimeOfDay(),
-                            payload.durationTicks(),
-                            payload.startMillis()
-                    ));
+                (client, handler, buf, responseSender) -> {
+                    SleepAnimationStartPayload payload = SleepAnimationStartPayload.read(buf);
+                    client.execute(() -> applyStart(client, payload));
                 }
         );
 
         ClientPlayNetworking.registerGlobalReceiver(
                 SleepAnimationStopPayload.ID,
-                (payload, context) -> {
-                    Minecraft client = context.client();
-                    ClientLevel world = client.level;
-                    if (world == null) {
-                        return;
-                    }
-
-                    ResourceLocation worldId = world.dimension().location();
-                    if (!worldId.equals(payload.worldId())) {
-                        return;
-                    }
-
-                    client.execute(() -> SeamlessSleepClientState.SLEEP_ANIMATION.reset());
+                (client, handler, buf, responseSender) -> {
+                    SleepAnimationStopPayload payload = SleepAnimationStopPayload.read(buf);
+                    client.execute(() -> applyStop(client, payload));
                 }
         );
 
         ClientPlayNetworking.registerGlobalReceiver(
                 ServerConfigSyncPayload.ID,
-                (payload, context) -> context.client().execute(
-                        () -> SeamlessSleepServerConfigSnapshot.update(
-                                payload.sleepClearsWeather(),
-                                payload.sleepAnimationDurationMultiplier()
-                        )
-                )
+                (client, handler, buf, responseSender) -> {
+                    ServerConfigSyncPayload payload = ServerConfigSyncPayload.read(buf);
+                    client.execute(() -> SeamlessSleepServerConfigSnapshot.update(
+                            payload.sleepClearsWeather(),
+                            payload.sleepAnimationDurationMultiplier()
+                    ));
+                }
         );
+    }
+
+    private static void applyStart(Minecraft client, SleepAnimationStartPayload payload) {
+        ClientLevel world = client.level;
+        if (world == null) {
+            return;
+        }
+
+        ResourceLocation worldId = world.dimension().location();
+        if (!worldId.equals(payload.worldId())) {
+            return;
+        }
+
+        if (!world.dimension().equals(Level.OVERWORLD)) {
+            return;
+        }
+
+        SeamlessSleepClientState.SLEEP_ANIMATION.start(
+                payload.startTimeOfDay(),
+                payload.endTimeOfDay(),
+                payload.durationTicks(),
+                payload.startMillis()
+        );
+    }
+
+    private static void applyStop(Minecraft client, SleepAnimationStopPayload payload) {
+        ClientLevel world = client.level;
+        if (world == null) {
+            return;
+        }
+
+        ResourceLocation worldId = world.dimension().location();
+        if (!worldId.equals(payload.worldId())) {
+            return;
+        }
+
+        SeamlessSleepClientState.SLEEP_ANIMATION.reset();
     }
 }

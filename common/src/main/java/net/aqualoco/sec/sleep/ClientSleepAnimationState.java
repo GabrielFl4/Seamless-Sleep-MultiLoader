@@ -3,7 +3,6 @@ package net.aqualoco.sec.sleep;
 import net.aqualoco.sec.Constants;
 import net.aqualoco.sec.client.ReplayPlaybackCompat;
 import net.aqualoco.sec.config.SeamlessSleepClientConfigManager;
-import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.multiplayer.ClientLevel;
 
 import java.util.OptionalLong;
@@ -68,13 +67,13 @@ public final class ClientSleepAnimationState {
         );
     }
 
-    public void tick(ClientLevel world, DeltaTracker deltaTracker) {
+    public void tick(ClientLevel world, float partialTick) {
         if (!this.active) {
             return;
         }
 
         double x = this.replayCompatMode
-                ? this.computeReplayCompatProgress(deltaTracker)
+                ? this.computeReplayCompatProgress(partialTick)
                 : this.computeNormalProgress();
         double eased = SleepAnimationState.integralEase(x);
 
@@ -89,7 +88,7 @@ public final class ClientSleepAnimationState {
     }
 
     public void tick(ClientLevel world) {
-        this.tick(world, DeltaTracker.ONE);
+        this.tick(world, 1.0F);
     }
 
     private double computeNormalProgress() {
@@ -99,7 +98,7 @@ public final class ClientSleepAnimationState {
         return totalMs <= 0.0 ? 1.0 : Math.min(1.0, elapsedMs / totalMs);
     }
 
-    private double computeReplayCompatProgress(DeltaTracker deltaTracker) {
+    private double computeReplayCompatProgress(float partialTick) {
         OptionalLong replayTimeline = ReplayPlaybackCompat.getReplayTimelineMillis();
         if (replayTimeline.isPresent()) {
             long replayNowMs = replayTimeline.getAsLong();
@@ -114,10 +113,10 @@ public final class ClientSleepAnimationState {
             return totalMs <= 0.0 ? 1.0 : Math.min(1.0, elapsedReplayMs / totalMs);
         }
 
-        this.replayCompatElapsedTicksFallback += Math.max(0.0F, deltaTracker.getGameTimeDeltaTicks());
+        this.replayCompatElapsedTicksFallback += Math.max(0.0F, partialTick);
         if (!this.loggedReplayTimelineFallback) {
             this.loggedReplayTimelineFallback = true;
-            Constants.debug("Replay timeline was unavailable; using DeltaTracker fallback for sleep animation progress.");
+            Constants.debug("Replay timeline was unavailable; using partial-tick fallback for sleep animation progress.");
         }
 
         if (this.durationTicks <= 0) {

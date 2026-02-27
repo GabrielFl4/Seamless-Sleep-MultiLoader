@@ -17,7 +17,7 @@ public final class ModItems {
 
     public static void register(BiConsumer<Item, ResourceLocation> consumer) {
         sleepBarrierItem = new BlockItem(ModBlocks.getSleepBarrier(), new Item.Properties());
-        consumer.accept(sleepBarrierItem, ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, "sleep_barrier"));
+        consumer.accept(sleepBarrierItem, new ResourceLocation(Constants.MOD_ID, "sleep_barrier"));
     }
 
     public static Item getSleepBarrierItem() {

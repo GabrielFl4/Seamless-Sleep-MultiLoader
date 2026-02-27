@@ -28,7 +28,7 @@ repositories {
         name = "YACL"
         url = "https://maven.isxander.dev/releases"
     }
-    // KotlinForForge (necessário porque YACL NeoForge puxa kotlinforforge-neoforge)
+    // KotlinForForge repository (kept for compatibility with some Forge dependency graphs).
     maven {
         name = "Kotlin for Forge"
         url = "https://thedarkcolour.github.io/KotlinForForge/"
@@ -41,19 +41,6 @@ repositories {
             }
         }
         filter { includeGroupAndSubgroups('org.spongepowered') }
-    }
-    exclusiveContent {
-        forRepositories(
-                maven {
-                    name = 'ParchmentMC'
-                    url = 'https://maven.parchmentmc.org/'
-                },
-                maven {
-                    name = "NeoForge"
-                    url = 'https://maven.neoforged.net/releases'
-                }
-        )
-        filter { includeGroup('org.parchmentmc.data') }
     }
     maven {
         name = 'BlameJared'
@@ -115,8 +102,6 @@ processResources {
             'mod_id'                       : mod_id,
             'license'                      : license,
             'description'                  : project.description,
-            'neoforge_version'             : neoforge_version,
-            'neoforge_loader_version_range': neoforge_loader_version_range,
             "forge_version": forge_version,
             "forge_loader_version_range": forge_loader_version_range,
             'credits'                      : credits,
@@ -124,7 +109,7 @@ processResources {
             'night_config_version'         : night_config_version
     ]
 
-    filesMatching(['pack.mcmeta', 'fabric.mod.json', 'META-INF/mods.toml', 'META-INF/neoforge.mods.toml', '*.mixins.json']) {
+    filesMatching(['pack.mcmeta', 'fabric.mod.json', 'META-INF/mods.toml', '*.mixins.json']) {
         expand expandProps
     }
     inputs.properties(expandProps)

@@ -15,7 +15,7 @@ public class ModBlocks {
 
     public static void register(BiConsumer<Block, ResourceLocation> consumer) {
         sleepBarrier = createSleepBarrier();
-        consumer.accept(sleepBarrier, ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, "sleep_barrier"));
+        consumer.accept(sleepBarrier, new ResourceLocation(Constants.MOD_ID, "sleep_barrier"));
     }
 
     public static void registerModBlocks() {
@@ -33,8 +33,6 @@ public class ModBlocks {
         return new SleepBarrier(
                 BlockBehaviour.Properties.of()
                         .strength(-1.0F, 3600000.0F)
-                        .noLootTable()
-                        .noTerrainParticles()
                         .noOcclusion()
         );
     }

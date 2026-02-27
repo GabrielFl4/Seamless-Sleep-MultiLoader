@@ -165,7 +165,6 @@ public final class ForgeClothConfigScreen {
                         serverCfg.sleepClearsWeather = value;
                     }
                 })
-                .setRequirement(() -> canEditServerConfig)
                 .build()
         );
 
@@ -222,7 +221,6 @@ public final class ForgeClothConfigScreen {
                 .setTextGetter(raw -> Component.literal(formatScaled(raw)))
                 .setTooltip(tooltip)
                 .setSaveConsumer(raw -> saveConsumer.accept(fromScaled(raw)))
-                .setRequirement(() -> available)
                 .build();
     }
 

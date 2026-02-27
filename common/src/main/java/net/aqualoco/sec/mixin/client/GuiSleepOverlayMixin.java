@@ -2,7 +2,6 @@ package net.aqualoco.sec.mixin.client;
 
 import net.aqualoco.sec.client.SeamlessSleepClientState;
 import net.aqualoco.sec.client.SleepStatusOverlay;
-import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiGraphics;
 import org.spongepowered.asm.mixin.Mixin;
@@ -15,7 +14,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class GuiSleepOverlayMixin {
 
     @Inject(method = "render", at = @At("TAIL"))
-    private void seamlesssleep$renderSleepOverlay(GuiGraphics graphics, DeltaTracker deltaTracker, CallbackInfo ci) {
+    private void seamlesssleep$renderSleepOverlay(GuiGraphics graphics, float partialTick, CallbackInfo ci) {
         SleepStatusOverlay.render(graphics, SeamlessSleepClientState.SLEEP_ANIMATION);
     }
 }

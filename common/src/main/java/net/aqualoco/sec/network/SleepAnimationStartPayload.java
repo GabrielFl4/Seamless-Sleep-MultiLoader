@@ -2,8 +2,6 @@ package net.aqualoco.sec.network;
 
 import net.aqualoco.sec.Constants;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 
 // Packet that starts the client sleep transition with timing and world data.
@@ -13,25 +11,21 @@ public record SleepAnimationStartPayload(
         long endTimeOfDay,
         int durationTicks,
         long startMillis
-) implements CustomPacketPayload {
+) implements SeamlessSleepPacket {
 
-    public static final CustomPacketPayload.Type<SleepAnimationStartPayload> ID =
-            new CustomPacketPayload.Type<>(
-                    ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, "sleep_animation_start")
-            );
+    public static final ResourceLocation ID =
+            new ResourceLocation(Constants.MOD_ID, "sleep_animation_start");
 
-    public static final StreamCodec<FriendlyByteBuf, SleepAnimationStartPayload> CODEC =
-            CustomPacketPayload.codec(SleepAnimationStartPayload::write, SleepAnimationStartPayload::read);
-
-    private static void write(SleepAnimationStartPayload payload, FriendlyByteBuf buf) {
-        buf.writeResourceLocation(payload.worldId());
-        buf.writeLong(payload.startTimeOfDay());
-        buf.writeLong(payload.endTimeOfDay());
-        buf.writeInt(payload.durationTicks());
-        buf.writeLong(payload.startMillis());
+    @Override
+    public void write(FriendlyByteBuf buf) {
+        buf.writeResourceLocation(worldId());
+        buf.writeLong(startTimeOfDay());
+        buf.writeLong(endTimeOfDay());
+        buf.writeInt(durationTicks());
+        buf.writeLong(startMillis());
     }
 
-    private static SleepAnimationStartPayload read(FriendlyByteBuf buf) {
+    public static SleepAnimationStartPayload read(FriendlyByteBuf buf) {
         ResourceLocation worldId = buf.readResourceLocation();
         long startTime = buf.readLong();
         long endTime = buf.readLong();
@@ -41,7 +35,7 @@ public record SleepAnimationStartPayload(
     }
 
     @Override
-    public Type<SleepAnimationStartPayload> type() {
+    public ResourceLocation id() {
         return ID;
     }
 }
