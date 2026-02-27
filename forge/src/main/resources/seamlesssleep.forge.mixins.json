@@ -6,7 +6,7 @@
   "mixins": [],
   "client": [
     "client.GameRendererSleepAnimationMixin",
-    "client.GuiSleepOverlayMixin"
+    "forgeclient.ForgeGuiSleepOverlayMixin"
   ],
   "server": [],
   "injectors": {
