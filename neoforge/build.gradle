@@ -1,0 +1,81 @@
+plugins {
+    id 'multiloader-loader'
+    id 'net.neoforged.moddev.legacyforge' version '2.0.140'
+}
+
+base {
+    archivesName = "${mod_id}-neoforge-${minecraft_version}"
+}
+
+legacyForge {
+    enable {
+        neoForgeVersion = project.neoforge_version
+    }
+
+    mods {
+        register(mod_id) {
+            sourceSet sourceSets.main
+        }
+    }
+
+    runs {
+        client {
+            client()
+            gameDirectory = file('runs/client')
+            ideName = "${project.name} Client"
+        }
+
+        server {
+            server()
+            gameDirectory = file('runs/server')
+            ideName = "${project.name} Server"
+        }
+
+        data {
+            data()
+            gameDirectory = file('runs/data')
+            ideName = "${project.name} Data"
+            programArgument '--mod'
+            programArgument mod_id
+            programArgument '--all'
+            programArgument '--output'
+            programArgument file('src/generated/resources').absolutePath
+            programArgument '--existing'
+            programArgument file('src/main/resources').absolutePath
+        }
+    }
+}
+
+mixin {
+    config("${mod_id}.mixins.json")
+    config("${mod_id}.neoforge.mixins.json")
+    add sourceSets.main, "mixin.refmap.json"
+}
+
+jar {
+    manifest {
+        attributes["MixinConfigs"] = "${mod_id}.mixins.json,${mod_id}.neoforge.mixins.json"
+    }
+}
+
+sourceSets.main.resources.srcDir 'src/generated/resources'
+
+dependencies {
+    annotationProcessor("org.spongepowered:mixin:0.8.5-SNAPSHOT:processor")
+
+    compileOnly group: 'org.spongepowered', name: 'mixin', version: '0.8.5'
+    compileOnly group: 'io.github.llamalad7', name: 'mixinextras-common', version: '0.3.5'
+    annotationProcessor group: 'io.github.llamalad7', name: 'mixinextras-common', version: '0.3.5'
+
+    compileOnly "com.electronwill.night-config:core:${project.night_config_version}"
+    compileOnly "com.electronwill.night-config:toml:${project.night_config_version}"
+
+    compileOnly "dev.isxander:yet-another-config-lib:${project.yacl_version_forge}"
+    runtimeOnly "dev.isxander:yet-another-config-lib:${project.yacl_version_forge}"
+}
+
+sourceSets.each {
+    def dir = layout.buildDirectory.dir("sourcesSets/$it.name")
+    it.output.resourcesDir = dir
+    it.java.destinationDirectory = dir
+}

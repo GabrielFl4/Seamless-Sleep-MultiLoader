@@ -1,4 +1,77 @@
 {
   "version": "0.2.0",
-  "configurations": []
+  "configurations": [
+    {
+      "type": "java",
+      "request": "launch",
+      "name": "neoforge Client",
+      "presentation": {
+        "group": "Mod Development - neoforge",
+        "order": 0
+      },
+      "projectName": "neoforge",
+      "mainClass": "net.neoforged.devlaunch.Main",
+      "args": [
+        "@C:\\Users\\Gabriel\\Desktop\\Modding\\Seamless-Sleep-Multi\\Seamless-Sleep-MultiLoader\\neoforge\\build\\moddev\\clientRunProgramArgs.txt"
+      ],
+      "vmArgs": [
+        "@C:\\Users\\Gabriel\\Desktop\\Modding\\Seamless-Sleep-Multi\\Seamless-Sleep-MultiLoader\\neoforge\\build\\moddev\\clientRunVmArgs.txt",
+        "-Dfml.modFolders\u003dseamlesssleep%%C:\\Users\\Gabriel\\Desktop\\Modding\\Seamless-Sleep-Multi\\Seamless-Sleep-MultiLoader\\neoforge\\bin\\main"
+      ],
+      "cwd": "${workspaceFolder}\\neoforge\\runs\\client",
+      "env": {
+        "MOD_CLASSES": "seamlesssleep%%C:\\Users\\Gabriel\\Desktop\\Modding\\Seamless-Sleep-Multi\\Seamless-Sleep-MultiLoader\\neoforge\\bin\\main"
+      },
+      "console": "internalConsole",
+      "shortenCommandLine": "none"
+    },
+    {
+      "type": "java",
+      "request": "launch",
+      "name": "neoforge Data",
+      "presentation": {
+        "group": "Mod Development - neoforge",
+        "order": 1
+      },
+      "projectName": "neoforge",
+      "mainClass": "net.neoforged.devlaunch.Main",
+      "args": [
+        "@C:\\Users\\Gabriel\\Desktop\\Modding\\Seamless-Sleep-Multi\\Seamless-Sleep-MultiLoader\\neoforge\\build\\moddev\\dataRunProgramArgs.txt"
+      ],
+      "vmArgs": [
+        "@C:\\Users\\Gabriel\\Desktop\\Modding\\Seamless-Sleep-Multi\\Seamless-Sleep-MultiLoader\\neoforge\\build\\moddev\\dataRunVmArgs.txt",
+        "-Dfml.modFolders\u003dseamlesssleep%%C:\\Users\\Gabriel\\Desktop\\Modding\\Seamless-Sleep-Multi\\Seamless-Sleep-MultiLoader\\neoforge\\bin\\main"
+      ],
+      "cwd": "${workspaceFolder}\\neoforge\\runs\\data",
+      "env": {
+        "MOD_CLASSES": "seamlesssleep%%C:\\Users\\Gabriel\\Desktop\\Modding\\Seamless-Sleep-Multi\\Seamless-Sleep-MultiLoader\\neoforge\\bin\\main"
+      },
+      "console": "internalConsole",
+      "shortenCommandLine": "none"
+    },
+    {
+      "type": "java",
+      "request": "launch",
+      "name": "neoforge Server",
+      "presentation": {
+        "group": "Mod Development - neoforge",
+        "order": 2
+      },
+      "projectName": "neoforge",
+      "mainClass": "net.neoforged.devlaunch.Main",
+      "args": [
+        "@C:\\Users\\Gabriel\\Desktop\\Modding\\Seamless-Sleep-Multi\\Seamless-Sleep-MultiLoader\\neoforge\\build\\moddev\\serverRunProgramArgs.txt"
+      ],
+      "vmArgs": [
+        "@C:\\Users\\Gabriel\\Desktop\\Modding\\Seamless-Sleep-Multi\\Seamless-Sleep-MultiLoader\\neoforge\\build\\moddev\\serverRunVmArgs.txt",
+        "-Dfml.modFolders\u003dseamlesssleep%%C:\\Users\\Gabriel\\Desktop\\Modding\\Seamless-Sleep-Multi\\Seamless-Sleep-MultiLoader\\neoforge\\bin\\main"
+      ],
+      "cwd": "${workspaceFolder}\\neoforge\\runs\\server",
+      "env": {
+        "MOD_CLASSES": "seamlesssleep%%C:\\Users\\Gabriel\\Desktop\\Modding\\Seamless-Sleep-Multi\\Seamless-Sleep-MultiLoader\\neoforge\\bin\\main"
+      },
+      "console": "internalConsole",
+      "shortenCommandLine": "none"
+    }
+  ]
 }

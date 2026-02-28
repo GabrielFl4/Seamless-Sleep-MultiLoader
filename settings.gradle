@@ -2,42 +2,19 @@ pluginManagement {
     repositories {
         gradlePluginPortal()
         mavenCentral()
-        exclusiveContent {
-            forRepository {
-                maven {
-                    name = 'Fabric'
-                    url = uri('https://maven.fabricmc.net')
-                }
-            }
-            filter {
-                includeGroup('net.fabricmc')
-                includeGroup('net.fabricmc.unpick')   // <- FALTAVA ISSO
-                includeGroup('fabric-loom')
-            }
+        mavenLocal()
+        maven {
+            name = 'Fabric'
+            url = uri('https://maven.fabricmc.net')
         }
-        exclusiveContent {
-            forRepository {
-                maven {
-                    name = 'Sponge'
-                    url = uri('https://repo.spongepowered.org/repository/maven-public')
-                }
-            }
-            filter {
-                includeGroupAndSubgroups("org.spongepowered")
-            }
+        maven { url = 'https://maven.neoforged.net/releases' }
+        maven {
+            name = 'Sponge'
+            url = uri('https://repo.spongepowered.org/repository/maven-public')
         }
-        exclusiveContent {
-            forRepository {
-                maven {
-                    name = 'Forge'
-                    url = uri('https://maven.minecraftforge.net')
-                }
-            }
-            filter {
-                includeGroupAndSubgroups('net.minecraftforge')
-                includeGroupAndSubgroups('net.minecraftforge.gradle')
-                includeGroupAndSubgroups('net.minecraftforge.gradleutils')
-            }
+        maven {
+            name = 'Forge'
+            url = uri('https://maven.minecraftforge.net')
         }
     }
 }
@@ -50,4 +27,5 @@ plugins {
 rootProject.name = 'Seamless-Sleep-MultiLoader'
 include('common')
 include('fabric')
+include('neoforge')
 include('forge')
