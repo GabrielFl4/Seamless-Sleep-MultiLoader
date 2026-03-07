@@ -4,6 +4,8 @@ plugins {
 }
 
 dependencies {
+    compileOnly "com.electronwill.night-config:core:${project.night_config_version}"
+    compileOnly "com.electronwill.night-config:toml:${project.night_config_version}"
     // NeoForge ModDev: mod deps entram como dependências Gradle normais
     // implementation "dev.isxander:yet-another-config-lib:${project.yacl_version}"
 
@@ -12,7 +14,6 @@ dependencies {
     compileOnly  "dev.isxander:yet-another-config-lib:${project.yacl_version_forge}"
     runtimeOnly  "dev.isxander:yet-another-config-lib:${project.yacl_version_forge}"
 
-    implementation "thedarkcolour:kotlinforforge-neoforge:5.6.0"
 }
 
 neoForge {

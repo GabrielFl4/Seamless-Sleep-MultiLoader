@@ -1,7 +1,7 @@
 package net.aqualoco.sec;
 
 
-import net.aqualoco.sec.client.NeoForgeConfigScreens;
+import net.aqualoco.sec.network.SleepAnimationNetworking;
 import net.aqualoco.sec.registry.ModBlocks;
 import net.aqualoco.sec.registry.ModItems;
 import net.minecraft.core.Registry;
@@ -11,6 +11,8 @@ import net.minecraft.resources.ResourceLocation;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
+import net.neoforged.fml.loading.FMLLoader;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.registries.RegisterEvent;
 
@@ -34,8 +36,9 @@ public class SeamlessSleep {
         NeoForge.EVENT_BUS.addListener(SeamlessSleepCommandRegistration::register);
         NeoForge.EVENT_BUS.addListener(SeamlessSleepServerEvents::onPlayerLoggedIn);
 
-        if (seamlesssleep$isClient()) {
-            NeoForgeConfigScreens.register(modContainer);
+        if (FMLLoader.getDist().isClient()) {
+            eventBus.addListener(SeamlessSleep::onClientSetup);
+            net.aqualoco.sec.client.NeoForgeConfigScreens.register(modContainer);
         }
     }
 
@@ -48,12 +51,7 @@ public class SeamlessSleep {
         });
     }
 
-    private static boolean seamlesssleep$isClient() {
-        try {
-            Class.forName("net.minecraft.client.Minecraft", false, SeamlessSleep.class.getClassLoader());
-            return true;
-        } catch (ClassNotFoundException e) {
-            return false;
-        }
+    private static void onClientSetup(FMLClientSetupEvent event) {
+        event.enqueueWork(SleepAnimationNetworking::initClient);
     }
 }

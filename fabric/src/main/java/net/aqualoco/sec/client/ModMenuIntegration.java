@@ -104,8 +104,8 @@ public class ModMenuIntegration implements ModMenuApi {
                                             Component.translatable("config.seamlesssleep.camera.tilt_degrees.desc"),
                                             Component.empty(),
                                             10.0D,
-                                            -45.0D,
-                                            45.0D,
+                                            -90.0D,
+                                            90.0D,
                                             1.0D,
                                             () -> cfg.sleepCameraTiltDegrees,
                                             val -> cfg.sleepCameraTiltDegrees = val,
@@ -160,7 +160,7 @@ public class ModMenuIntegration implements ModMenuApi {
                                             Component.translatable("config.seamlesssleep.server_controlled"),
                                             1.0D,
                                             0.25D,
-                                            4.0D,
+                                            8.0D,
                                             0.05D,
                                             () -> canEditServerConfig
                                                     ? serverCfg.sleepAnimationDurationMultiplier
@@ -284,6 +284,7 @@ public class ModMenuIntegration implements ModMenuApi {
         @Override
         public void render(net.minecraft.client.gui.GuiGraphics context, int mouseX, int mouseY, float delta) {
             this.renderBackground(context, mouseX, mouseY, delta);
+            super.render(context, mouseX, mouseY, delta);
             int x = this.width / 2;
             int y = this.height / 2 - 20;
             context.drawCenteredString(this.font,
@@ -296,8 +297,6 @@ public class ModMenuIntegration implements ModMenuApi {
                     x,
                     y + 12,
                     0xFFFFFF);
-            super.render(context, mouseX, mouseY, delta);
         }
     }
 }
-
