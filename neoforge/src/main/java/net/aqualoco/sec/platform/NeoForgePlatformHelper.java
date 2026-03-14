@@ -32,4 +32,16 @@ public class NeoForgePlatformHelper implements IPlatformHelper {
     public Path getConfigDir() {
         return FMLPaths.CONFIGDIR.get();
     }
+
+    @Override
+    public String getModVersion(String modId) {
+        try {
+            return ModList.get()
+                    .getModContainerById(modId)
+                    .map(container -> container.getModInfo().getVersion().toString())
+                    .orElse("unknown");
+        } catch (Exception ignored) {
+            return "unknown";
+        }
+    }
 }

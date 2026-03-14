@@ -35,6 +35,14 @@ public interface IPlatformHelper {
     Path getConfigDir();
 
     /**
+     * Gets a loaded mod's version string.
+     *
+     * @param modId The mod id to resolve.
+     * @return The mod version, or "unknown" if unavailable.
+     */
+    String getModVersion(String modId);
+
+    /**
      * Gets the name of the environment type as a string.
      *
      * @return The name of the environment type.

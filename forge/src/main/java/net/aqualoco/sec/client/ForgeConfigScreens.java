@@ -61,6 +61,7 @@ public final class ForgeConfigScreens {
         @Override
         public void render(net.minecraft.client.gui.GuiGraphics graphics, int mouseX, int mouseY, float delta) {
             this.renderBackground(graphics, mouseX, mouseY, delta);
+            super.render(graphics, mouseX, mouseY, delta);
             int x = this.width / 2;
             int y = this.height / 2 - 20;
             graphics.drawCenteredString(this.font,
@@ -73,7 +74,6 @@ public final class ForgeConfigScreens {
                     x,
                     y + 12,
                     0xFFFFFF);
-            super.render(graphics, mouseX, mouseY, delta);
         }
     }
 }
