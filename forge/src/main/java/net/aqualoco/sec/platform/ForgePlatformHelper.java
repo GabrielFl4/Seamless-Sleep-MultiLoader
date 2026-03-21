@@ -32,4 +32,12 @@ public class ForgePlatformHelper implements IPlatformHelper {
     public Path getConfigDir() {
         return FMLPaths.CONFIGDIR.get();
     }
+
+    @Override
+    public String getModVersion(String modId) {
+        return ModList.get()
+                .getModContainerById(modId)
+                .map(container -> container.getModInfo().getVersion().toString())
+                .orElse("unknown");
+    }
 }
