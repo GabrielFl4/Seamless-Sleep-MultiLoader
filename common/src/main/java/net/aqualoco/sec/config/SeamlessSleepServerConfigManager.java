@@ -15,7 +15,7 @@ public final class SeamlessSleepServerConfigManager {
     private static final String FILE_NAME = "seamless_sleep-server.toml";
     private static final String LEGACY_JSON_FILE = "seamless_sleep-server.json";
     private static final String LEGACY_JSONC_FILE = "seamless_sleep-server.jsonc";
-    private static final int CONFIG_VERSION = 1;
+    private static final int CONFIG_VERSION = 2;
 
     // Distinguishes a clean reload from recovery/fallback scenarios.
     public enum ReloadResult {
@@ -107,7 +107,7 @@ public final class SeamlessSleepServerConfigManager {
                 fileConfig.set("mod_version", resolveModVersion());
 
                 fileConfig.setComment("sleep", "Server-authoritative sleep settings.");
-                fileConfig.set("sleep.clears_weather", cfg.sleepClearsWeather);
+                fileConfig.set("sleep.weather_clear_chance_percent", cfg.sleepWeatherClearChancePercent);
                 fileConfig.set("sleep.duration_multiplier", cfg.sleepAnimationDurationMultiplier);
 
                 fileConfig.save();
@@ -122,12 +122,20 @@ public final class SeamlessSleepServerConfigManager {
     private static SeamlessSleepServerConfig readConfig(CommentedFileConfig fileConfig) {
         SeamlessSleepServerConfig cfg = defaultConfig();
 
-        cfg.sleepClearsWeather = readBoolean(
+        cfg.sleepWeatherClearChancePercent = readChancePercent(
                 fileConfig,
-                cfg.sleepClearsWeather,
-                "sleep.clears_weather",
-                "sleep.sleep_clears_weather",
-                "sleepClearsWeather"
+                cfg.sleepWeatherClearChancePercent,
+                new String[]{
+                        "sleep.weather_clear_chance_percent",
+                        "sleep.sleep_weather_clear_chance_percent",
+                        "sleepWeatherClearChancePercent",
+                        "sleep.clears_weather_chance"
+                },
+                new String[]{
+                        "sleep.clears_weather",
+                        "sleep.sleep_clears_weather",
+                        "sleepClearsWeather"
+                }
         );
         cfg.sleepAnimationDurationMultiplier = readDouble(
                 fileConfig,
@@ -140,9 +148,46 @@ public final class SeamlessSleepServerConfigManager {
         return cfg;
     }
 
+    private static int readChancePercent(CommentedFileConfig fileConfig,
+                                         int fallback,
+                                         String[] chanceKeys,
+                                         String[] legacyBooleanKeys) {
+        Integer parsedChance = readInt(fileConfig, null, chanceKeys);
+        if (parsedChance != null) {
+            return clampPercent(parsedChance);
+        }
+
+        Boolean legacyBoolean = readBoolean(fileConfig, null, legacyBooleanKeys);
+        if (legacyBoolean != null) {
+            return legacyBoolean ? 100 : 0;
+        }
+
+        return clampPercent(fallback);
+    }
+
+    private static int clampPercent(int value) {
+        if (value < 0) {
+            return 0;
+        }
+        if (value > 100) {
+            return 100;
+        }
+        return value;
+    }
+
     private static Boolean readBoolean(CommentedFileConfig fileConfig, Boolean fallback, String... keys) {
         for (String key : keys) {
             Boolean parsed = parseBoolean(fileConfig.get(key));
+            if (parsed != null) {
+                return parsed;
+            }
+        }
+        return fallback;
+    }
+
+    private static Integer readInt(CommentedFileConfig fileConfig, Integer fallback, String... keys) {
+        for (String key : keys) {
+            Integer parsed = parseInteger(fileConfig.get(key));
             if (parsed != null) {
                 return parsed;
             }
@@ -185,6 +230,20 @@ public final class SeamlessSleepServerConfigManager {
         if (value instanceof String text) {
             try {
                 return Double.parseDouble(text);
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private static Integer parseInteger(Object value) {
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        if (value instanceof String text) {
+            try {
+                return Integer.parseInt(text);
             } catch (NumberFormatException ignored) {
                 return null;
             }

@@ -7,7 +7,7 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 
 // Packet used to mirror server config values on connected clients.
-public record ServerConfigSyncPayload(boolean sleepClearsWeather,
+public record ServerConfigSyncPayload(int sleepWeatherClearChancePercent,
                                       double sleepAnimationDurationMultiplier) implements CustomPacketPayload {
 
     public static final Type<ServerConfigSyncPayload> ID =
@@ -17,14 +17,14 @@ public record ServerConfigSyncPayload(boolean sleepClearsWeather,
             CustomPacketPayload.codec(ServerConfigSyncPayload::write, ServerConfigSyncPayload::read);
 
     private static void write(ServerConfigSyncPayload payload, FriendlyByteBuf buf) {
-        buf.writeBoolean(payload.sleepClearsWeather());
+        buf.writeVarInt(payload.sleepWeatherClearChancePercent());
         buf.writeDouble(payload.sleepAnimationDurationMultiplier());
     }
 
     private static ServerConfigSyncPayload read(FriendlyByteBuf buf) {
-        boolean clearsWeather = buf.readBoolean();
+        int weatherClearChancePercent = buf.readVarInt();
         double durationMultiplier = buf.readDouble();
-        return new ServerConfigSyncPayload(clearsWeather, durationMultiplier);
+        return new ServerConfigSyncPayload(weatherClearChancePercent, durationMultiplier);
     }
 
     @Override

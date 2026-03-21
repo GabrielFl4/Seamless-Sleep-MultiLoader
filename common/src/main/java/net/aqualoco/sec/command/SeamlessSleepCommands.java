@@ -3,6 +3,7 @@ package net.aqualoco.sec.command;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.BoolArgumentType;
 import com.mojang.brigadier.arguments.DoubleArgumentType;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import net.aqualoco.sec.config.SeamlessSleepServerConfig;
 import net.aqualoco.sec.config.SeamlessSleepServerConfigManager;
@@ -27,11 +28,16 @@ public final class SeamlessSleepCommands {
                                 .executes(SeamlessSleepCommands::reload))
                         .then(Commands.literal("set")
                                 .then(Commands.literal("sleepClearsWeather")
-                                        .executes(SeamlessSleepCommands::getSleepClearsWeather)
+                                        .executes(SeamlessSleepCommands::getSleepWeatherClearChance)
                                         .then(Commands.argument("value", BoolArgumentType.bool())
-                                                .executes(ctx -> setSleepClearsWeather(
+                                                .executes(ctx -> setSleepClearsWeatherBoolean(
                                                         ctx,
                                                         BoolArgumentType.getBool(ctx, "value")
+                                                )))
+                                        .then(Commands.argument("percent", IntegerArgumentType.integer(0, 100))
+                                                .executes(ctx -> setSleepWeatherClearChance(
+                                                        ctx,
+                                                        IntegerArgumentType.getInteger(ctx, "percent")
                                                 ))))
                                 .then(Commands.literal("sleepDurationMultiplier")
                                         .executes(SeamlessSleepCommands::getSleepDurationMultiplier)
@@ -62,21 +68,25 @@ public final class SeamlessSleepCommands {
         return result == SeamlessSleepServerConfigManager.ReloadResult.ERROR ? 0 : 1;
     }
 
-    private static int getSleepClearsWeather(CommandContext<CommandSourceStack> context) {
+    private static int getSleepWeatherClearChance(CommandContext<CommandSourceStack> context) {
         SeamlessSleepServerConfig config = SeamlessSleepServerConfigManager.get();
         context.getSource().sendSuccess(
                 () -> Component.translatable(
                         "command.seamlesssleep.set.sleep_clears_weather.current",
-                        formatBoolean(config.sleepClearsWeather)
+                        formatPercentage(config.sleepWeatherClearChancePercent)
                 ),
                 false
         );
         return 1;
     }
 
-    private static int setSleepClearsWeather(CommandContext<CommandSourceStack> context, boolean value) {
+    private static int setSleepClearsWeatherBoolean(CommandContext<CommandSourceStack> context, boolean value) {
+        return setSleepWeatherClearChance(context, value ? 100 : 0);
+    }
+
+    private static int setSleepWeatherClearChance(CommandContext<CommandSourceStack> context, int value) {
         SeamlessSleepServerConfig config = SeamlessSleepServerConfigManager.get();
-        config.sleepClearsWeather = value;
+        config.sleepWeatherClearChancePercent = value;
         config.clamp();
         SeamlessSleepServerConfigManager.save();
         ServerConfigSync.sendToAll(context.getSource().getServer(), config);
@@ -84,7 +94,7 @@ public final class SeamlessSleepCommands {
         context.getSource().sendSuccess(
                 () -> Component.translatable(
                         "command.seamlesssleep.set.sleep_clears_weather.updated",
-                        formatBoolean(config.sleepClearsWeather)
+                        formatPercentage(config.sleepWeatherClearChancePercent)
                 ),
                 true
         );
@@ -128,7 +138,7 @@ public final class SeamlessSleepCommands {
         return String.format(Locale.ROOT, "%.2f", value);
     }
 
-    private static String formatBoolean(Boolean value) {
-        return Boolean.TRUE.equals(value) ? "true" : "false";
+    private static String formatPercentage(int value) {
+        return value + "%";
     }
 }

@@ -1,11 +1,14 @@
 package net.aqualoco.sec.mixin;
 
+import net.aqualoco.sec.SeamlessSleepCommon;
+import net.aqualoco.sec.sleep.SleepAnimationState;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.Level;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 
-// Keeps the vanilla wake-up call path intact while this mod controls timing elsewhere.
+// Prevents vanilla daybreak auto-wake while the server-side sleep animation is still active.
 @Mixin(Player.class)
 public abstract class PlayerEntitySleepAnimationMixin {
 
@@ -19,6 +22,16 @@ public abstract class PlayerEntitySleepAnimationMixin {
     private void seamlesssleep$forwardWakeUp(Player self,
                                              boolean skipSleepTimer,
                                              boolean updateSleepingPlayers) {
+        if (!self.level().dimension().equals(Level.OVERWORLD)) {
+            self.stopSleepInBed(skipSleepTimer, updateSleepingPlayers);
+            return;
+        }
+
+        SleepAnimationState state = SeamlessSleepCommon.OVERWORLD_SLEEP_ANIMATION;
+        if (state.isActive()) {
+            return;
+        }
+
         self.stopSleepInBed(skipSleepTimer, updateSleepingPlayers);
     }
 }

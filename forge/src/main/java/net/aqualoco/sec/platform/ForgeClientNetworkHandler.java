@@ -60,7 +60,7 @@ final class ForgeClientNetworkHandler implements ForgeNetworkHelper.ClientHandle
     @Override
     public void handleServerConfig(ServerConfigSyncPayload payload) {
         SeamlessSleepServerConfigSnapshot.update(
-                payload.sleepClearsWeather(),
+                payload.sleepWeatherClearChancePercent(),
                 payload.sleepAnimationDurationMultiplier()
         );
     }

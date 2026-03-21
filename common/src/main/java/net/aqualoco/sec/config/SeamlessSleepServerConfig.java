@@ -2,19 +2,31 @@ package net.aqualoco.sec.config;
 
 // Server-authoritative sleep settings that are synced to clients.
 public final class SeamlessSleepServerConfig {
-    public Boolean sleepClearsWeather = true;
+    public int sleepWeatherClearChancePercent = 100;
     public double sleepAnimationDurationMultiplier = 1.0D;
 
     public void clamp() {
-        if (sleepClearsWeather == null) {
-            sleepClearsWeather = true;
-        }
+        sleepWeatherClearChancePercent = clampIntRange(
+                sleepWeatherClearChancePercent,
+                0,
+                100
+        );
         sleepAnimationDurationMultiplier = clampRange(
                 sleepAnimationDurationMultiplier,
                 0.25D,
                 8.0D,
                 1.0D
         );
+    }
+
+    private static int clampIntRange(int value, int min, int max) {
+        if (value < min) {
+            return min;
+        }
+        if (value > max) {
+            return max;
+        }
+        return value;
     }
 
     private static double clampRange(double value, double min, double max, double fallback) {

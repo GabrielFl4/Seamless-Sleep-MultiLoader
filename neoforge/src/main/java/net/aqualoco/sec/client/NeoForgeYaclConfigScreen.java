@@ -130,17 +130,19 @@ public final class NeoForgeYaclConfigScreen {
                 .category(
                         ConfigCategory.createBuilder()
                                 .name(Component.translatable("config.seamlesssleep.category.sleep"))
-                                .option(buildToggle(
+                                .option(buildWeatherChanceSlider(
                                         Component.translatable("config.seamlesssleep.sleep.clears_weather"),
                                         Component.translatable("config.seamlesssleep.sleep.clears_weather.desc"),
                                         Component.translatable("config.seamlesssleep.server_controlled"),
-                                        true,
+                                        100,
+                                        0,
+                                        100,
                                         () -> canEditServerConfig
-                                                ? serverCfg.sleepClearsWeather
-                                                : SeamlessSleepServerConfigSnapshot.getSleepClearsWeather(),
+                                                ? serverCfg.sleepWeatherClearChancePercent
+                                                : SeamlessSleepServerConfigSnapshot.getSleepWeatherClearChancePercent(),
                                         val -> {
                                             if (canEditServerConfig) {
-                                                serverCfg.sleepClearsWeather = val;
+                                                serverCfg.sleepWeatherClearChancePercent = val;
                                             }
                                         },
                                         canEditServerConfig
@@ -223,6 +225,69 @@ public final class NeoForgeYaclConfigScreen {
                         .range(min, max)
                         .step(1))
                 .build();
+    }
+
+    private static Option<Integer> buildIntSlider(Component name,
+                                                  Component description,
+                                                  Component disabledReason,
+                                                  int def,
+                                                  int min,
+                                                  int max,
+                                                  java.util.function.Supplier<Integer> getter,
+                                                  java.util.function.Consumer<Integer> setter,
+                                                  boolean available) {
+        OptionDescription optionDescription = available
+                ? OptionDescription.of(description)
+                : OptionDescription.of(description, disabledReason);
+        Option.Builder<Integer> builder = Option.<Integer>createBuilder()
+                .name(name)
+                .description(optionDescription)
+                .binding(def, getter::get, value -> {
+                    if (available) {
+                        setter.accept(value);
+                    }
+                })
+                .controller(opt -> IntegerSliderControllerBuilder.create(opt)
+                        .range(min, max)
+                        .step(1));
+        builder.available(available);
+        return builder.build();
+    }
+
+    private static Option<Integer> buildWeatherChanceSlider(Component name,
+                                                            Component description,
+                                                            Component disabledReason,
+                                                            int def,
+                                                            int min,
+                                                            int max,
+                                                            java.util.function.Supplier<Integer> getter,
+                                                            java.util.function.Consumer<Integer> setter,
+                                                            boolean available) {
+        OptionDescription optionDescription = available
+                ? OptionDescription.of(description)
+                : OptionDescription.of(description, disabledReason);
+        Option.Builder<Integer> builder = Option.<Integer>createBuilder()
+                .name(name)
+                .description(optionDescription)
+                .binding(def, getter::get, value -> {
+                    if (available) {
+                        setter.accept(value);
+                    }
+                })
+                .controller(opt -> IntegerSliderControllerBuilder.create(opt)
+                        .range(min, max)
+                        .step(5)
+                        .valueFormatter(value -> {
+                            if (value <= 0) {
+                                return Component.literal("false");
+                            }
+                            if (value >= 100) {
+                                return Component.literal("true");
+                            }
+                            return Component.literal(value + "%");
+                        }));
+        builder.available(available);
+        return builder.build();
     }
 
     private static Option<Boolean> buildToggle(Component name,

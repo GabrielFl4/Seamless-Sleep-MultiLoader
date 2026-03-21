@@ -70,7 +70,7 @@ final class FabricClientNetworkHandler {
                 ServerConfigSyncPayload.ID,
                 (payload, context) -> context.client().execute(
                         () -> SeamlessSleepServerConfigSnapshot.update(
-                                payload.sleepClearsWeather(),
+                                payload.sleepWeatherClearChancePercent(),
                                 payload.sleepAnimationDurationMultiplier()
                         )
                 )
