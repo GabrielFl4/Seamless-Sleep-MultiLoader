@@ -3,6 +3,7 @@ package net.aqualoco.sec.command;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.BoolArgumentType;
 import com.mojang.brigadier.arguments.DoubleArgumentType;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import net.aqualoco.sec.config.SeamlessSleepServerConfig;
 import net.aqualoco.sec.config.SeamlessSleepServerConfigManager;
@@ -33,6 +34,11 @@ public final class SeamlessSleepCommands {
                                                 .executes(ctx -> setSleepClearsWeather(
                                                         ctx,
                                                         BoolArgumentType.getBool(ctx, "value")
+                                                )))
+                                        .then(Commands.argument("chance", IntegerArgumentType.integer(0, 100))
+                                                .executes(ctx -> setSleepWeatherClearChancePercent(
+                                                        ctx,
+                                                        IntegerArgumentType.getInteger(ctx, "chance")
                                                 ))))
                                 .then(Commands.literal("sleepDurationMultiplier")
                                         .executes(SeamlessSleepCommands::getSleepDurationMultiplier)
@@ -68,7 +74,7 @@ public final class SeamlessSleepCommands {
         context.getSource().sendSuccess(
                 () -> Component.translatable(
                         "command.seamlesssleep.set.sleep_clears_weather.current",
-                        formatBoolean(config.sleepClearsWeather)
+                        formatWeatherChance(config.sleepWeatherClearChancePercent)
                 ),
                 false
         );
@@ -76,8 +82,12 @@ public final class SeamlessSleepCommands {
     }
 
     private static int setSleepClearsWeather(CommandContext<CommandSourceStack> context, boolean value) {
+        return setSleepWeatherClearChancePercent(context, value ? 100 : 0);
+    }
+
+    private static int setSleepWeatherClearChancePercent(CommandContext<CommandSourceStack> context, int value) {
         SeamlessSleepServerConfig config = SeamlessSleepServerConfigManager.get();
-        config.sleepClearsWeather = value;
+        config.sleepWeatherClearChancePercent = value;
         config.clamp();
         SeamlessSleepServerConfigManager.save();
         ServerConfigSync.sendToAll(context.getSource().getServer(), config);
@@ -85,7 +95,7 @@ public final class SeamlessSleepCommands {
         context.getSource().sendSuccess(
                 () -> Component.translatable(
                         "command.seamlesssleep.set.sleep_clears_weather.updated",
-                        formatBoolean(config.sleepClearsWeather)
+                        formatWeatherChance(config.sleepWeatherClearChancePercent)
                 ),
                 true
         );
@@ -129,7 +139,13 @@ public final class SeamlessSleepCommands {
         return String.format(Locale.ROOT, "%.2f", value);
     }
 
-    private static String formatBoolean(Boolean value) {
-        return Boolean.TRUE.equals(value) ? "true" : "false";
+    private static String formatWeatherChance(int value) {
+        if (value <= 0) {
+            return "false";
+        }
+        if (value >= 100) {
+            return "true";
+        }
+        return value + "%";
     }
 }

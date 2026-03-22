@@ -11,6 +11,7 @@ import net.minecraft.resources.Identifier;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.loading.FMLLoader;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.registries.RegisterEvent;
 
@@ -34,7 +35,7 @@ public class SeamlessSleep {
         NeoForge.EVENT_BUS.addListener(SeamlessSleepCommandRegistration::register);
         NeoForge.EVENT_BUS.addListener(SeamlessSleepServerEvents::onPlayerLoggedIn);
 
-        if (seamlesssleep$isClient()) {
+        if (FMLLoader.getCurrent().getDist().isClient()) {
             NeoForgeConfigScreens.register(modContainer);
         }
     }
@@ -48,12 +49,4 @@ public class SeamlessSleep {
         });
     }
 
-    private static boolean seamlesssleep$isClient() {
-        try {
-            Class.forName("net.minecraft.client.Minecraft", false, SeamlessSleep.class.getClassLoader());
-            return true;
-        } catch (ClassNotFoundException e) {
-            return false;
-        }
-    }
 }

@@ -16,13 +16,12 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
-// Builds the NeoForge config UI with YACL; the option/controller setup follows patterns from YACL docs examples.
-public final class NeoForgeYaclConfigScreen {
+final class FabricYaclConfigScreen {
 
-    private NeoForgeYaclConfigScreen() {
+    private FabricYaclConfigScreen() {
     }
 
-    public static Screen create(Screen parent) {
+    static Screen create(Screen parent) {
         SeamlessSleepClientConfig cfg = SeamlessSleepClientConfigManager.get();
         cfg.clamp();
         SeamlessSleepServerConfig serverCfg = SeamlessSleepServerConfigManager.get();
@@ -30,7 +29,6 @@ public final class NeoForgeYaclConfigScreen {
 
         Minecraft client = Minecraft.getInstance();
         boolean connectedToRemote = client.getConnection() != null && !client.hasSingleplayerServer();
-        // Remote servers sync these values, so server-controlled options stay read-only in the UI.
         boolean canEditServerConfig = !connectedToRemote;
 
         return YetAnotherConfigLib.createBuilder()
@@ -169,7 +167,6 @@ public final class NeoForgeYaclConfigScreen {
                                 .build()
                 )
                 .save(() -> {
-                    // Client options are always local; server config is saved only when this client can author it.
                     cfg.clamp();
                     SeamlessSleepClientConfigManager.save();
                     if (canEditServerConfig) {
@@ -191,7 +188,6 @@ public final class NeoForgeYaclConfigScreen {
                                                     java.util.function.Supplier<Double> getter,
                                                     java.util.function.Consumer<Double> setter,
                                                     boolean available) {
-        // Keep descriptions readable even when an option is disabled by server control.
         OptionDescription optionDescription = available
                 ? OptionDescription.of(description)
                 : OptionDescription.of(description, disabledReason);
@@ -199,7 +195,6 @@ public final class NeoForgeYaclConfigScreen {
                 .name(name)
                 .description(optionDescription)
                 .binding(def, getter::get, value -> {
-                    // YACL still routes value changes through binding, so we gate writes here.
                     if (available) {
                         setter.accept(value);
                     }
@@ -252,7 +247,7 @@ public final class NeoForgeYaclConfigScreen {
                 .controller(opt -> IntegerSliderControllerBuilder.create(opt)
                         .range(min, max)
                         .step(step)
-                        .formatValue(NeoForgeYaclConfigScreen::formatWeatherChanceValue));
+                        .formatValue(FabricYaclConfigScreen::formatWeatherChanceValue));
         builder.available(available);
         return builder.build();
     }
@@ -264,7 +259,6 @@ public final class NeoForgeYaclConfigScreen {
                                                java.util.function.Supplier<Boolean> getter,
                                                java.util.function.Consumer<Boolean> setter,
                                                boolean available) {
-        // Mirror the slider behavior so disabled toggles show context but cannot mutate values.
         OptionDescription optionDescription = available
                 ? OptionDescription.of(description)
                 : OptionDescription.of(description, disabledReason);
@@ -272,7 +266,6 @@ public final class NeoForgeYaclConfigScreen {
                 .name(name)
                 .description(optionDescription)
                 .binding(def, getter::get, value -> {
-                    // Same guard as slider options for server-controlled entries.
                     if (available) {
                         setter.accept(value);
                     }

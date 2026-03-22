@@ -17,7 +17,7 @@ final class SeamlessSleepServerEvents {
             SeamlessSleepServerConfig cfg = SeamlessSleepServerConfigManager.get();
             ServerPlayNetworking.send(handler.getPlayer(),
                     new ServerConfigSyncPayload(
-                            cfg.sleepClearsWeather,
+                            cfg.sleepWeatherClearChancePercent,
                             cfg.sleepAnimationDurationMultiplier
                     ));
         });

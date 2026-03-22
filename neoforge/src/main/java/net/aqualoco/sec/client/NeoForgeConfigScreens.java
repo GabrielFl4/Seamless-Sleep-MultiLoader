@@ -58,20 +58,19 @@ public final class NeoForgeConfigScreens {
 
         @Override
         public void render(net.minecraft.client.gui.GuiGraphics graphics, int mouseX, int mouseY, float delta) {
-            this.renderBackground(graphics, mouseX, mouseY, delta);
+            super.render(graphics, mouseX, mouseY, delta);
             int x = this.width / 2;
             int y = this.height / 2 - 20;
             graphics.drawCenteredString(this.font,
-                    Component.literal("YACL not found").withStyle(ChatFormatting.RED),
+                    Component.translatable("screen.seamlesssleep.missing_yacl.notice").withStyle(ChatFormatting.RED),
                     x,
                     y,
-                    0xFFFFFF);
+                    0xFFFFFFFF);
             graphics.drawCenteredString(this.font,
-                    Component.literal("Install YetAnotherConfigLib v3 to edit configs."),
+                    Component.translatable("screen.seamlesssleep.missing_yacl.hint"),
                     x,
                     y + 12,
-                    0xFFFFFF);
-            super.render(graphics, mouseX, mouseY, delta);
+                    0xFFFFFFFF);
         }
     }
 }

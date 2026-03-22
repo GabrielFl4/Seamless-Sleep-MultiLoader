@@ -37,8 +37,8 @@
   "config.seamlesssleep.misc.replay_compatibility": "Modo de compatibilidade",
   "config.seamlesssleep.misc.replay_compatibility.desc": "Altera toda a matemática base do mod para uma \u00A7eexperimental\u00A7r compatível com mods como ReplayMod e Flashback.",
 
-  "config.seamlesssleep.sleep.clears_weather": "Limpar Clima",
-  "config.seamlesssleep.sleep.clears_weather.desc": "Reseta chuva e tempestades ao passar a noite.\n\n\u00A7cREQUER: /sleep reload",
+  "config.seamlesssleep.sleep.clears_weather": "Chance de Limpar Clima",
+  "config.seamlesssleep.sleep.clears_weather.desc": "Chance de limpar chuva e tempestade ao passar a noite.\n\n0=false, 100=true, 1..99=x%.\n\u00A7cREQUER: /sleep reload",
   "config.seamlesssleep.sleep.duration_multiplier": "Duração da noite",
   "config.seamlesssleep.sleep.duration_multiplier.desc": "Mutiplicador que escala o tempo que a animação de sono leva.\n\n\u00A7cREQUER: /sleep reload",
   "config.seamlesssleep.server_controlled": "\n\u00A76Controlado pelo servidor\n\n\u00A7r\u00A7o\u00A77Pode ser alterado via /sleep ou pelo host",
@@ -47,11 +47,13 @@
   "command.seamlesssleep.reload.created": "Config não encontrada. Padrão criado e carregado.",
   "command.seamlesssleep.reload.error": "Erro ao ler config. Padrões carregados.",
   "command.seamlesssleep.reload.synced": "Todos os clientes sincronizados com o servidor.",
-  "command.seamlesssleep.set.sleep_clears_weather.current": "Limpar Clima está definido como %s.",
-  "command.seamlesssleep.set.sleep_clears_weather.updated": "Limpar Clima atualizado para %s.",
+  "command.seamlesssleep.set.sleep_clears_weather.current": "Chance de Limpar Clima está definida como %s.",
+  "command.seamlesssleep.set.sleep_clears_weather.updated": "Chance de Limpar Clima atualizada para %s.",
   "command.seamlesssleep.set.sleep_duration.current": "Duração do Sono está em %s (válido: %s a %s).",
   "command.seamlesssleep.set.sleep_duration.updated": "Duração do Sono atualizada para %s (válido: %s a %s).",
 
   "screen.seamlesssleep.forge_config.notice": "Forge não suporta menus de configurações customizadas",
-  "screen.seamlesssleep.forge_config.hint": "Edite o arquivo de config na pasta config para customizar cliente e servidor."
+  "screen.seamlesssleep.forge_config.hint": "Edite o arquivo de config na pasta config para customizar cliente e servidor.",
+  "screen.seamlesssleep.missing_yacl.notice": "YACL não encontrado",
+  "screen.seamlesssleep.missing_yacl.hint": "Instale o YetAnotherConfigLib v3 para editar as configurações."
 }

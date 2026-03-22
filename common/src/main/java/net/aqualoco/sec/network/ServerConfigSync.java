@@ -13,7 +13,7 @@ public final class ServerConfigSync {
 
     public static void sendToAll(MinecraftServer server, SeamlessSleepServerConfig config) {
         ServerConfigSyncPayload payload = new ServerConfigSyncPayload(
-                config.sleepClearsWeather,
+                config.sleepWeatherClearChancePercent,
                 config.sleepAnimationDurationMultiplier
         );
         for (ServerLevel level : server.getAllLevels()) {

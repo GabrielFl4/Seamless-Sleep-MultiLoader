@@ -57,7 +57,7 @@ final class NeoForgeClientNetworkHandler implements NeoForgeNetworkHelper.Client
     @Override
     public void handleServerConfig(ServerConfigSyncPayload payload) {
         SeamlessSleepServerConfigSnapshot.update(
-                payload.sleepClearsWeather(),
+                payload.sleepWeatherClearChancePercent(),
                 payload.sleepAnimationDurationMultiplier()
         );
     }

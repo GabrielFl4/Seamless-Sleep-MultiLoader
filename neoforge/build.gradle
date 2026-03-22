@@ -13,8 +13,6 @@ dependencies {
     // pode trocar por:
     compileOnly  "dev.isxander:yet-another-config-lib:${project.yacl_version_forge}"
     runtimeOnly  "dev.isxander:yet-another-config-lib:${project.yacl_version_forge}"
-
-    implementation "thedarkcolour:kotlinforforge-neoforge:5.6.0"
 }
 
 neoForge {

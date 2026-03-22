@@ -16,7 +16,7 @@ public final class SeamlessSleepServerConfigManager {
     private static final String FILE_NAME = "seamless_sleep-server.toml";
     private static final String LEGACY_JSON_FILE_NAME = "seamless_sleep-server.json";
     private static final String LEGACY_JSONC_FILE_NAME = "seamless_sleep-server.jsonc";
-    private static final int CONFIG_VERSION = 1;
+    private static final int CONFIG_VERSION = 2;
 
     // Distinguishes a clean reload from recovery/fallback scenarios.
     public enum ReloadResult {
@@ -121,7 +121,7 @@ public final class SeamlessSleepServerConfigManager {
 
     private static SeamlessSleepServerConfig readServerConfig(CommentedFileConfig file) {
         SeamlessSleepServerConfig cfg = defaultConfig();
-        cfg.sleepClearsWeather = readBoolean(file, List.of("sleep", "sleepClearsWeather"), "sleepClearsWeather", Boolean.TRUE.equals(cfg.sleepClearsWeather));
+        cfg.sleepWeatherClearChancePercent = readWeatherClearChancePercent(file, cfg.sleepWeatherClearChancePercent);
         cfg.sleepAnimationDurationMultiplier = readDouble(file, List.of("sleep", "sleepAnimationDurationMultiplier"), "sleepAnimationDurationMultiplier", cfg.sleepAnimationDurationMultiplier);
         return cfg;
     }
@@ -135,9 +135,9 @@ public final class SeamlessSleepServerConfigManager {
         appendSectionGap(sb, 2);
         appendSectionHeader(sb, "sleep");
         appendEntry(sb,
-                "Clear rain/thunder after sleeping. Range: true | false. Default: true",
-                "sleepClearsWeather",
-                Boolean.toString(Boolean.TRUE.equals(cfg.sleepClearsWeather)));
+                "Chance to clear rain/thunder after sleeping. Range: 0 to 100. 0=never, 100=always",
+                "weather_clear_chance_percent",
+                Integer.toString(cfg.sleepWeatherClearChancePercent));
         appendEntry(sb,
                 "Sleep animation duration multiplier. Range: 0.25 to 8.0. Default: 1.0",
                 "sleepAnimationDurationMultiplier",
@@ -184,14 +184,50 @@ public final class SeamlessSleepServerConfigManager {
         return "\"" + escaped + "\"";
     }
 
-    private static boolean readBoolean(CommentedFileConfig file, List<String> path, String legacyKey, boolean fallback) {
-        Object value = readRaw(file, path, legacyKey);
-        return value instanceof Boolean bool ? bool : fallback;
-    }
-
     private static double readDouble(CommentedFileConfig file, List<String> path, String legacyKey, double fallback) {
         Object value = readRaw(file, path, legacyKey);
         return value instanceof Number number ? number.doubleValue() : fallback;
+    }
+
+    private static int readWeatherClearChancePercent(CommentedFileConfig file, int fallback) {
+        Object value = file.getRaw(List.of("sleep", "weather_clear_chance_percent"));
+        if (value == null) {
+            value = file.getRaw(List.of("sleep", "sleepWeatherClearChancePercent"));
+        }
+        if (value == null) {
+            value = file.getRaw("weather_clear_chance_percent");
+        }
+        if (value == null) {
+            value = file.getRaw("sleepWeatherClearChancePercent");
+        }
+        if (value == null) {
+            value = file.getRaw(List.of("sleep", "sleepClearsWeather"));
+        }
+        if (value == null) {
+            value = file.getRaw("sleepClearsWeather");
+        }
+
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        if (value instanceof Boolean bool) {
+            return bool ? 100 : 0;
+        }
+        if (value instanceof String text) {
+            String normalized = text.trim();
+            if (normalized.equalsIgnoreCase("true")) {
+                return 100;
+            }
+            if (normalized.equalsIgnoreCase("false")) {
+                return 0;
+            }
+            try {
+                return Integer.parseInt(normalized);
+            } catch (NumberFormatException ignored) {
+                return fallback;
+            }
+        }
+        return fallback;
     }
 
     private static Object readRaw(CommentedFileConfig file, List<String> path, String legacyKey) {

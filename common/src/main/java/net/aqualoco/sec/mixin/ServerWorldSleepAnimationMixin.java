@@ -29,9 +29,6 @@ public abstract class ServerWorldSleepAnimationMixin {
     @Unique
     private boolean seamlesssleep$sleepAnimationResetWeather;
 
-    @Unique
-    private int seamlesssleep$sleepSubtitleTicks;
-
     @Invoker("wakeUpAllPlayers")
     abstract void seamlesssleep$invokeWakeSleepingPlayers();
 
@@ -64,10 +61,8 @@ public abstract class ServerWorldSleepAnimationMixin {
 
         state.start(currentTime, newTime);
         this.seamlesssleep$sleepAnimationWakePlayers = true;
-        this.seamlesssleep$sleepAnimationResetWeather = world.getGameRules()
-                .get(GameRules.ADVANCE_WEATHER)
-                && SeamlessSleepServerConfigManager.get().sleepClearsWeather;
-        this.seamlesssleep$sleepSubtitleTicks = 0;
+        int weatherChancePercent = SeamlessSleepServerConfigManager.get().sleepWeatherClearChancePercent;
+        this.seamlesssleep$sleepAnimationResetWeather = seamlesssleep$rollWeatherClearChance(world, weatherChancePercent);
 
         SleepAnimationNetworking.sendStart(world, state);
 
@@ -99,9 +94,7 @@ public abstract class ServerWorldSleepAnimationMixin {
     )
     private void seamlesssleep$redirectResetWeather(ServerLevel world) {
         if (world.dimension().equals(Level.OVERWORLD)
-                && this.seamlesssleep$sleepAnimationWakePlayers
-                && (this.seamlesssleep$sleepAnimationResetWeather
-                || !SeamlessSleepServerConfigManager.get().sleepClearsWeather)) {
+                && this.seamlesssleep$sleepAnimationWakePlayers) {
             return;
         }
 
@@ -123,25 +116,48 @@ public abstract class ServerWorldSleepAnimationMixin {
 
         state.tick(self);
 
-        if (!seamlesssleep$hasEnoughSleeping(self)) {
+        if (!state.isActive() && this.seamlesssleep$sleepAnimationWakePlayers) {
+            this.seamlesssleep$finishSleepAnimation();
+            return;
+        }
+
+        if (!state.isActive()) {
+            return;
+        }
+
+        if (!((LevelSleepBrightnessAccessor) self).seamlesssleep$invokeIsBrightOutside()
+                && !seamlesssleep$hasEnoughSleeping(self)) {
             state.cancel();
             this.seamlesssleep$sleepAnimationWakePlayers = false;
             this.seamlesssleep$sleepAnimationResetWeather = false;
             SleepAnimationNetworking.sendStop(self);
             Constants.debug("Sleep animation canceled: not enough players sleeping.");
-            return;
         }
+    }
 
-        if (!state.isActive() && this.seamlesssleep$sleepAnimationWakePlayers) {
-            this.seamlesssleep$invokeWakeSleepingPlayers();
-            if (this.seamlesssleep$sleepAnimationResetWeather) {
-                this.seamlesssleep$invokeResetWeather();
-            }
-            this.seamlesssleep$sleepAnimationWakePlayers = false;
-            this.seamlesssleep$sleepAnimationResetWeather = false;
-
-            Constants.debug("Sleep animation finished. Woke up sleeping players.");
+    @Unique
+    private void seamlesssleep$finishSleepAnimation() {
+        this.seamlesssleep$invokeWakeSleepingPlayers();
+        if (this.seamlesssleep$sleepAnimationResetWeather) {
+            this.seamlesssleep$invokeResetWeather();
         }
+        this.seamlesssleep$sleepAnimationWakePlayers = false;
+        this.seamlesssleep$sleepAnimationResetWeather = false;
+        Constants.debug("Sleep animation finished. Woke up sleeping players.");
+    }
+
+    @Unique
+    private boolean seamlesssleep$rollWeatherClearChance(ServerLevel world, int chancePercent) {
+        if (!world.getGameRules().get(GameRules.ADVANCE_WEATHER)) {
+            return false;
+        }
+        if (chancePercent <= 0) {
+            return false;
+        }
+        if (chancePercent >= 100) {
+            return true;
+        }
+        return world.getRandom().nextInt(100) < chancePercent;
     }
 
     @Unique

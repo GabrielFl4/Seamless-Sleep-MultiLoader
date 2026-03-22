@@ -1,6 +1,8 @@
 package net.aqualoco.sec.mixin;
 
+import net.aqualoco.sec.SeamlessSleepCommon;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.Level;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
@@ -19,6 +21,10 @@ public abstract class PlayerEntitySleepAnimationMixin {
     private void seamlesssleep$forwardWakeUp(Player self,
                                              boolean skipSleepTimer,
                                              boolean updateSleepingPlayers) {
+        if (self.level().dimension().equals(Level.OVERWORLD)
+                && SeamlessSleepCommon.OVERWORLD_SLEEP_ANIMATION.isActive()) {
+            return;
+        }
         self.stopSleepInBed(skipSleepTimer, updateSleepingPlayers);
     }
 }
