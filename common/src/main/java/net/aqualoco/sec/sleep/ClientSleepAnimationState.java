@@ -8,7 +8,7 @@ import net.minecraft.client.multiplayer.ClientLevel;
 
 import java.util.OptionalLong;
 
-// Client-side mirror of the sleep transition timing sent by the server.
+// Client mirror for the active sleep transition.
 public final class ClientSleepAnimationState {
 
     private boolean active;
@@ -23,6 +23,49 @@ public final class ClientSleepAnimationState {
 
     public boolean isActive() {
         return this.active;
+    }
+
+    public double getProgress() {
+        if (!this.active) {
+            return 0.0D;
+        }
+
+        double progress = this.replayCompatMode
+                ? this.computeReplayCompatProgressSnapshot()
+                : this.computeNormalProgress();
+        return clamp01(progress);
+    }
+
+    public double getEasedVelocityFactor() {
+        if (!this.active) {
+            return 0.0D;
+        }
+
+        double x = this.getProgress();
+        double epsilon = 1.0D / Math.max(20.0D, this.durationTicks);
+        double from = Math.max(0.0D, x - epsilon);
+        double to = Math.min(1.0D, x + epsilon);
+        if (to <= from) {
+            return 0.0D;
+        }
+
+        double easedFrom = SleepAnimationState.integralEase(from);
+        double easedTo = SleepAnimationState.integralEase(to);
+        return Math.max(0.0D, (easedTo - easedFrom) / (to - from));
+    }
+
+    public double getCurrentDayTimeSpeedPerTick() {
+        if (!this.active || this.durationTicks <= 0) {
+            return 0.0D;
+        }
+
+        long deltaTime = Math.max(0L, this.endTimeOfDay - this.startTimeOfDay);
+        if (deltaTime <= 0L) {
+            return 0.0D;
+        }
+
+        double baseSpeedPerTick = deltaTime / (double) this.durationTicks;
+        return Math.max(0.0D, this.getEasedVelocityFactor() * baseSpeedPerTick);
     }
 
     public void reset() {
@@ -42,6 +85,7 @@ public final class ClientSleepAnimationState {
         if (replayCompatActive) {
             adjustedDuration = Math.max(1, durationTicks);
         } else {
+            // In normal mode, compensate packet delay so the client can catch up.
             adjustedDuration = (int) Math.max(1L, durationTicks - elapsedSinceServerStart / 50L);
         }
 
@@ -125,5 +169,38 @@ public final class ClientSleepAnimationState {
         }
 
         return Math.min(1.0, this.replayCompatElapsedTicksFallback / (double) this.durationTicks);
+    }
+
+    private double computeReplayCompatProgressSnapshot() {
+        OptionalLong replayTimeline = ReplayPlaybackCompat.getReplayTimelineMillis();
+        if (replayTimeline.isPresent()) {
+            long replayNowMs = replayTimeline.getAsLong();
+            long replayStartMs = this.replayCompatStartTimelineMillis;
+
+            if (replayStartMs < 0L) {
+                long fallbackElapsedMs = (long) (this.replayCompatElapsedTicksFallback * 50.0F);
+                replayStartMs = replayNowMs - fallbackElapsedMs;
+            }
+
+            long elapsedReplayMs = Math.max(0L, replayNowMs - replayStartMs);
+            double totalMs = (double) this.durationTicks * 50.0;
+            return totalMs <= 0.0 ? 1.0 : Math.min(1.0, elapsedReplayMs / totalMs);
+        }
+
+        if (this.durationTicks <= 0) {
+            return 1.0;
+        }
+
+        return Math.min(1.0, this.replayCompatElapsedTicksFallback / (double) this.durationTicks);
+    }
+
+    private static double clamp01(double value) {
+        if (value < 0.0D) {
+            return 0.0D;
+        }
+        if (value > 1.0D) {
+            return 1.0D;
+        }
+        return value;
     }
 }

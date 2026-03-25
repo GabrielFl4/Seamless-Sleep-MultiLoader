@@ -13,7 +13,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-// Ticks the client sleep interpolation each frame and lazily registers client handlers.
+// Advances client sleep timing once per rendered frame.
 @Mixin(GameRenderer.class)
 public abstract class GameRendererSleepAnimationMixin {
 

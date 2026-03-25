@@ -6,7 +6,7 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 
-// Packet that starts the client sleep transition with timing and world data.
+// Start packet with world id and timing window for client interpolation.
 public record SleepAnimationStartPayload(
         Identifier worldId,
         long startTimeOfDay,

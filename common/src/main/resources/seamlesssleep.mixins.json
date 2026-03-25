@@ -12,6 +12,7 @@
   "client": [
     "client.ChatHudSleepMixin",
     "client.CameraSleepAnimationMixin",
+    "client.CloudRendererSleepAccelerationMixin",
     "client.SleepOverlayOpacityMixin",
     "client.InGameHudSleepMessageMixin"
   ],

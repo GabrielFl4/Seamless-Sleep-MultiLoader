@@ -4,7 +4,7 @@ import net.aqualoco.sec.Constants;
 import net.aqualoco.sec.config.SeamlessSleepServerConfigManager;
 import net.minecraft.server.level.ServerLevel;
 
-// Server-side state machine that eases world time during the sleep transition.
+// Server driver for sleep day-time interpolation.
 public final class SleepAnimationState {
     private static final long FULL_NIGHT_TICKS = 12000L;
     private static final int MIN_DURATION_TICKS = 40;   // ~2s
