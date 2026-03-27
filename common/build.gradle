@@ -10,6 +10,13 @@ neoForge {
     if (at.exists()) {
         accessTransformers.from(at.absolutePath)
     }
+    def parchmentVersion = (project.findProperty('parchment_version') ?: '').toString().trim()
+    if (parchmentVersion) {
+        parchment {
+            minecraftVersion = parchment_minecraft
+            mappingsVersion = parchmentVersion
+        }
+    }
 }
 
 dependencies {
@@ -17,6 +24,8 @@ dependencies {
     // fabric and neoforge both bundle mixinextras, so it is safe to use it in common
     compileOnly group: 'io.github.llamalad7', name: 'mixinextras-common', version: '0.3.5'
     annotationProcessor group: 'io.github.llamalad7', name: 'mixinextras-common', version: '0.3.5'
+    api "com.electronwill.night-config:core:${project.night_config_version}"
+    api "com.electronwill.night-config:toml:${project.night_config_version}"
 }
 
 configurations {

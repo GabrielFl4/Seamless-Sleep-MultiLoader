@@ -6,12 +6,28 @@ dependencies {
     minecraft "com.mojang:minecraft:${minecraft_version}"
     implementation "net.fabricmc:fabric-loader:${fabric_loader_version}"
     implementation "net.fabricmc.fabric-api:fabric-api:${fabric_version}"
+
+    implementation "com.electronwill.night-config:core:${project.night_config_version}"
+    implementation "com.electronwill.night-config:toml:${project.night_config_version}"
+    include "com.electronwill.night-config:core:${project.night_config_version}"
+    include "com.electronwill.night-config:toml:${project.night_config_version}"
+
+    compileOnly "com.terraformersmc:modmenu:${project.modmenu_version}"
+    runtimeOnly "com.terraformersmc:modmenu:${project.modmenu_version}"
+
+    compileOnly "dev.isxander:yet-another-config-lib:${project.yacl_version}"
+    runtimeOnly "dev.isxander:yet-another-config-lib:${project.yacl_version}"
 }
 
 loom {
+    enableModProvidedJavadoc.set(false)
+
     def aw = project(':common').file("src/main/resources/${mod_id}.accesswidener")
     if (aw.exists()) {
         accessWidenerPath.set(aw)
+    }
+    mixin {
+        defaultRefmapName.set("${mod_id}.refmap.json")
     }
     runs {
         client {
