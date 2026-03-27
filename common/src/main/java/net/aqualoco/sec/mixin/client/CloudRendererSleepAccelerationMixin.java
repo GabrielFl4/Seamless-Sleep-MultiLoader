@@ -13,6 +13,8 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 
+import java.util.OptionalLong;
+
 // Cloud phase boost while the sleep transition is running.
 @Mixin(CloudRenderer.class)
 public abstract class CloudRendererSleepAccelerationMixin {
@@ -45,6 +47,9 @@ public abstract class CloudRendererSleepAccelerationMixin {
     private static long seamlesssleep$lastUpdateMillis = -1L;
 
     @Unique
+    private static long seamlesssleep$lastReplayTimelineMillis = -1L;
+
+    @Unique
     private static long seamlesssleep$lastActiveLogMillis = -1L;
 
     @Unique
@@ -52,6 +57,9 @@ public abstract class CloudRendererSleepAccelerationMixin {
 
     @Unique
     private static long seamlesssleep$lastResetLogMillis = -1L;
+
+    @Unique
+    private static long seamlesssleep$lastReplayFallbackLogMillis = -1L;
 
     @Unique
     private static boolean seamlesssleep$loggedHookOnce;
@@ -107,18 +115,9 @@ public abstract class CloudRendererSleepAccelerationMixin {
             seamlesssleep$hardReset(level, now, "world_changed");
         }
 
-        if (seamlesssleep$lastUpdateMillis < 0L) {
-            seamlesssleep$lastUpdateMillis = now;
-            float injectedPhase = vanillaPhase + seamlesssleep$extraPhaseTicks;
-            seamlesssleep$logIdle(now, vanillaPhase, injectedPhase);
-            return injectedPhase;
-        }
-
-        float deltaTicks = Mth.clamp((now - seamlesssleep$lastUpdateMillis) / 50.0F, 0.0F, seamlesssleep$MAX_DELTA_TICKS);
-        seamlesssleep$lastUpdateMillis = now;
+        float deltaTicks = seamlesssleep$computeDeltaTicks(now);
         if (deltaTicks <= 0.0F) {
             float injectedPhase = vanillaPhase + seamlesssleep$extraPhaseTicks;
-            seamlesssleep$lastZeroReason = "zero_delta_ticks";
             seamlesssleep$logIdle(now, vanillaPhase, injectedPhase);
             return injectedPhase;
         }
@@ -191,10 +190,63 @@ public abstract class CloudRendererSleepAccelerationMixin {
     }
 
     @Unique
+    // Use replay timeline delta when replay-compat is active; fallback to wall-clock in normal mode.
+    private static float seamlesssleep$computeDeltaTicks(long now) {
+        ClientSleepAnimationState state = SeamlessSleepClientState.SLEEP_ANIMATION;
+        if (state.isReplayCompatMode()) {
+            OptionalLong replayTimeline = state.getReplayTimelineMillisSnapshot();
+            if (replayTimeline.isPresent()) {
+                long replayNowMillis = replayTimeline.getAsLong();
+                if (seamlesssleep$lastReplayTimelineMillis < 0L) {
+                    seamlesssleep$lastReplayTimelineMillis = replayNowMillis;
+                    seamlesssleep$lastUpdateMillis = now;
+                    seamlesssleep$lastZeroReason = "replay_timeline_seed";
+                    return 0.0F;
+                }
+
+                long replayDeltaMillis = replayNowMillis - seamlesssleep$lastReplayTimelineMillis;
+                seamlesssleep$lastReplayTimelineMillis = replayNowMillis;
+                seamlesssleep$lastUpdateMillis = now;
+
+                if (replayDeltaMillis <= 0L) {
+                    seamlesssleep$lastZeroReason = replayDeltaMillis == 0L
+                            ? "replay_timeline_paused"
+                            : "replay_timeline_rewind";
+                    return 0.0F;
+                }
+
+                return Mth.clamp(replayDeltaMillis / 50.0F, 0.0F, seamlesssleep$MAX_DELTA_TICKS);
+            }
+
+            if (now - seamlesssleep$lastReplayFallbackLogMillis >= 5000L) {
+                seamlesssleep$lastReplayFallbackLogMillis = now;
+                Constants.debug("Cloud accel replay fallback: replay timeline unavailable, using wall-clock delta.");
+            }
+            seamlesssleep$lastReplayTimelineMillis = -1L;
+        } else {
+            seamlesssleep$lastReplayTimelineMillis = -1L;
+        }
+
+        if (seamlesssleep$lastUpdateMillis < 0L) {
+            seamlesssleep$lastUpdateMillis = now;
+            seamlesssleep$lastZeroReason = "delta_seed";
+            return 0.0F;
+        }
+
+        float deltaTicks = Mth.clamp((now - seamlesssleep$lastUpdateMillis) / 50.0F, 0.0F, seamlesssleep$MAX_DELTA_TICKS);
+        seamlesssleep$lastUpdateMillis = now;
+        if (deltaTicks <= 0.0F) {
+            seamlesssleep$lastZeroReason = "zero_delta_ticks";
+        }
+        return deltaTicks;
+    }
+
+    @Unique
     // Hard reset only when world context changes.
     private static void seamlesssleep$hardReset(ClientLevel level, long now, String reason) {
         seamlesssleep$lastLevel = level;
         seamlesssleep$lastUpdateMillis = now;
+        seamlesssleep$lastReplayTimelineMillis = -1L;
         seamlesssleep$extraPhaseTicks = 0.0F;
         seamlesssleep$smoothedExtraSpeedTicks = 0.0F;
         seamlesssleep$lastProgress = 0.0D;

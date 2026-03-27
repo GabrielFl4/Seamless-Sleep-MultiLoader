@@ -25,6 +25,17 @@ public final class ClientSleepAnimationState {
         return this.active;
     }
 
+    public boolean isReplayCompatMode() {
+        return this.active && this.replayCompatMode;
+    }
+
+    public OptionalLong getReplayTimelineMillisSnapshot() {
+        if (!this.isReplayCompatMode()) {
+            return OptionalLong.empty();
+        }
+        return ReplayPlaybackCompat.getReplayTimelineMillis();
+    }
+
     public double getProgress() {
         if (!this.active) {
             return 0.0D;
