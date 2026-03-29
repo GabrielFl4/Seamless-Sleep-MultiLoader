@@ -1,0 +1,60 @@
+{
+  "itemGroup.seamlesssleep.general": "Seamless Sleep",
+  "block.seamlesssleep.sleep_barrier": "Barreira de Sono",
+  "seamlesssleep.text.sleeping": "Passando a noite",
+
+  "modmenu.nameTranslation.seamlesssleep": "Seamless Sleep",
+  "modmenu.summaryTranslation.seamlesssleep": "Nunca mais feche os olhos durante a noite.",
+  "modmenu.descriptionTranslation.seamlesssleep": "Repensa a forma como os jogadores dormem:\n\n\u00A78-\u00A7r Anima\u00e7\u00e3o suave e sincronizada\n\u00A78-\u00A7r Melhorias visuais\n\u00A78-\u00A7r Menor custo para o servidor\n\nAgora dispon\u00edvel para: \u00A73\u00A7lForge\u00A7r, \u00A76\u00A7lNeoForge\u00A7r e \u00A7f\u00A7lFabric\u00A7r!\nDiscord: gabrielfl4",
+
+  "config.seamlesssleep.title": "Seamless Sleep",
+  "config.seamlesssleep.category.chat": "Chat",
+  "config.seamlesssleep.category.overlay": "Interface",
+  "config.seamlesssleep.category.camera": "C\u00e2mera",
+  "config.seamlesssleep.category.misc": "MISC",
+  "config.seamlesssleep.category.sleep": "Config. Servidor",
+
+  "config.seamlesssleep.sleep.chat_text_opacity": "Opacidade do Texto",
+  "config.seamlesssleep.sleep.chat_text_opacity.desc": "Ajusta a transpar\u00eancia do texto do chat enquanto voc\u00ea dorme.",
+  "config.seamlesssleep.sleep.chat_background_opacity": "Opacidade do Fundo",
+  "config.seamlesssleep.sleep.chat_background_opacity.desc": "Ajusta a transpar\u00eancia do fundo preto do chat enquanto voc\u00ea dorme.",
+
+  "config.seamlesssleep.overlay.enabled": "Exibir Status",
+  "config.seamlesssleep.overlay.enabled.desc": "Mostra a mensagem \"Passando a noite\" durante a transi\u00e7\u00e3o.",
+  "config.seamlesssleep.overlay.darkness": "N\u00edvel de Escurecimento",
+  "config.seamlesssleep.overlay.darkness.desc": "Controla o quanto a tela escurece (fade out) ao fechar os olhos na cama.",
+
+  "config.seamlesssleep.chat.dim_multiplier": "Opacidade",
+  "config.seamlesssleep.chat.dim_multiplier.desc": "Opacidade geral do chat ao deitar na cama.",
+  "config.seamlesssleep.chat.max_lines": "Limite de Linhas",
+  "config.seamlesssleep.chat.max_lines.desc": "M\u00e1ximo de linhas vis\u00edveis no chat ao dormir.\n\nUse 0 para ocultar.",
+
+  "config.seamlesssleep.camera.tilt_degrees": "Inclina\u00e7\u00e3o (Graus)",
+  "config.seamlesssleep.camera.tilt_degrees.desc": "\u00c2ngulo de inclina\u00e7\u00e3o da c\u00e2mera ao deitar.\n\n0 \u00e9 o padr\u00e3o vanilla.",
+
+  "config.seamlesssleep.misc.debug_logs": "Logs de Depura\u00e7\u00e3o",
+  "config.seamlesssleep.misc.debug_logs.desc": "Exibe logs t\u00e9cnicos do Seamless Sleep no console.",
+  "config.seamlesssleep.misc.replay_compatibility": "Modo de compatibilidade",
+  "config.seamlesssleep.misc.replay_compatibility.desc": "Altera toda a matem\u00e1tica base do mod para uma \u00A7eexperimental\u00A7r compat\u00edvel com mods como ReplayMod e Flashback.",
+
+  "config.seamlesssleep.sleep.clears_weather": "Chance de Limpar Clima",
+  "config.seamlesssleep.sleep.clears_weather.desc": "Chance de limpar chuva e tempestade ao passar a noite.\n\n0=false, 100=true, 1..99=x%.\n\u00A7cREQUER: /sleep reload",
+  "config.seamlesssleep.sleep.duration_multiplier": "Dura\u00e7\u00e3o da noite",
+  "config.seamlesssleep.sleep.duration_multiplier.desc": "Multiplicador que escala o tempo que a anima\u00e7\u00e3o de sono leva.\n\n\u00A7cREQUER: /sleep reload",
+  "config.seamlesssleep.server_controlled": "\n\u00A76Controlado pelo servidor\n\n\u00A7r\u00A7o\u00A77Pode ser alterado via /sleep ou pelo host",
+
+  "command.seamlesssleep.reload.success": "Config do servidor recarregada.",
+  "command.seamlesssleep.reload.created": "Config n\u00e3o encontrada. Padr\u00e3o criado e carregado.",
+  "command.seamlesssleep.reload.error": "Erro ao ler config. Padr\u00f5es carregados.",
+  "command.seamlesssleep.reload.synced": "Todos os clientes sincronizados com o servidor.",
+  "command.seamlesssleep.set.sleep_clears_weather.current": "Chance de Limpar Clima est\u00e1 definida como %s.",
+  "command.seamlesssleep.set.sleep_clears_weather.updated": "Chance de Limpar Clima atualizada para %s.",
+  "command.seamlesssleep.set.sleep_duration.current": "Dura\u00e7\u00e3o do Sono est\u00e1 em %s (v\u00e1lido: %s a %s).",
+  "command.seamlesssleep.set.sleep_duration.updated": "Dura\u00e7\u00e3o do Sono atualizada para %s (v\u00e1lido: %s a %s).",
+
+  "screen.seamlesssleep.forge_config.notice": "Forge n\u00e3o suporta menus de configura\u00e7\u00f5es customizadas",
+  "screen.seamlesssleep.forge_config.hint": "Edite o arquivo de config na pasta config para customizar cliente e servidor.",
+  "screen.seamlesssleep.forge_config.open_folder": "Abrir Pasta Config",
+  "screen.seamlesssleep.missing_yacl.notice": "YACL n\u00e3o encontrado",
+  "screen.seamlesssleep.missing_yacl.hint": "Instale o YetAnotherConfigLib v3 para editar as configura\u00e7\u00f5es."
+}

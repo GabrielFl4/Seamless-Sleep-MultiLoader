@@ -1,21 +1,49 @@
 package net.aqualoco.sec;
 
-
+import net.aqualoco.sec.client.NeoForgeConfigScreens;
+import net.aqualoco.sec.network.SleepAnimationNetworking;
+import net.aqualoco.sec.registry.ModBlocks;
+import net.aqualoco.sec.registry.ModItems;
+import net.minecraft.core.Registry;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.neoforged.bus.api.IEventBus;
+import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.loading.FMLLoader;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.registries.RegisterEvent;
+
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 @Mod(Constants.MOD_ID)
 public class SeamlessSleep {
 
-    public SeamlessSleep(IEventBus eventBus) {
+    public static IEventBus eventBus;
 
-        // This method is invoked by the NeoForge mod loader when it is ready
-        // to load your mod. You can access NeoForge and Common code in this
-        // project.
-
-        // Use NeoForge to bootstrap the Common mod.
-        Constants.LOG.info("Hello NeoForge world!");
+    public SeamlessSleep(IEventBus eventBus, ModContainer modContainer) {
+        SeamlessSleep.eventBus = eventBus;
         SeamlessSleepCommon.init();
 
+        bind(Registries.BLOCK, ModBlocks::register);
+        bind(Registries.ITEM, ModItems::register);
+
+        NeoForge.EVENT_BUS.addListener(SeamlessSleepCommandRegistration::register);
+        NeoForge.EVENT_BUS.addListener(SeamlessSleepServerEvents::onPlayerLoggedIn);
+
+        if (FMLLoader.getCurrent().getDist().isClient()) {
+            SleepAnimationNetworking.initClient();
+            NeoForgeConfigScreens.register(modContainer);
+        }
+    }
+
+    private static <T> void bind(ResourceKey<Registry<T>> registry, Consumer<BiConsumer<T, Identifier>> source) {
+        eventBus.addListener((RegisterEvent event) -> {
+            if (registry.equals(event.getRegistryKey())) {
+                source.accept((entry, id) -> event.register(registry, id, () -> entry));
+            }
+        });
     }
 }

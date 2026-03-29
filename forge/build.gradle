@@ -52,6 +52,7 @@ sourceSets.main.resources.srcDir 'src/generated/resources'
 
 dependencies {
     implementation minecraft.dependency("net.minecraftforge:forge:${minecraft_version}-${forge_version}")
+    compileOnly 'org.spongepowered:mixin:0.8.5'
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
 
     compileOnly "com.electronwill.night-config:core:${project.night_config_version}"
@@ -66,6 +67,34 @@ sourceSets.each {
     def dir = layout.buildDirectory.dir("sourcesSets/$it.name")
     it.output.resourcesDir = dir
     it.java.destinationDirectory = dir
+}
+
+def mixinRefmapFile = layout.buildDirectory.file("sourcesSets/main/${mod_id}.refmap.json")
+
+tasks.named('compileJava', JavaCompile).configure {
+    doFirst {
+        mixinRefmapFile.get().asFile.parentFile.mkdirs()
+    }
+
+    // Forge 26.1 on FG7/Gradle 9 keeps runtime names official, but the legacy
+    // FG3-style member mapping file expected by Mixin AP is no longer exposed
+    // here. Keep the AP for refmap generation and lower missing-obf-data
+    // diagnostics so shared common mixins still compile without MixinGradle.
+    options.compilerArgs.addAll([
+            "-AoutRefMapFile=${mixinRefmapFile.get().asFile.absolutePath}",
+            '-Aquiet=true',
+            '-AMSG_NO_OBFDATA_FOR_CLASS=note',
+            '-AMSG_NO_OBFDATA_FOR_ACCESSOR=note',
+            '-AMSG_NO_OBFDATA_FOR_CTOR=note',
+            '-AMSG_NO_OBFDATA_FOR_TARGET=note',
+            '-AMSG_NO_OBFDATA_FOR_OVERWRITE=note',
+            '-AMSG_NO_OBFDATA_FOR_STATIC_OVERWRITE=note',
+            '-AMSG_NO_OBFDATA_FOR_FIELD=note',
+            '-AMSG_NO_OBFDATA_FOR_METHOD=note',
+            '-AMSG_NO_OBFDATA_FOR_SHADOW=note',
+            '-AMSG_NO_OBFDATA_FOR_SIMULATED_SHADOW=note',
+            '-AMSG_NO_OBFDATA_FOR_SOFT_IMPLEMENTS=note'
+    ])
 }
 
 // Implement mcgradleconventions loader attribute

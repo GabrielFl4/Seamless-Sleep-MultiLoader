@@ -5,7 +5,7 @@
     "name": "${mod_name}",
     "description": "${description}",
     "authors": [
-        "${mod_author}"
+        "§aA§eq§9u§aa§eL§9o§ac§eo"
     ],
     "contact": {
         "homepage": "https://github.com/GabrielFl4",
@@ -18,6 +18,12 @@
     "entrypoints": {
         "main": [
             "net.aqualoco.sec.SeamlessSleep"
+        ],
+        "client": [
+            "net.aqualoco.sec.SeamlessSleepClient"
+        ],
+        "modmenu": [
+            "net.aqualoco.sec.client.ModMenuIntegration"
         ]
     },
     "mixins": [
@@ -35,4 +41,3 @@
         "yet_another_config_lib_v3": "*"
     }
 }
-  

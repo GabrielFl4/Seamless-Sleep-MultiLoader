@@ -1,0 +1,60 @@
+{
+  "itemGroup.seamlesssleep.general": "Seamless Sleep",
+  "block.seamlesssleep.sleep_barrier": "Sleep Barrier",
+  "seamlesssleep.text.sleeping": "Sleeping through the night",
+
+  "modmenu.nameTranslation.seamlesssleep": "Seamless Sleep",
+  "modmenu.summaryTranslation.seamlesssleep": "Never blink through the night again.",
+  "modmenu.descriptionTranslation.seamlesssleep": "Rethinks the way players sleep:\n\n\u00A78-\u00A7r Smooth & Synced animation\n\u00A78-\u00A7r Visual improvements\n\u00A78-\u00A7r Minimal server impact\n\nNow available for: \u00A73\u00A7lForge\u00A7r, \u00A76\u00A7lNeoForge\u00A7r and \u00A7f\u00A7lFabric\u00A7r!\nDiscord: gabrielfl4",
+
+  "config.seamlesssleep.title": "Seamless Sleep Settings",
+  "config.seamlesssleep.category.chat": "Chat",
+  "config.seamlesssleep.category.overlay": "Overlay",
+  "config.seamlesssleep.category.camera": "Camera",
+  "config.seamlesssleep.category.misc": "MISC",
+  "config.seamlesssleep.category.sleep": "Server Config",
+
+  "config.seamlesssleep.sleep.chat_text_opacity": "Text Opacity",
+  "config.seamlesssleep.sleep.chat_text_opacity.desc": "Adjusts text transparency while you are in bed.",
+  "config.seamlesssleep.sleep.chat_background_opacity": "Background Opacity",
+  "config.seamlesssleep.sleep.chat_background_opacity.desc": "Adjusts the dark background transparency while you are in bed.",
+
+  "config.seamlesssleep.overlay.enabled": "Sleep Overlay Text",
+  "config.seamlesssleep.overlay.enabled.desc": "Shows the \"Sleeping through the night\" message during the transition.",
+  "config.seamlesssleep.overlay.darkness": "Screen Dimming",
+  "config.seamlesssleep.overlay.darkness.desc": "Controls how dark the screen gets (fade out) when closing eyes.",
+
+  "config.seamlesssleep.chat.dim_multiplier": "Opacity",
+  "config.seamlesssleep.chat.dim_multiplier.desc": "General chat opacity when lying in bed.",
+  "config.seamlesssleep.chat.max_lines": "Line Limit",
+  "config.seamlesssleep.chat.max_lines.desc": "Maximum chat lines visible while sleeping.\n\nUse 0 to hide.",
+
+  "config.seamlesssleep.camera.tilt_degrees": "Tilt (Degrees)",
+  "config.seamlesssleep.camera.tilt_degrees.desc": "Camera tilt angle when lying down.\n\n0 is the vanilla default.",
+
+  "config.seamlesssleep.misc.debug_logs": "Debug Logs",
+  "config.seamlesssleep.misc.debug_logs.desc": "Shows Seamless Sleep technical logs in the console.",
+  "config.seamlesssleep.misc.replay_compatibility": "Compatibility Mode",
+  "config.seamlesssleep.misc.replay_compatibility.desc": "Changes the mod base math to an \u00A7eexperimental\u00A7r one compatible with mods like ReplayMod and Flashback.",
+
+  "config.seamlesssleep.sleep.clears_weather": "Weather Clear Chance",
+  "config.seamlesssleep.sleep.clears_weather.desc": "Chance to clear rain and thunder when the night passes.\n\n0=false, 100=true, 1..99=x%.\n\u00A7cREQUIRES: /sleep reload",
+  "config.seamlesssleep.sleep.duration_multiplier": "Night Duration",
+  "config.seamlesssleep.sleep.duration_multiplier.desc": "Multiplier that scales the time the sleep animation takes.\n\n\u00A7cREQUIRES: /sleep reload",
+  "config.seamlesssleep.server_controlled": "\n\u00A76Server Controlled\n\n\u00A7r\u00A7o\u00A77Can be tweaked via /sleep or by the host",
+
+  "command.seamlesssleep.reload.success": "Server config reloaded.",
+  "command.seamlesssleep.reload.created": "Config not found. Default created and loaded.",
+  "command.seamlesssleep.reload.error": "Failed to read config. Defaults loaded.",
+  "command.seamlesssleep.reload.synced": "All clients synchronized with the server.",
+  "command.seamlesssleep.set.sleep_clears_weather.current": "Weather Clear Chance is set to %s.",
+  "command.seamlesssleep.set.sleep_clears_weather.updated": "Weather Clear Chance updated to %s.",
+  "command.seamlesssleep.set.sleep_duration.current": "Sleep Duration is at %s (valid: %s to %s).",
+  "command.seamlesssleep.set.sleep_duration.updated": "Sleep Duration updated to %s (valid: %s to %s).",
+
+  "screen.seamlesssleep.forge_config.notice": "Forge does not support custom config menus",
+  "screen.seamlesssleep.forge_config.hint": "Edit the config file in your config folder for server and client changes.",
+  "screen.seamlesssleep.forge_config.open_folder": "Open Config Folder",
+  "screen.seamlesssleep.missing_yacl.notice": "YACL not found",
+  "screen.seamlesssleep.missing_yacl.hint": "Install YetAnotherConfigLib v3 to edit configs."
+}

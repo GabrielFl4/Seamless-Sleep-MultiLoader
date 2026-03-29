@@ -17,8 +17,10 @@ out
 # gradle
 build
 .gradle
+/.gradle-user/*
 
 # other
 eclipse
 run
 runs
+/.gradle-user/caches/9.4.1/transforms/4b707a966fd4e2d7b217fc9d77ea40ca/transformed/.gradle-agent-instrumented.marker

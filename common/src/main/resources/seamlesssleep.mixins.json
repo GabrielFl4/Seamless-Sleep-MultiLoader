@@ -3,14 +3,24 @@
   "minVersion": "0.8",
   "package": "net.aqualoco.sec.mixin",
   "refmap": "${mod_id}.refmap.json",
-  "compatibilityLevel": "JAVA_18",
-  "mixins": [],
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "ServerWorldSleepAnimationMixin",
+    "PlayerEntitySleepAnimationMixin"
+  ],
   "client": [
-    "MixinMinecraft"
+    "client.ChatHudSleepMixin",
+    "client.CameraSleepAnimationMixin",
+    "client.ClientClockManagerSleepAnimationMixin",
+    "client.CloudRendererSleepAccelerationMixin",
+    "client.GameRendererSleepAnimationMixin",
+    "client.GuiSleepOverlayMixin",
+    "client.LevelClockSleepAnimationMixin",
+    "client.SleepOverlayOpacityMixin",
+    "client.InGameHudSleepMessageMixin"
   ],
   "server": [],
   "injectors": {
     "defaultRequire": 1
   }
 }
-
