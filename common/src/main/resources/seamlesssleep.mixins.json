@@ -2,8 +2,9 @@
   "required": true,
   "minVersion": "0.8",
   "package": "net.aqualoco.sec.mixin",
+  "plugin": "net.aqualoco.sec.mixin.SeamlessSleepMixinPlugin",
   "refmap": "${mod_id}.refmap.json",
-  "compatibilityLevel": "JAVA_18",
+  "compatibilityLevel": "JAVA_21",
   "mixins": [
     "LevelSleepBrightnessAccessor",
     "ServerWorldSleepAnimationMixin",
@@ -13,6 +14,7 @@
     "client.ChatHudSleepMixin",
     "client.CameraSleepAnimationMixin",
     "client.CloudRendererSleepAccelerationMixin",
+    "client.compat.BetterCloudsRendererSleepAccelerationMixin",
     "client.SleepOverlayOpacityMixin",
     "client.InGameHudSleepMessageMixin"
   ],

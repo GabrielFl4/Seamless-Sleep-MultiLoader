@@ -6,6 +6,7 @@
   "mixins": [],
   "client": [
     "client.GameRendererSleepAnimationMixin",
+    "client.NeoForgeBetterCloudsLevelRendererMixin",
     "client.GuiSleepOverlayMixin",
     "client.NeoForgeModListScreenMutableSortFixMixin"
   ],
