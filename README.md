@@ -1,4 +1,4 @@
-<img width="6755" height="3317" alt="Seamless Sleep Roadmap" src="https://github.com/user-attachments/assets/4c9c6160-6b38-4552-9780-87491d7fbf52" /># Seamless Sleep — MultiLoader
+# Seamless Sleep — MultiLoader
 
 This is the **MultiLoader** source repository for **Seamless Sleep**, a **server-client** Minecraft mod that replaces vanilla’s abrupt night skip with a smooth, in-world transition from night to day.
 
