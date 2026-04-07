@@ -13,14 +13,27 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 
+// Centralizes the bed workflow rules shared by mixins and client helpers.
+// This class is where the "feel" of resting in bed is tuned and where the
+// temporary resting state is mapped onto vanilla bed assumptions.
 public final class BedRestingHelper {
 
+    // Positional tuning for the custom resting pose and first-person camera.
     public static final double BED_REST_Y = 0.6875D;
     public static final double REST_CAMERA_Y_OFFSET = 0.3D;
+
+    // Mouse response while only resting in bed.
     public static final float REST_LOOK_SCALE = 0.30F;
-    public static final double REST_LOOK_SMOOTH_FACTOR = 0.24D;
-    public static final double ANIMATION_LOOK_SCALE = 0.020D;
-    public static final double ANIMATION_LOOK_SMOOTH_FACTOR = 0.06D;
+    public static final double REST_LOOK_SMOOTH_FACTOR = 0.15D;
+
+    // Final mouse response after the Seamless skip has fully ramped in.
+    public static final double ANIMATION_LOOK_SCALE = 0.15D;
+    public static final double ANIMATION_LOOK_SMOOTH_FACTOR = 0.08D;
+
+    // Higher values make the skip damping bite earlier in the animation.
+    public static final double ANIMATION_LOOK_BLEND_EXPONENT = 2.0D;
+
+    // Bed look limits relative to the vanilla bed forward direction.
     public static final float REST_MAX_YAW = 100.0F;
     public static final float REST_MIN_CAMERA_PITCH = -100.0F;
     public static final float REST_MAX_CAMERA_PITCH = 0.0F;
@@ -130,6 +143,28 @@ public final class BedRestingHelper {
         return Mth.clamp(pitch, minViewPitch, maxViewPitch);
     }
 
+    // Converts raw animation progress into a feel-oriented blend for camera damping.
+    public static double getAnimationLookBlend(double animationProgress) {
+        double clamped = Mth.clamp(animationProgress, 0.0D, 1.0D);
+        return 1.0D - Math.pow(1.0D - clamped, ANIMATION_LOOK_BLEND_EXPONENT);
+    }
+
+    public static double getLookScaleForAnimationProgress(double animationProgress) {
+        return Mth.lerp(
+                getAnimationLookBlend(animationProgress),
+                REST_LOOK_SCALE,
+                ANIMATION_LOOK_SCALE
+        );
+    }
+
+    public static double getLookSmoothingForAnimationProgress(double animationProgress) {
+        return Mth.lerp(
+                getAnimationLookBlend(animationProgress),
+                REST_LOOK_SMOOTH_FACTOR,
+                ANIMATION_LOOK_SMOOTH_FACTOR
+        );
+    }
+
     public static Vec3 getRestingCameraOffset() {
         return new Vec3(0.0D, REST_CAMERA_Y_OFFSET, 0.0D);
     }
@@ -138,6 +173,7 @@ public final class BedRestingHelper {
         return Component.translatable("seamlesssleep.text.leave_bed", Component.keybind("key.sneak"));
     }
 
+    // Falls back to a simple safe spot above the bed if vanilla cannot resolve a stand-up position.
     public static Vec3 findStandUpPosition(LivingEntity entity, BlockPos bedPos, @Nullable Direction direction) {
         Direction resolvedDirection = direction != null ? direction : Direction.NORTH;
         return BedBlock.findStandUpPosition(entity.getType(), entity.level(), bedPos, resolvedDirection, entity.getYRot())

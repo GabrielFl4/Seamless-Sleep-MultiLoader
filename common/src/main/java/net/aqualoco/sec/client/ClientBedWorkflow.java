@@ -2,10 +2,11 @@ package net.aqualoco.sec.client;
 
 import net.aqualoco.sec.bed.BedRestingHelper;
 import net.aqualoco.sec.config.SeamlessSleepClientConfigManager;
-import net.aqualoco.sec.mixin.client.GuiOverlayMessageAccessor;
+import net.aqualoco.sec.mixin.client.ui.GuiOverlayMessageAccessor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.Direction;
+import net.minecraft.network.protocol.game.ServerboundPlayerCommandPacket;
 import net.minecraft.util.SmoothDouble;
 import net.minecraft.world.entity.Entity;
 import org.jspecify.annotations.Nullable;
@@ -20,6 +21,7 @@ public final class ClientBedWorkflow {
     private static boolean seamlesssleep$wasResting;
     private static boolean seamlesssleep$wasManagedBedState;
     private static boolean seamlesssleep$wasAnimationActive;
+    private static boolean seamlesssleep$wasAnimationWakeShiftDown;
     private static boolean seamlesssleep$hasViewState;
     private static float seamlesssleep$viewYaw;
     private static float seamlesssleep$viewPitch;
@@ -65,6 +67,8 @@ public final class ClientBedWorkflow {
     }
 
     public static void tick(LocalPlayer player) {
+        FirstPersonModelCompat.ensureBedCompatibilityInstalled();
+
         boolean resting = isResting(player);
         boolean managed = isManagedBedState(player);
         boolean animationActive = isAnimationLookDamped(player);
@@ -75,11 +79,12 @@ public final class ClientBedWorkflow {
 
         if (!managed) {
             seamlesssleep$resetLookState();
+            seamlesssleep$wasAnimationWakeShiftDown = false;
         } else {
             if (!seamlesssleep$hasViewState) {
                 seamlesssleep$initLookState(player, player.getBedOrientation());
             }
-            if (!seamlesssleep$wasManagedBedState || animationActive != seamlesssleep$wasAnimationActive) {
+            if (!seamlesssleep$wasManagedBedState) {
                 seamlesssleep$resetLookSmoothing();
             }
             seamlesssleep$applyView(player, player.getBedOrientation());
@@ -96,6 +101,31 @@ public final class ClientBedWorkflow {
                 && SeamlessSleepClientState.SLEEP_ANIMATION.isActive();
     }
 
+    public static boolean shouldWakeOnAnimationExit(LocalPlayer player) {
+        return isAnimationLookDamped(player);
+    }
+
+    public static void handleAnimationWakeInput(LocalPlayer player, boolean shiftDown) {
+        if (!shouldWakeOnAnimationExit(player)) {
+            seamlesssleep$wasAnimationWakeShiftDown = shiftDown;
+            return;
+        }
+
+        if (shiftDown && !seamlesssleep$wasAnimationWakeShiftDown) {
+            seamlesssleep$sendWakePacket(player);
+        }
+
+        seamlesssleep$wasAnimationWakeShiftDown = shiftDown;
+    }
+
+    public static boolean tryWakeFromAnimation(LocalPlayer player) {
+        if (!shouldWakeOnAnimationExit(player)) {
+            return false;
+        }
+
+        return seamlesssleep$sendWakePacket(player);
+    }
+
     public static float getCameraYaw(LocalPlayer player) {
         return seamlesssleep$hasViewState && isManagedBedState(player)
                 ? seamlesssleep$viewYaw
@@ -109,6 +139,11 @@ public final class ClientBedWorkflow {
     }
 
     public static boolean shouldRenderFirstPersonBody(LocalPlayer player) {
+        FirstPersonModelCompat.ensureBedCompatibilityInstalled();
+        if (FirstPersonModelCompat.shouldDeferCameraBodyToFirstPersonModel()) {
+            return false;
+        }
+
         Minecraft client = Minecraft.getInstance();
         Entity cameraEntity = client.getCameraEntity();
         return isManagedBedState(player)
@@ -200,18 +235,35 @@ public final class ClientBedWorkflow {
     }
 
     private static double seamlesssleep$getLookScale(LocalPlayer player) {
-        return isAnimationLookDamped(player)
-                ? BedRestingHelper.ANIMATION_LOOK_SCALE
-                : BedRestingHelper.REST_LOOK_SCALE;
+        if (!isAnimationLookDamped(player)) {
+            return BedRestingHelper.REST_LOOK_SCALE;
+        }
+
+        return BedRestingHelper.getLookScaleForAnimationProgress(
+                SeamlessSleepClientState.SLEEP_ANIMATION.getProgress()
+        );
     }
 
     private static double seamlesssleep$getLookSmoothing(LocalPlayer player) {
-        return isAnimationLookDamped(player)
-                ? BedRestingHelper.ANIMATION_LOOK_SMOOTH_FACTOR
-                : BedRestingHelper.REST_LOOK_SMOOTH_FACTOR;
+        if (!isAnimationLookDamped(player)) {
+            return BedRestingHelper.REST_LOOK_SMOOTH_FACTOR;
+        }
+
+        return BedRestingHelper.getLookSmoothingForAnimationProgress(
+                SeamlessSleepClientState.SLEEP_ANIMATION.getProgress()
+        );
     }
 
     private static float seamlesssleep$getCameraTilt() {
         return (float) -SeamlessSleepClientConfigManager.get().sleepCameraTiltDegrees;
+    }
+
+    private static boolean seamlesssleep$sendWakePacket(LocalPlayer player) {
+        if (!player.isSleeping() || player.connection == null) {
+            return false;
+        }
+
+        player.connection.send(new ServerboundPlayerCommandPacket(player, ServerboundPlayerCommandPacket.Action.STOP_SLEEPING));
+        return true;
     }
 }

@@ -12,7 +12,7 @@ import java.util.Set;
 public final class SeamlessSleepMixinPlugin implements IMixinConfigPlugin {
 
     private static final String BETTER_CLOUDS_MOD_ID = "betterclouds";
-    private static final String BETTER_CLOUDS_MIXIN = "net.aqualoco.sec.mixin.client.compat.BetterCloudsRendererSleepAccelerationMixin";
+    private static final String BETTER_CLOUDS_MIXIN = "net.aqualoco.sec.mixin.client.render.compat.BetterCloudsRendererSleepAccelerationMixin";
     private static final String BETTER_CLOUDS_RENDERER_RESOURCE = "com/qendolin/betterclouds/clouds/Renderer.class";
 
     private boolean betterCloudsAvailable;

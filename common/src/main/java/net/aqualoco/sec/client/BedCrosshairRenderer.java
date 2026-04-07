@@ -4,6 +4,7 @@ import com.mojang.blaze3d.platform.NativeImage;
 import net.aqualoco.sec.Constants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.Identifier;
 
 import java.io.IOException;
@@ -31,7 +32,7 @@ public final class BedCrosshairRenderer {
 
         graphics.nextStratum();
         graphics.blit(
-                net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED,
+                RenderPipelines.CROSSHAIR,
                 BED_CROSSHAIR_TEXTURE,
                 x,
                 y,
