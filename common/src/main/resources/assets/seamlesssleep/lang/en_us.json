@@ -2,6 +2,9 @@
   "itemGroup.seamlesssleep.general": "Seamless Sleep",
   "block.seamlesssleep.sleep_barrier": "Sleep Barrier",
   "seamlesssleep.text.sleeping": "Sleeping through the night",
+  "seamlesssleep.text.leave_bed": "Press %s to leave the bed",
+  "seamlesssleep.text.players_missing_sleep.single": "%s more player needs to sleep",
+  "seamlesssleep.text.players_missing_sleep.multiple": "%s more players need to sleep",
 
   "modmenu.nameTranslation.seamlesssleep": "Seamless Sleep",
   "modmenu.summaryTranslation.seamlesssleep": "Never blink through the night again.",

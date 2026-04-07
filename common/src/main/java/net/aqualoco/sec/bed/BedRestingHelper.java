@@ -1,0 +1,149 @@
+package net.aqualoco.sec.bed;
+
+import net.aqualoco.sec.SeamlessSleepCommon;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.network.chat.Component;
+import net.minecraft.util.Mth;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.BedBlock;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
+import org.jspecify.annotations.Nullable;
+
+public final class BedRestingHelper {
+
+    public static final double BED_REST_Y = 0.6875D;
+    public static final double REST_CAMERA_Y_OFFSET = 0.3D;
+    public static final float REST_LOOK_SCALE = 0.30F;
+    public static final double REST_LOOK_SMOOTH_FACTOR = 0.24D;
+    public static final double ANIMATION_LOOK_SCALE = 0.020D;
+    public static final double ANIMATION_LOOK_SMOOTH_FACTOR = 0.06D;
+    public static final float REST_MAX_YAW = 100.0F;
+    public static final float REST_MIN_CAMERA_PITCH = -100.0F;
+    public static final float REST_MAX_CAMERA_PITCH = 0.0F;
+
+    private BedRestingHelper() {
+    }
+
+    public static boolean isResting(Player player) {
+        return player instanceof BedRestingPlayer restingPlayer && restingPlayer.seamlesssleep$isResting();
+    }
+
+    public static boolean isOverworldWorkflow(Player player) {
+        return player.level().dimension().equals(Level.OVERWORLD);
+    }
+
+    public static boolean isPreAnimationBedStateServer(Player player) {
+        if (!isOverworldWorkflow(player)) {
+            return false;
+        }
+        return isResting(player)
+                || (player.isSleeping() && !SeamlessSleepCommon.OVERWORLD_SLEEP_ANIMATION.isActive());
+    }
+
+    public static boolean isManagedBedStateServer(Player player) {
+        return isOverworldWorkflow(player) && (isResting(player) || player.isSleeping());
+    }
+
+    @Nullable
+    public static BlockPos getRestingBedPos(Player player) {
+        if (player instanceof BedRestingPlayer restingPlayer) {
+            return restingPlayer.seamlesssleep$getRestingBedPos().orElse(null);
+        }
+        return null;
+    }
+
+    @Nullable
+    public static Direction getRestingBedDirection(Player player) {
+        return getBedDirection(player.level(), getRestingBedPos(player));
+    }
+
+    @Nullable
+    public static Direction getBedDirection(Level level, @Nullable BlockPos bedPos) {
+        if (bedPos == null) {
+            return null;
+        }
+
+        BlockState state = level.getBlockState(bedPos);
+        if (!(state.getBlock() instanceof BedBlock)) {
+            return null;
+        }
+        return state.getValue(BedBlock.FACING);
+    }
+
+    public static boolean canStartResting(Player player, BlockPos bedPos, Direction direction) {
+        return isReachableBedBlock(player, bedPos, direction) && !isBedBlocked(player, bedPos, direction);
+    }
+
+    public static boolean isReachableBedBlock(Player player, BlockPos bedPos, Direction direction) {
+        return isReachableBedBlock(player, bedPos) || isReachableBedBlock(player, bedPos.relative(direction.getOpposite()));
+    }
+
+    public static boolean isReachableBedBlock(Player player, BlockPos pos) {
+        Vec3 center = Vec3.atBottomCenterOf(pos);
+        return Math.abs(player.getX() - center.x()) <= 3.0D
+                && Math.abs(player.getY() - center.y()) <= 2.0D
+                && Math.abs(player.getZ() - center.z()) <= 3.0D;
+    }
+
+    public static boolean isBedBlocked(Player player, BlockPos bedPos, Direction direction) {
+        BlockPos above = bedPos.above();
+        return isSuffocating(player.level(), above) || isSuffocating(player.level(), above.relative(direction.getOpposite()));
+    }
+
+    private static boolean isSuffocating(Level level, BlockPos pos) {
+        return level.getBlockState(pos).isSuffocating(level, pos);
+    }
+
+    public static void setBedOccupied(Level level, BlockPos bedPos, boolean occupied) {
+        BlockState state = level.getBlockState(bedPos);
+        if (!(state.getBlock() instanceof BedBlock) || state.getValue(BedBlock.OCCUPIED) == occupied) {
+            return;
+        }
+        level.setBlock(bedPos, state.setValue(BedBlock.OCCUPIED, occupied), 3);
+    }
+
+    public static Vec3 getBedRestPosition(BlockPos bedPos) {
+        return new Vec3(
+                bedPos.getX() + 0.5D,
+                bedPos.getY() + BED_REST_Y,
+                bedPos.getZ() + 0.5D
+        );
+    }
+
+    public static float getBedBaseYaw(Direction direction) {
+        return direction.toYRot() - 180.0F;
+    }
+
+    public static float clampYawToBed(float yaw, Direction direction) {
+        float baseYaw = getBedBaseYaw(direction);
+        float relativeYaw = Mth.wrapDegrees(yaw - baseYaw);
+        return Mth.wrapDegrees(baseYaw + Mth.clamp(relativeYaw, -REST_MAX_YAW, REST_MAX_YAW));
+    }
+
+    public static float clampPitch(float pitch, float cameraTilt) {
+        float minViewPitch = REST_MIN_CAMERA_PITCH - cameraTilt;
+        float maxViewPitch = REST_MAX_CAMERA_PITCH - cameraTilt;
+        return Mth.clamp(pitch, minViewPitch, maxViewPitch);
+    }
+
+    public static Vec3 getRestingCameraOffset() {
+        return new Vec3(0.0D, REST_CAMERA_Y_OFFSET, 0.0D);
+    }
+
+    public static Component getLeaveBedHintMessage() {
+        return Component.translatable("seamlesssleep.text.leave_bed", Component.keybind("key.sneak"));
+    }
+
+    public static Vec3 findStandUpPosition(LivingEntity entity, BlockPos bedPos, @Nullable Direction direction) {
+        Direction resolvedDirection = direction != null ? direction : Direction.NORTH;
+        return BedBlock.findStandUpPosition(entity.getType(), entity.level(), bedPos, resolvedDirection, entity.getYRot())
+                .orElseGet(() -> {
+                    BlockPos fallback = bedPos.above();
+                    return new Vec3(fallback.getX() + 0.5D, fallback.getY() + 0.1D, fallback.getZ() + 0.5D);
+                });
+    }
+}

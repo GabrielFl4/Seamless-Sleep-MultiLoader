@@ -1,12 +1,15 @@
 package net.aqualoco.sec.mixin.client;
 
+import net.aqualoco.sec.client.ClientBedWorkflow;
 import net.aqualoco.sec.client.SeamlessSleepClientState;
 import net.aqualoco.sec.network.SleepAnimationNetworking;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.world.level.Level;
+import org.joml.Matrix4f;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -39,6 +42,14 @@ public abstract class GameRendererSleepAnimationMixin {
 
         if (SeamlessSleepClientState.SLEEP_ANIMATION.isActive()) {
             SeamlessSleepClientState.SLEEP_ANIMATION.tick(world, deltaTracker);
+        }
+    }
+
+    @Inject(method = "renderItemInHand", at = @At("HEAD"), cancellable = true)
+    private void seamlesssleep$hideVanillaHandsWhileBedBound(float tickDelta, boolean renderBlockOutline, Matrix4f projectionMatrix, CallbackInfo ci) {
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (player != null && ClientBedWorkflow.shouldHideVanillaHands(player)) {
+            ci.cancel();
         }
     }
 }

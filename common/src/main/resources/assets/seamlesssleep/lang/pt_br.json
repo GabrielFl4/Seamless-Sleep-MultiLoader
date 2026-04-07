@@ -2,6 +2,9 @@
   "itemGroup.seamlesssleep.general": "Seamless Sleep",
   "block.seamlesssleep.sleep_barrier": "Barreira de Sono",
   "seamlesssleep.text.sleeping": "Passando a noite",
+  "seamlesssleep.text.leave_bed": "Pressione %s para sair da cama",
+  "seamlesssleep.text.players_missing_sleep.single": "Falta %s jogador para dormir",
+  "seamlesssleep.text.players_missing_sleep.multiple": "Faltam %s jogadores para dormir",
 
   "modmenu.nameTranslation.seamlesssleep": "Seamless Sleep",
   "modmenu.summaryTranslation.seamlesssleep": "Nunca mais feche os olhos durante a noite.",

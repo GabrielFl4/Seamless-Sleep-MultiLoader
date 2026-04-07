@@ -1,11 +1,12 @@
 package net.aqualoco.sec.mixin.client;
 
+import net.aqualoco.sec.client.ClientBedWorkflow;
 import net.aqualoco.sec.config.SeamlessSleepClientConfig;
 import net.aqualoco.sec.config.SeamlessSleepClientConfigManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.OptionInstance;
 import net.minecraft.client.gui.components.ChatComponent;
-import net.minecraft.client.gui.screens.InBedChatScreen;
+import net.minecraft.client.gui.screens.ChatScreen;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -14,7 +15,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-// Adjusts chat height and opacity while the player is typing from bed.
+// Keeps the chat compact during the full bed workflow and only dims it while closed.
 @Mixin(ChatComponent.class)
 public abstract class ChatHudSleepMixin {
 
@@ -22,7 +23,7 @@ public abstract class ChatHudSleepMixin {
 
     @Inject(method = "getHeight", at = @At("HEAD"), cancellable = true)
     private void seamlesssleep$limitHeightWhenSleeping(CallbackInfoReturnable<Integer> cir) {
-        if (!seamlesssleep$isSleepingChat()) {
+        if (!seamlesssleep$isManagedBedChat()) {
             return;
         }
 
@@ -47,7 +48,7 @@ public abstract class ChatHudSleepMixin {
     )
     private Object seamlesssleep$dimBackgroundWhileSleeping(OptionInstance<Double> option) {
         double value = option.get();
-        if (!seamlesssleep$isSleepingChat()) {
+        if (!seamlesssleep$shouldDimSleepingChat()) {
             return value;
         }
 
@@ -71,7 +72,7 @@ public abstract class ChatHudSleepMixin {
     )
     private Object seamlesssleep$dimTextWhileSleeping(OptionInstance<Double> option) {
         double value = option.get();
-        if (!seamlesssleep$isSleepingChat()) {
+        if (!seamlesssleep$shouldDimSleepingChat()) {
             return value;
         }
 
@@ -85,11 +86,15 @@ public abstract class ChatHudSleepMixin {
         return value * factor;
     }
 
-    private boolean seamlesssleep$isSleepingChat() {
+    private boolean seamlesssleep$isManagedBedChat() {
         return this.minecraft != null
                 && this.minecraft.player != null
-                && this.minecraft.player.isSleeping()
-                && this.minecraft.screen instanceof InBedChatScreen;
+                && ClientBedWorkflow.isManagedBedState(this.minecraft.player);
+    }
+
+    private boolean seamlesssleep$shouldDimSleepingChat() {
+        return this.seamlesssleep$isManagedBedChat()
+                && !(this.minecraft.screen instanceof ChatScreen);
     }
 
     private SeamlessSleepClientConfig seamlesssleep$getConfig() {

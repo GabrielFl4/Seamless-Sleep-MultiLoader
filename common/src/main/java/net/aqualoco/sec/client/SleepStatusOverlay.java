@@ -24,40 +24,39 @@ public final class SleepStatusOverlay {
             return;
         }
 
-        if (!state.isActive()) {
-            return;
-        }
-
         if (!SeamlessSleepClientConfigManager.get().sleepOverlayEnabled) {
             return;
         }
 
-        Component text = Component.translatable("seamlesssleep.text.sleeping");
+        if (!state.isActive()) {
+            return;
+        }
 
+        Component text = Component.translatable("seamlesssleep.text.sleeping");
         boolean hasXaero = Services.PLATFORM.isModLoaded("xaerominimap")
                 || Services.PLATFORM.isModLoaded("xaerominimapfair");
 
-        long now = System.currentTimeMillis();
-        double pulse = 0.6D + 0.4D * Math.sin(now / 400.0D);
-        double clamped = Math.max(0.2D, Math.min(1.0D, pulse));
-        int alpha = (int) (clamped * 255.0D);
-        int color = (alpha << 24) | 0x00FFFFFF;
-
-        int x;
-        int y;
+        int x = 6;
+        int y = 6;
         if (hasXaero) {
             int sw = graphics.guiWidth();
             int sh = graphics.guiHeight();
             int textWidth = client.font.width(text);
             x = (sw - textWidth) / 2;
             y = sh - 68;
-        } else {
-            x = 6;
-            y = 6;
         }
-        // 1.21.8+ fix
-        graphics.nextStratum();
 
+        renderText(graphics, text, x, y);
+    }
+
+    private static void renderText(GuiGraphics graphics, Component text, int x, int y) {
+        Minecraft client = Minecraft.getInstance();
+        long now = System.currentTimeMillis();
+        double pulse = 0.6D + 0.4D * Math.sin(now / 400.0D);
+        double clamped = Math.max(0.2D, Math.min(1.0D, pulse));
+        int alpha = (int) (clamped * 255.0D);
+        int color = (alpha << 24) | 0x00FFFFFF;
+        graphics.nextStratum();
         graphics.drawString(client.font, text, x, y, color, true);
     }
 }
