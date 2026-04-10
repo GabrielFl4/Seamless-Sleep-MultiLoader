@@ -5,7 +5,7 @@
   "compatibilityLevel": "JAVA_21",
   "mixins": [],
   "client": [
-    "client.GameRendererSleepAnimationMixin"
+    "client.render.GameRendererSleepAnimationMixin"
   ],
   "server": [],
   "injectors": {

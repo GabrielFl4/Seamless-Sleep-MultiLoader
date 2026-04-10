@@ -1,6 +1,7 @@
 package net.aqualoco.sec.platform;
 
 import net.aqualoco.sec.SeamlessSleep;
+import net.aqualoco.sec.network.BedHudSleepProgressPayload;
 import net.aqualoco.sec.network.ServerConfigSyncPayload;
 import net.aqualoco.sec.network.SleepAnimationStartPayload;
 import net.aqualoco.sec.network.SleepAnimationStopPayload;
@@ -17,6 +18,7 @@ public class NeoForgeNetworkHelper implements INetworkHelper {
 
     // Small client-only handler contract used by payload callbacks.
     interface ClientHandler {
+        void handleBedHudSleepProgress(BedHudSleepProgressPayload payload);
         void handleStart(SleepAnimationStartPayload payload);
         void handleStop(SleepAnimationStopPayload payload);
         void handleServerConfig(ServerConfigSyncPayload payload);
@@ -37,6 +39,11 @@ public class NeoForgeNetworkHelper implements INetworkHelper {
 
     private static void onRegisterPayloads(RegisterPayloadHandlersEvent event) {
         PayloadRegistrar registrar = event.registrar("1");
+        registrar.playToClient(
+                BedHudSleepProgressPayload.ID,
+                BedHudSleepProgressPayload.CODEC.cast(),
+                NeoForgeNetworkHelper::handleBedHudSleepProgress
+        );
         registrar.playToClient(
                 SleepAnimationStartPayload.ID,
                 SleepAnimationStartPayload.CODEC.cast(),
@@ -64,6 +71,15 @@ public class NeoForgeNetworkHelper implements INetworkHelper {
     @Override
     public void sendToPlayers(ServerLevel world, CustomPacketPayload payload) {
         PacketDistributor.sendToPlayersInDimension(world, payload);
+    }
+
+    private static void handleBedHudSleepProgress(BedHudSleepProgressPayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            ClientHandler handler = clientHandler;
+            if (handler != null) {
+                handler.handleBedHudSleepProgress(payload);
+            }
+        });
     }
 
     private static void handleStart(SleepAnimationStartPayload payload, IPayloadContext context) {

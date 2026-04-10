@@ -3,10 +3,12 @@ package net.aqualoco.sec.bed;
 import net.aqualoco.sec.SeamlessSleepCommon;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BedBlock;
 import net.minecraft.world.level.block.state.BlockState;
@@ -36,7 +38,9 @@ public final class BedRestingHelper {
     // Bed look limits relative to the vanilla bed forward direction.
     public static final float REST_MAX_YAW = 100.0F;
     public static final float REST_MIN_CAMERA_PITCH = -100.0F;
-    public static final float REST_MAX_CAMERA_PITCH = 0.0F;
+
+    // Max camera pitch (looking down) is -0.1 and not 0 to avoid visual issue mine has (weirdos)
+    public static final float REST_MAX_CAMERA_PITCH = -0.1F;
 
     private BedRestingHelper() {
     }
@@ -170,7 +174,28 @@ public final class BedRestingHelper {
     }
 
     public static Component getLeaveBedHintMessage() {
-        return Component.translatable("seamlesssleep.text.leave_bed", Component.keybind("key.sneak"));
+        return Component.translatable(
+                "seamlesssleep.text.leave_bed",
+                Component.keybind("key.sneak").withStyle(ChatFormatting.BOLD)
+        );
+    }
+
+    @Nullable
+    public static Component getCurrentBedProblemMessage(Level level, BlockPos bedPos) {
+        return level.environmentAttributes()
+                .getValue(net.minecraft.world.attribute.EnvironmentAttributes.BED_RULE, bedPos)
+                .asProblem()
+                .message();
+    }
+
+    public static void showBedHudMessage(ServerPlayer player, @Nullable Component message) {
+        if (message != null) {
+            player.displayClientMessage(message, true);
+        }
+    }
+
+    public static void showLeaveBedHint(ServerPlayer player) {
+        player.displayClientMessage(getLeaveBedHintMessage(), true);
     }
 
     // Falls back to a simple safe spot above the bed if vanilla cannot resolve a stand-up position.

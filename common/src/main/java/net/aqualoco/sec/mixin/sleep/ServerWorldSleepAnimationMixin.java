@@ -3,6 +3,7 @@ package net.aqualoco.sec.mixin.sleep;
 import net.aqualoco.sec.Constants;
 import net.aqualoco.sec.SeamlessSleepCommon;
 import net.aqualoco.sec.config.SeamlessSleepServerConfigManager;
+import net.aqualoco.sec.network.BedHudNetworking;
 import net.aqualoco.sec.network.SleepAnimationNetworking;
 import net.aqualoco.sec.sleep.SleepAnimationState;
 import net.minecraft.server.level.ServerLevel;
@@ -186,5 +187,14 @@ public abstract class ServerWorldSleepAnimationMixin {
         // Keep vanilla-style threshold: at least one player, then percentage.
         int required = Math.max(1, total * percentage / 100);
         return sleeping >= required;
+    }
+
+    @Inject(method = "updateSleepingPlayerList", at = @At("TAIL"))
+    private void seamlesssleep$syncBedHudSleepProgress(CallbackInfo ci) {
+        ServerLevel self = (ServerLevel) (Object) this;
+        if (!self.dimension().equals(Level.OVERWORLD)) {
+            return;
+        }
+        BedHudNetworking.syncSleepProgress(self);
     }
 }

@@ -1,6 +1,7 @@
 package net.aqualoco.sec.platform;
 
 import net.aqualoco.sec.Constants;
+import net.aqualoco.sec.network.BedHudSleepProgressPayload;
 import net.aqualoco.sec.network.ServerConfigSyncPayload;
 import net.aqualoco.sec.network.SleepAnimationStartPayload;
 import net.aqualoco.sec.network.SleepAnimationStopPayload;
@@ -19,6 +20,7 @@ public class ForgeNetworkHelper implements INetworkHelper {
 
     // Small client-only handler contract used by channel callbacks.
     interface ClientHandler {
+        void handleBedHudSleepProgress(BedHudSleepProgressPayload payload);
         void handleStart(SleepAnimationStartPayload payload);
         void handleStop(SleepAnimationStopPayload payload);
         void handleServerConfig(ServerConfigSyncPayload payload);
@@ -42,6 +44,11 @@ public class ForgeNetworkHelper implements INetworkHelper {
                 .payloadChannel()
                 .play()
                 .clientbound()
+                .addMain(
+                        BedHudSleepProgressPayload.ID,
+                        BedHudSleepProgressPayload.CODEC.cast(),
+                        ForgeNetworkHelper::handleBedHudSleepProgress
+                )
                 .addMain(
                         SleepAnimationStartPayload.ID,
                         SleepAnimationStartPayload.CODEC.cast(),
@@ -86,6 +93,17 @@ public class ForgeNetworkHelper implements INetworkHelper {
         ClientHandler handler = clientHandler;
         if (handler != null) {
             handler.handleStart(payload);
+        }
+    }
+
+    private static void handleBedHudSleepProgress(BedHudSleepProgressPayload payload, CustomPayloadEvent.Context context) {
+        if (!context.isClientSide()) {
+            return;
+        }
+
+        ClientHandler handler = clientHandler;
+        if (handler != null) {
+            handler.handleBedHudSleepProgress(payload);
         }
     }
 

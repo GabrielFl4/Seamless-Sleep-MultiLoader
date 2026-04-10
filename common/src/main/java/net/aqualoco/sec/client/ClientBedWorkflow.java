@@ -2,7 +2,6 @@ package net.aqualoco.sec.client;
 
 import net.aqualoco.sec.bed.BedRestingHelper;
 import net.aqualoco.sec.config.SeamlessSleepClientConfigManager;
-import net.aqualoco.sec.mixin.client.ui.GuiOverlayMessageAccessor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.Direction;
@@ -12,8 +11,6 @@ import net.minecraft.world.entity.Entity;
 import org.jspecify.annotations.Nullable;
 
 public final class ClientBedWorkflow {
-
-    private static final int RESTING_HINT_DURATION_TICKS = 100;
 
     private static final SmoothDouble seamlesssleep$smoothTurnYaw = new SmoothDouble();
     private static final SmoothDouble seamlesssleep$smoothTurnPitch = new SmoothDouble();
@@ -62,10 +59,6 @@ public final class ClientBedWorkflow {
         return isManagedBedState(player);
     }
 
-    public static boolean shouldShowLeaveHint(LocalPlayer player) {
-        return false;
-    }
-
     public static void tick(LocalPlayer player) {
         FirstPersonModelCompat.ensureBedCompatibilityInstalled();
 
@@ -73,14 +66,14 @@ public final class ClientBedWorkflow {
         boolean managed = isManagedBedState(player);
         boolean animationActive = isAnimationLookDamped(player);
 
-        if (managed && !seamlesssleep$wasManagedBedState) {
-            seamlesssleep$showRestingHint();
-        }
-
         if (!managed) {
+            if (seamlesssleep$wasManagedBedState) {
+                BedHudMessageManager.clearAll();
+            }
             seamlesssleep$resetLookState();
             seamlesssleep$wasAnimationWakeShiftDown = false;
         } else {
+            BedHudMessageManager.syncManagedBedState(player);
             if (!seamlesssleep$hasViewState) {
                 seamlesssleep$initLookState(player, player.getBedOrientation());
             }
@@ -181,19 +174,6 @@ public final class ClientBedWorkflow {
                 seamlesssleep$getCameraTilt()
         );
         seamlesssleep$applyView(player, direction);
-    }
-
-    private static void seamlesssleep$showRestingHint() {
-        Minecraft client = Minecraft.getInstance();
-        if (client.gui == null) {
-            return;
-        }
-
-        client.gui.setOverlayMessage(
-                BedRestingHelper.getLeaveBedHintMessage(),
-                false
-        );
-        ((GuiOverlayMessageAccessor) client.gui).seamlesssleep$setOverlayMessageTime(RESTING_HINT_DURATION_TICKS);
     }
 
     private static void seamlesssleep$initLookState(LocalPlayer player, @Nullable Direction direction) {

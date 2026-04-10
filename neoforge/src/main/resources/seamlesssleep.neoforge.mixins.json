@@ -5,9 +5,9 @@
   "compatibilityLevel": "JAVA_21",
   "mixins": [],
   "client": [
-    "client.GameRendererSleepAnimationMixin",
+    "client.render.GameRendererSleepAnimationMixin",
     "client.NeoForgeBetterCloudsLevelRendererMixin",
-    "client.GuiSleepOverlayMixin",
+    "client.ui.GuiSleepOverlayMixin",
     "client.NeoForgeModListScreenMutableSortFixMixin"
   ],
   "server": [],

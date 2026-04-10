@@ -1,6 +1,8 @@
 package net.aqualoco.sec.platform;
 
+import net.aqualoco.sec.client.BedHudMessageManager;
 import net.aqualoco.sec.client.SeamlessSleepClientState;
+import net.aqualoco.sec.network.BedHudSleepProgressPayload;
 import net.aqualoco.sec.config.SeamlessSleepServerConfigSnapshot;
 import net.aqualoco.sec.network.ServerConfigSyncPayload;
 import net.aqualoco.sec.network.SleepAnimationStartPayload;
@@ -74,6 +76,28 @@ final class FabricClientNetworkHandler {
                                 payload.sleepAnimationDurationMultiplier()
                         )
                 )
+        );
+
+        ClientPlayNetworking.registerGlobalReceiver(
+                BedHudSleepProgressPayload.ID,
+                (payload, context) -> {
+                    Minecraft client = context.client();
+                    ClientLevel world = client.level;
+                    if (world == null) {
+                        return;
+                    }
+
+                    Identifier worldId = world.dimension().identifier();
+                    if (!worldId.equals(payload.worldId())) {
+                        return;
+                    }
+
+                    client.execute(() -> BedHudMessageManager.handleSleepProgressPayload(
+                            payload.sleepingPlayers(),
+                            payload.sleepersNeeded(),
+                            payload.active()
+                    ));
+                }
         );
     }
 }

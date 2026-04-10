@@ -4,9 +4,9 @@ import com.mojang.datafixers.util.Either;
 import net.aqualoco.sec.Constants;
 import net.aqualoco.sec.bed.BedRestingHelper;
 import net.aqualoco.sec.bed.BedRestingPlayer;
+import net.aqualoco.sec.network.BedHudNetworking;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.network.chat.Component;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
@@ -16,9 +16,10 @@ import net.minecraft.util.Mth;
 import net.minecraft.util.Unit;
 import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.gamerules.GameRules;
+import net.minecraft.world.entity.player.Player.BedSleepingProblem;
 import net.minecraft.world.level.storage.LevelData;
 import net.minecraft.world.phys.Vec3;
+import org.jspecify.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -42,6 +43,13 @@ public abstract class PlayerBedRestingMixin implements BedRestingPlayer {
     @Unique
     private int seamlesssleep$restingEnterTick = Integer.MIN_VALUE;
 
+    @Unique
+    @Nullable
+    private BedSleepingProblem seamlesssleep$lastRestingPromotionProblem;
+
+    @Unique
+    private boolean seamlesssleep$pendingBedHudSleepProgressSync;
+
     @Inject(method = "defineSynchedData", at = @At("TAIL"))
     private void seamlesssleep$defineRestingData(SynchedEntityData.Builder builder, CallbackInfo ci) {
         builder.define(seamlesssleep$RESTING, false);
@@ -61,7 +69,18 @@ public abstract class PlayerBedRestingMixin implements BedRestingPlayer {
 
     @Inject(method = "tick", at = @At("TAIL"))
     private void seamlesssleep$tickRestingServer(CallbackInfo ci) {
-        if (!((Object) this instanceof ServerPlayer serverPlayer) || !this.seamlesssleep$isResting()) {
+        if (!((Object) this instanceof ServerPlayer serverPlayer)) {
+            return;
+        }
+
+        if (this.seamlesssleep$pendingBedHudSleepProgressSync) {
+            if (serverPlayer.isSleeping()) {
+                BedHudNetworking.syncSleepProgress((ServerLevel) serverPlayer.level());
+            }
+            this.seamlesssleep$pendingBedHudSleepProgressSync = false;
+        }
+
+        if (!this.seamlesssleep$isResting()) {
             return;
         }
 
@@ -101,11 +120,20 @@ public abstract class PlayerBedRestingMixin implements BedRestingPlayer {
         if (serverPlayer.level().environmentAttributes().getValue(net.minecraft.world.attribute.EnvironmentAttributes.BED_RULE, bedPos).canSleep(serverPlayer.level())) {
             Either<Player.BedSleepingProblem, Unit> sleepResult = serverPlayer.startSleepInBed(bedPos);
             if (sleepResult.right().isPresent()) {
-                this.seamlesssleep$showMissingSleepersMessage(serverPlayer);
+                this.seamlesssleep$pendingBedHudSleepProgressSync = true;
                 this.seamlesssleep$stopResting(false, false);
                 return;
             }
+
+            BedSleepingProblem problem = sleepResult.left().orElse(null);
+            if (problem != null && problem != this.seamlesssleep$lastRestingPromotionProblem) {
+                BedRestingHelper.showBedHudMessage(serverPlayer, problem.message());
+                this.seamlesssleep$lastRestingPromotionProblem = problem;
+            }
+            return;
         }
+
+        this.seamlesssleep$lastRestingPromotionProblem = null;
     }
 
     @Override
@@ -141,6 +169,8 @@ public abstract class PlayerBedRestingMixin implements BedRestingPlayer {
         self.getEntityData().set(seamlesssleep$RESTING, true);
         self.getEntityData().set(seamlesssleep$RESTING_BED_POS, Optional.of(bedPos));
         this.seamlesssleep$restingEnterTick = self.tickCount;
+        this.seamlesssleep$lastRestingPromotionProblem = null;
+        this.seamlesssleep$pendingBedHudSleepProgressSync = false;
 
         self.snapTo(restPos.x, restPos.y, restPos.z, restYaw, 0.0F);
         self.setPose(Pose.SLEEPING);
@@ -174,6 +204,10 @@ public abstract class PlayerBedRestingMixin implements BedRestingPlayer {
         self.getEntityData().set(seamlesssleep$RESTING, false);
         self.getEntityData().set(seamlesssleep$RESTING_BED_POS, Optional.empty());
         this.seamlesssleep$restingEnterTick = Integer.MIN_VALUE;
+        this.seamlesssleep$lastRestingPromotionProblem = null;
+        if (!self.isSleeping()) {
+            this.seamlesssleep$pendingBedHudSleepProgressSync = false;
+        }
 
         if (releaseBed && bedPos != null && !self.isSleeping()) {
             BedRestingHelper.setBedOccupied(self.level(), bedPos, false);
@@ -203,42 +237,5 @@ public abstract class PlayerBedRestingMixin implements BedRestingPlayer {
         }
 
         Constants.debug("Player {} left resting state", self.getPlainTextName());
-    }
-
-    @Unique
-    private void seamlesssleep$showMissingSleepersMessage(ServerPlayer serverPlayer) {
-        ServerLevel level = (ServerLevel) serverPlayer.level();
-        int percentage = level.getGameRules().get(GameRules.PLAYERS_SLEEPING_PERCENTAGE);
-        if (percentage <= 0) {
-            return;
-        }
-
-        int total = 0;
-        int sleeping = 0;
-        for (ServerPlayer otherPlayer : level.players()) {
-            if (otherPlayer.isSpectator()) {
-                continue;
-            }
-
-            total++;
-            if (otherPlayer.isSleeping()) {
-                sleeping++;
-            }
-        }
-
-        if (total <= 1) {
-            return;
-        }
-
-        int required = Math.max(1, total * percentage / 100);
-        int missing = Math.max(0, required - sleeping);
-        if (missing <= 0) {
-            return;
-        }
-
-        String translationKey = missing == 1
-                ? "seamlesssleep.text.players_missing_sleep.single"
-                : "seamlesssleep.text.players_missing_sleep.multiple";
-        serverPlayer.displayClientMessage(Component.translatable(translationKey, missing), true);
     }
 }
