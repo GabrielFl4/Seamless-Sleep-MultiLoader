@@ -2,8 +2,6 @@ package net.aqualoco.sec.mixin.client.camera;
 
 import net.aqualoco.sec.bed.BedRestingHelper;
 import net.aqualoco.sec.client.ClientBedWorkflow;
-import net.aqualoco.sec.config.SeamlessSleepClientConfig;
-import net.aqualoco.sec.config.SeamlessSleepClientConfigManager;
 import net.minecraft.client.Camera;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.Entity;
@@ -16,7 +14,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-// Applies a configurable first-person camera tilt while the player is sleeping.
+// Applies the bed workflow camera rotation and resting camera offset without adding extra fake tilt.
 @Mixin(Camera.class)
 public abstract class CameraSleepAnimationMixin {
 
@@ -36,12 +34,12 @@ public abstract class CameraSleepAnimationMixin {
     protected abstract void setRotation(float yaw, float pitch);
 
     @Inject(method = "setup", at = @At("TAIL"))
-    private void seamlesssleep$tiltSleepCamera(Level area,
-                                               Entity focusedEntity,
-                                               boolean thirdPerson,
-                                               boolean inverseView,
-                                               float tickDelta,
-                                               CallbackInfo ci) {
+    private void seamlesssleep$applyBedCamera(Level area,
+                                              Entity focusedEntity,
+                                              boolean thirdPerson,
+                                              boolean inverseView,
+                                              float tickDelta,
+                                              CallbackInfo ci) {
         if (!(focusedEntity instanceof Player player)) {
             return;
         }
@@ -50,23 +48,16 @@ public abstract class CameraSleepAnimationMixin {
             return;
         }
 
-        SeamlessSleepClientConfig cfg = SeamlessSleepClientConfigManager.get();
-        float tilt = (float) -cfg.sleepCameraTiltDegrees;
-
         if (player instanceof LocalPlayer localPlayer && ClientBedWorkflow.isManagedBedState(localPlayer)) {
             this.setRotation(
                     ClientBedWorkflow.getCameraYaw(localPlayer),
-                    ClientBedWorkflow.getCameraPitch(localPlayer) + tilt
+                    ClientBedWorkflow.getCameraPitch(localPlayer)
             );
 
             if (ClientBedWorkflow.isResting(localPlayer)) {
                 this.setPosition(this.position.add(BedRestingHelper.getRestingCameraOffset()));
             }
             return;
-        }
-
-        if (player.isSleeping()) {
-            this.setRotation(this.yRot, this.xRot + tilt);
         }
     }
 }

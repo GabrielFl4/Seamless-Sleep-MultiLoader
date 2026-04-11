@@ -12,7 +12,6 @@ import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.util.Mth;
 import net.minecraft.util.Unit;
 import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.player.Player;
@@ -172,7 +171,7 @@ public abstract class PlayerBedRestingMixin implements BedRestingPlayer {
         this.seamlesssleep$lastRestingPromotionProblem = null;
         this.seamlesssleep$pendingBedHudSleepProgressSync = false;
 
-        self.snapTo(restPos.x, restPos.y, restPos.z, restYaw, 0.0F);
+        self.snapTo(restPos.x, restPos.y, restPos.z, restYaw, self.getXRot());
         self.setPose(Pose.SLEEPING);
         self.setDeltaMovement(Vec3.ZERO);
         self.setYHeadRot(restYaw);
@@ -216,15 +215,7 @@ public abstract class PlayerBedRestingMixin implements BedRestingPlayer {
         if (!self.isSleeping()) {
             if (syncPosition && bedPos != null) {
                 Vec3 standPos = BedRestingHelper.findStandUpPosition(self, bedPos, direction);
-                Vec3 bedCenter = Vec3.atBottomCenterOf(bedPos);
-                Vec3 lookVec = bedCenter.subtract(standPos);
-                if (lookVec.lengthSqr() < 1.0E-6D) {
-                    lookVec = new Vec3(0.0D, 0.0D, 1.0D);
-                } else {
-                    lookVec = lookVec.normalize();
-                }
-                float yaw = (float) Mth.wrapDegrees(Mth.atan2(lookVec.z, lookVec.x) * 180.0F / (float) Math.PI - 90.0F);
-                self.snapTo(standPos.x, standPos.y, standPos.z, yaw, 0.0F);
+                self.snapTo(standPos.x, standPos.y, standPos.z, self.getYRot(), self.getXRot());
                 self.setYHeadRot(self.getYRot());
                 self.setYBodyRot(self.getYRot());
             }

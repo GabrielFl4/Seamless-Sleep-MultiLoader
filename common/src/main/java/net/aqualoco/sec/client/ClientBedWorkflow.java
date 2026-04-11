@@ -98,6 +98,10 @@ public final class ClientBedWorkflow {
         return isAnimationLookDamped(player);
     }
 
+    public static boolean shouldDeferPauseOnFocusLoss(LocalPlayer player) {
+        return isAnimationLookDamped(player);
+    }
+
     public static void handleAnimationWakeInput(LocalPlayer player, boolean shiftDown) {
         if (!shouldWakeOnAnimationExit(player)) {
             seamlesssleep$wasAnimationWakeShiftDown = shiftDown;
@@ -169,17 +173,14 @@ public final class ClientBedWorkflow {
         float pitchDelta = (float) seamlesssleep$smoothTurnPitch.getNewDeltaValue(rawPitchDelta * 0.15D * lookScale, smoothing);
 
         seamlesssleep$viewYaw = BedRestingHelper.clampYawToBed(seamlesssleep$viewYaw + yawDelta, direction);
-        seamlesssleep$viewPitch = BedRestingHelper.clampPitch(
-                seamlesssleep$viewPitch + pitchDelta,
-                seamlesssleep$getCameraTilt()
-        );
+        seamlesssleep$viewPitch = BedRestingHelper.clampPitch(seamlesssleep$viewPitch + pitchDelta);
         seamlesssleep$applyView(player, direction);
     }
 
     private static void seamlesssleep$initLookState(LocalPlayer player, @Nullable Direction direction) {
         if (direction != null) {
             seamlesssleep$viewYaw = BedRestingHelper.getBedBaseYaw(direction);
-            seamlesssleep$viewPitch = 0.0F;
+            seamlesssleep$viewPitch = BedRestingHelper.clampPitch(seamlesssleep$getConfiguredBedPitch());
         } else {
             seamlesssleep$viewYaw = player.getYRot();
             seamlesssleep$viewPitch = player.getXRot();
@@ -234,7 +235,8 @@ public final class ClientBedWorkflow {
         );
     }
 
-    private static float seamlesssleep$getCameraTilt() {
+    // Keeps the existing config value semantics, but now maps them directly to the player's real pitch.
+    private static float seamlesssleep$getConfiguredBedPitch() {
         return (float) -SeamlessSleepClientConfigManager.get().sleepCameraTiltDegrees;
     }
 

@@ -35,6 +35,7 @@
     "client.body.LivingEntityRenderStateBedBodyMixin",
     "client.input.LocalPlayerBedWorkflowMixin",
     "client.ui.MinecraftBedWorkflowMixin",
+    "client.ui.MinecraftSleepPauseDeferralMixin",
     "client.input.MultiPlayerGameModeBedWorkflowMixin",
     "client.ui.SleepOverlayOpacityMixin",
     "client.ui.InGameHudSleepMessageMixin"

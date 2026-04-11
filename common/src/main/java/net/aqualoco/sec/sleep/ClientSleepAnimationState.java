@@ -10,6 +10,9 @@ import java.util.OptionalLong;
 
 // Client mirror for the active sleep transition.
 public final class ClientSleepAnimationState {
+    private static final long DAY_TICKS = 24000L;
+    private static final long NIGHT_START_TICKS = 12542L;
+    private static final long NIGHT_END_TICKS = 23460L;
 
     private boolean active;
     private long startTimeOfDay;
@@ -27,6 +30,10 @@ public final class ClientSleepAnimationState {
 
     public boolean isReplayCompatMode() {
         return this.active && this.replayCompatMode;
+    }
+
+    public boolean startedDuringDay() {
+        return !isNightStart(this.startTimeOfDay);
     }
 
     public OptionalLong getReplayTimelineMillisSnapshot() {
@@ -213,5 +220,10 @@ public final class ClientSleepAnimationState {
             return 1.0D;
         }
         return value;
+    }
+
+    private static boolean isNightStart(long timeOfDay) {
+        long wrapped = Math.floorMod(timeOfDay, DAY_TICKS);
+        return wrapped >= NIGHT_START_TICKS && wrapped < NIGHT_END_TICKS;
     }
 }

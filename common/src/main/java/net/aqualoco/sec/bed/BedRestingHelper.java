@@ -141,10 +141,8 @@ public final class BedRestingHelper {
         return Mth.wrapDegrees(baseYaw + Mth.clamp(relativeYaw, -REST_MAX_YAW, REST_MAX_YAW));
     }
 
-    public static float clampPitch(float pitch, float cameraTilt) {
-        float minViewPitch = REST_MIN_CAMERA_PITCH - cameraTilt;
-        float maxViewPitch = REST_MAX_CAMERA_PITCH - cameraTilt;
-        return Mth.clamp(pitch, minViewPitch, maxViewPitch);
+    public static float clampPitch(float pitch) {
+        return Mth.clamp(pitch, REST_MIN_CAMERA_PITCH, REST_MAX_CAMERA_PITCH);
     }
 
     // Converts raw animation progress into a feel-oriented blend for camera damping.

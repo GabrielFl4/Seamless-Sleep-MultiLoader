@@ -2,6 +2,7 @@
   "itemGroup.seamlesssleep.general": "Seamless Sleep",
   "block.seamlesssleep.sleep_barrier": "Sleep Barrier",
   "seamlesssleep.text.sleeping": "Sleeping through the night",
+  "seamlesssleep.text.sleeping_storm": "Sleeping through the storm",
   "seamlesssleep.text.leave_bed": "Press %s to leave the bed",
   "seamlesssleep.text.players_missing_sleep.single": "%s more player needs to sleep",
   "seamlesssleep.text.players_missing_sleep.multiple": "%s more players need to sleep",
@@ -23,7 +24,7 @@
   "config.seamlesssleep.sleep.chat_background_opacity.desc": "Adjusts the dark background transparency while you are in bed.",
 
   "config.seamlesssleep.overlay.enabled": "Sleep Overlay Text",
-  "config.seamlesssleep.overlay.enabled.desc": "Shows the \"Sleeping through the night\" message during the transition.",
+  "config.seamlesssleep.overlay.enabled.desc": "Shows the sleep transition message during the transition.",
   "config.seamlesssleep.overlay.darkness": "Screen Dimming",
   "config.seamlesssleep.overlay.darkness.desc": "Controls how dark the screen gets (fade out) when closing eyes.",
 

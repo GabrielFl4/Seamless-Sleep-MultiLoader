@@ -32,7 +32,11 @@ public final class SleepStatusOverlay {
             return;
         }
 
-        Component text = Component.translatable("seamlesssleep.text.sleeping");
+        Component text = Component.translatable(
+                state.startedDuringDay()
+                        ? "seamlesssleep.text.sleeping_storm"
+                        : "seamlesssleep.text.sleeping"
+        );
         boolean hasXaero = Services.PLATFORM.isModLoaded("xaerominimap")
                 || Services.PLATFORM.isModLoaded("xaerominimapfair");
 
