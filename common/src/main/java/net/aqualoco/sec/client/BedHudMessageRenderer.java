@@ -27,6 +27,10 @@ public final class BedHudMessageRenderer {
         }
 
         Minecraft client = Minecraft.getInstance();
+        if (client.options.hideGui) {
+            return;
+        }
+
         Font font = client.font;
         int centerX = graphics.guiWidth() / 2;
         int baseY = graphics.guiHeight() - OVERLAY_BASELINE_Y;

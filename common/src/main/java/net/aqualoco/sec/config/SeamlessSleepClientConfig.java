@@ -9,6 +9,9 @@ public final class SeamlessSleepClientConfig {
     private static final double DEFAULT_CHAT_GROUP_MULTIPLIER = 1.0D;
     private static final int DEFAULT_CHAT_MAX_LINES = 4;
     private static final double DEFAULT_TILT_DEGREES = 10.0D;
+    private static final double MIN_TILT_DEGREES = 0.0D;
+    private static final double MIN_NON_ZERO_TILT_DEGREES = 0.1D;
+    private static final double MAX_TILT_DEGREES = 90.0D;
     private static final boolean DEFAULT_REPLAY_COMPATIBILITY_ENABLED = true;
     private static final boolean DEFAULT_DEBUG_LOGS_ENABLED = false;
 
@@ -41,12 +44,7 @@ public final class SeamlessSleepClientConfig {
                 DEFAULT_CHAT_GROUP_MULTIPLIER
         );
         sleepChatMaxLines = clampInt(sleepChatMaxLines, 0, 12, DEFAULT_CHAT_MAX_LINES);
-        sleepCameraTiltDegrees = clampRange(
-                sleepCameraTiltDegrees,
-                -90.0D,
-                90.0D,
-                DEFAULT_TILT_DEGREES
-        );
+        sleepCameraTiltDegrees = clampTiltDegrees(sleepCameraTiltDegrees, DEFAULT_TILT_DEGREES);
     }
 
     private static double clamp01(double value, double fallback) {
@@ -75,6 +73,14 @@ public final class SeamlessSleepClientConfig {
         return value;
     }
 
+    private static double clampTiltDegrees(double value, double fallback) {
+        double clamped = clampRange(value, MIN_TILT_DEGREES, MAX_TILT_DEGREES, fallback);
+        if (clamped == 0.0D) {
+            return MIN_NON_ZERO_TILT_DEGREES;
+        }
+        return clamped;
+    }
+
     private static int clampInt(int value, int min, int max, int fallback) {
         if (value < min) {
             return min;
@@ -85,4 +91,3 @@ public final class SeamlessSleepClientConfig {
         return value;
     }
 }
-

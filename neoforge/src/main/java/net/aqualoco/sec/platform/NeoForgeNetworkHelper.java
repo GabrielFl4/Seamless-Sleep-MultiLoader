@@ -1,6 +1,8 @@
 package net.aqualoco.sec.platform;
 
 import net.aqualoco.sec.SeamlessSleep;
+import net.aqualoco.sec.network.BedLookNetworking;
+import net.aqualoco.sec.network.BedLookSyncPayload;
 import net.aqualoco.sec.network.BedHudSleepProgressPayload;
 import net.aqualoco.sec.network.ServerConfigSyncPayload;
 import net.aqualoco.sec.network.SleepAnimationStartPayload;
@@ -8,6 +10,8 @@ import net.aqualoco.sec.network.SleepAnimationStopPayload;
 import net.aqualoco.sec.platform.services.INetworkHelper;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
@@ -59,6 +63,11 @@ public class NeoForgeNetworkHelper implements INetworkHelper {
                 ServerConfigSyncPayload.CODEC.cast(),
                 NeoForgeNetworkHelper::handleServerConfig
         );
+        registrar.playToServer(
+                BedLookSyncPayload.ID,
+                BedLookSyncPayload.CODEC.cast(),
+                NeoForgeNetworkHelper::handleBedLookSync
+        );
     }
 
     @Override
@@ -71,6 +80,11 @@ public class NeoForgeNetworkHelper implements INetworkHelper {
     @Override
     public void sendToPlayers(ServerLevel world, CustomPacketPayload payload) {
         PacketDistributor.sendToPlayersInDimension(world, payload);
+    }
+
+    @Override
+    public void sendToServer(CustomPacketPayload payload) {
+        ClientPacketDistributor.sendToServer(payload);
     }
 
     private static void handleBedHudSleepProgress(BedHudSleepProgressPayload payload, IPayloadContext context) {
@@ -105,6 +119,14 @@ public class NeoForgeNetworkHelper implements INetworkHelper {
             ClientHandler handler = clientHandler;
             if (handler != null) {
                 handler.handleServerConfig(payload);
+            }
+        });
+    }
+
+    private static void handleBedLookSync(BedLookSyncPayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            if (context.player() instanceof ServerPlayer serverPlayer) {
+                BedLookNetworking.handleServer(serverPlayer, payload);
             }
         });
     }

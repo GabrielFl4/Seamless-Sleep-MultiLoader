@@ -1,232 +1,212 @@
 package net.aqualoco.sec.mixin.bed;
 
-import com.mojang.datafixers.util.Either;
-import net.aqualoco.sec.Constants;
 import net.aqualoco.sec.bed.BedRestingHelper;
 import net.aqualoco.sec.bed.BedRestingPlayer;
-import net.aqualoco.sec.network.BedHudNetworking;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.util.Unit;
-import net.minecraft.world.entity.Pose;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.entity.player.Player.BedSleepingProblem;
-import net.minecraft.world.level.storage.LevelData;
-import net.minecraft.world.phys.Vec3;
-import org.jspecify.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-import java.util.Optional;
-
-// Owns the synced resting state and the server-side promotion from resting into vanilla sleeping.
+// Owns the synced managed-sleep count state while vanilla sleeping remains the only physical bed pose.
 @Mixin(Player.class)
 public abstract class PlayerBedRestingMixin implements BedRestingPlayer {
 
     @Unique
-    private static final EntityDataAccessor<Boolean> seamlesssleep$RESTING =
+    private static final float seamlesssleep$REMOTE_BED_LOOK_LERP_TICKS = 3.0F;
+
+    @Shadow
+    private int sleepCounter;
+
+    @Unique
+    private static final EntityDataAccessor<Boolean> seamlesssleep$COUNTED_FOR_SLEEP =
             SynchedEntityData.defineId(Player.class, EntityDataSerializers.BOOLEAN);
+    @Unique
+    private static final EntityDataAccessor<Float> seamlesssleep$BED_LOOK_YAW =
+            SynchedEntityData.defineId(Player.class, EntityDataSerializers.FLOAT);
+    @Unique
+    private static final EntityDataAccessor<Float> seamlesssleep$BED_LOOK_PITCH =
+            SynchedEntityData.defineId(Player.class, EntityDataSerializers.FLOAT);
 
     @Unique
-    private static final EntityDataAccessor<Optional<BlockPos>> seamlesssleep$RESTING_BED_POS =
-            SynchedEntityData.defineId(Player.class, EntityDataSerializers.OPTIONAL_BLOCK_POS);
+    private boolean seamlesssleep$hasClientBedLookVisualState;
 
     @Unique
-    private int seamlesssleep$restingEnterTick = Integer.MIN_VALUE;
+    private float seamlesssleep$clientPrevBedLookYaw;
 
     @Unique
-    @Nullable
-    private BedSleepingProblem seamlesssleep$lastRestingPromotionProblem;
+    private float seamlesssleep$clientPrevBedLookPitch;
 
     @Unique
-    private boolean seamlesssleep$pendingBedHudSleepProgressSync;
+    private float seamlesssleep$clientTargetBedLookYaw;
+
+    @Unique
+    private float seamlesssleep$clientTargetBedLookPitch;
+
+    @Unique
+    private int seamlesssleep$clientBedLookUpdateTick;
 
     @Inject(method = "defineSynchedData", at = @At("TAIL"))
-    private void seamlesssleep$defineRestingData(SynchedEntityData.Builder builder, CallbackInfo ci) {
-        builder.define(seamlesssleep$RESTING, false);
-        builder.define(seamlesssleep$RESTING_BED_POS, Optional.empty());
-    }
-
-    @Inject(method = "updatePlayerPose", at = @At("HEAD"), cancellable = true)
-    private void seamlesssleep$keepSleepingPoseWhileResting(CallbackInfo ci) {
-        Player self = (Player) (Object) this;
-        if (!this.seamlesssleep$isResting()) {
-            return;
-        }
-
-        self.setPose(Pose.SLEEPING);
-        ci.cancel();
+    private void seamlesssleep$defineManagedSleepData(SynchedEntityData.Builder builder, CallbackInfo ci) {
+        builder.define(seamlesssleep$COUNTED_FOR_SLEEP, false);
+        builder.define(seamlesssleep$BED_LOOK_YAW, 0.0F);
+        builder.define(seamlesssleep$BED_LOOK_PITCH, 0.0F);
     }
 
     @Inject(method = "tick", at = @At("TAIL"))
-    private void seamlesssleep$tickRestingServer(CallbackInfo ci) {
+    private void seamlesssleep$syncManagedSleepCountState(CallbackInfo ci) {
+        Player self = (Player) (Object) this;
+        if (self.level().isClientSide()) {
+            this.seamlesssleep$tickClientBedLookVisualState(self);
+        }
+
+        if (BedRestingHelper.isManagedBedState(self) && !this.seamlesssleep$isCountedForSleep()) {
+            this.sleepCounter = 0;
+        }
+
         if (!((Object) this instanceof ServerPlayer serverPlayer)) {
             return;
         }
 
-        if (this.seamlesssleep$pendingBedHudSleepProgressSync) {
-            if (serverPlayer.isSleeping()) {
-                BedHudNetworking.syncSleepProgress((ServerLevel) serverPlayer.level());
-            }
-            this.seamlesssleep$pendingBedHudSleepProgressSync = false;
-        }
-
-        if (!this.seamlesssleep$isResting()) {
-            return;
-        }
-
-        BlockPos bedPos = this.seamlesssleep$getRestingBedPos().orElse(null);
-        Direction direction = BedRestingHelper.getRestingBedDirection(serverPlayer);
-        if (bedPos == null || !serverPlayer.isAlive()) {
-            this.seamlesssleep$stopResting(true, false);
-            return;
-        }
-
-        if (direction == null) {
-            this.seamlesssleep$stopResting(true, false);
-            return;
-        }
-
-        if (!BedRestingHelper.isReachableBedBlock(serverPlayer, bedPos, direction)) {
-            this.seamlesssleep$stopResting(true, false);
-            return;
-        }
-
-        if (BedRestingHelper.isBedBlocked(serverPlayer, bedPos, direction)) {
-            this.seamlesssleep$stopResting(true, true);
-            return;
-        }
-
-        Vec3 restPos = BedRestingHelper.getBedRestPosition(bedPos);
-        if (serverPlayer.position().distanceToSqr(restPos) > 1.0E-4D) {
-            serverPlayer.snapTo(restPos.x, restPos.y, restPos.z, serverPlayer.getYRot(), serverPlayer.getXRot());
-        }
-        serverPlayer.setDeltaMovement(Vec3.ZERO);
-
-        if (serverPlayer.tickCount > this.seamlesssleep$restingEnterTick + 5 && serverPlayer.isShiftKeyDown()) {
-            this.seamlesssleep$stopResting(true, true);
-            return;
-        }
-
-        if (serverPlayer.level().environmentAttributes().getValue(net.minecraft.world.attribute.EnvironmentAttributes.BED_RULE, bedPos).canSleep(serverPlayer.level())) {
-            Either<Player.BedSleepingProblem, Unit> sleepResult = serverPlayer.startSleepInBed(bedPos);
-            if (sleepResult.right().isPresent()) {
-                this.seamlesssleep$pendingBedHudSleepProgressSync = true;
-                this.seamlesssleep$stopResting(false, false);
-                return;
-            }
-
-            BedSleepingProblem problem = sleepResult.left().orElse(null);
-            if (problem != null && problem != this.seamlesssleep$lastRestingPromotionProblem) {
-                BedRestingHelper.showBedHudMessage(serverPlayer, problem.message());
-                this.seamlesssleep$lastRestingPromotionProblem = problem;
+        if (!BedRestingHelper.isManagedBedStateServer(serverPlayer)) {
+            if (this.seamlesssleep$isCountedForSleep()) {
+                this.seamlesssleep$setCountedForSleep(false);
             }
             return;
         }
 
-        this.seamlesssleep$lastRestingPromotionProblem = null;
+        BlockPos bedPos = serverPlayer.getSleepingPos().orElse(null);
+        boolean shouldCountForSleep = BedRestingHelper.canCountForSleep(serverPlayer, bedPos);
+
+        if (this.seamlesssleep$isCountedForSleep() == shouldCountForSleep) {
+            return;
+        }
+
+        this.sleepCounter = 0;
+        BedRestingHelper.syncManagedSleepState(serverPlayer, shouldCountForSleep);
+    }
+
+    @Inject(method = "stopSleepInBed", at = @At("HEAD"))
+    private void seamlesssleep$clearManagedSleepCountState(boolean wakeImmediately, boolean updateLevelForSleepingPlayers, CallbackInfo ci) {
+        if (!((Object) this instanceof ServerPlayer serverPlayer)
+                || !BedRestingHelper.isManagedBedStateServer(serverPlayer)) {
+            return;
+        }
+
+        BedRestingHelper.syncManagedSleepState(serverPlayer, false);
     }
 
     @Override
-    public boolean seamlesssleep$isResting() {
+    public boolean seamlesssleep$isCountedForSleep() {
         Player self = (Player) (Object) this;
-        return self.getEntityData().get(seamlesssleep$RESTING);
+        return self.getEntityData().get(seamlesssleep$COUNTED_FOR_SLEEP);
     }
 
     @Override
-    public Optional<BlockPos> seamlesssleep$getRestingBedPos() {
+    public void seamlesssleep$setCountedForSleep(boolean countedForSleep) {
         Player self = (Player) (Object) this;
-        return self.getEntityData().get(seamlesssleep$RESTING_BED_POS);
+        self.getEntityData().set(seamlesssleep$COUNTED_FOR_SLEEP, countedForSleep);
     }
 
     @Override
-    public boolean seamlesssleep$startResting(BlockPos bedPos) {
+    public float seamlesssleep$getBedLookYaw() {
         Player self = (Player) (Object) this;
-        if (this.seamlesssleep$isResting() || self.isSleeping() || !self.isAlive() || !BedRestingHelper.isOverworldWorkflow(self)) {
-            return false;
-        }
-
-        Direction direction = BedRestingHelper.getBedDirection(self.level(), bedPos);
-        if (direction == null || !BedRestingHelper.canStartResting(self, bedPos, direction)) {
-            return false;
-        }
-
-        float spawnYaw = self.getYRot();
-        float spawnPitch = self.getXRot();
-        float restYaw = BedRestingHelper.getBedBaseYaw(direction);
-        Vec3 restPos = BedRestingHelper.getBedRestPosition(bedPos);
-
-        BedRestingHelper.setBedOccupied(self.level(), bedPos, true);
-        self.getEntityData().set(seamlesssleep$RESTING, true);
-        self.getEntityData().set(seamlesssleep$RESTING_BED_POS, Optional.of(bedPos));
-        this.seamlesssleep$restingEnterTick = self.tickCount;
-        this.seamlesssleep$lastRestingPromotionProblem = null;
-        this.seamlesssleep$pendingBedHudSleepProgressSync = false;
-
-        self.snapTo(restPos.x, restPos.y, restPos.z, restYaw, self.getXRot());
-        self.setPose(Pose.SLEEPING);
-        self.setDeltaMovement(Vec3.ZERO);
-        self.setYHeadRot(restYaw);
-        self.setYBodyRot(restYaw);
-
-        if (self instanceof ServerPlayer serverPlayer) {
-            serverPlayer.setRespawnPosition(
-                    new ServerPlayer.RespawnConfig(
-                            LevelData.RespawnData.of(serverPlayer.level().dimension(), bedPos, spawnYaw, spawnPitch),
-                            false
-                    ),
-                    true
-            );
-            if (serverPlayer.connection != null) {
-                serverPlayer.connection.teleport(serverPlayer.getX(), serverPlayer.getY(), serverPlayer.getZ(), serverPlayer.getYRot(), serverPlayer.getXRot());
-            }
-        }
-
-        Constants.debug("Player {} entered resting state at {}", self.getPlainTextName(), bedPos);
-        return true;
+        return self.getEntityData().get(seamlesssleep$BED_LOOK_YAW);
     }
 
     @Override
-    public void seamlesssleep$stopResting(boolean releaseBed, boolean syncPosition) {
+    public float seamlesssleep$getBedLookPitch() {
         Player self = (Player) (Object) this;
-        BlockPos bedPos = this.seamlesssleep$getRestingBedPos().orElse(null);
-        Direction direction = BedRestingHelper.getRestingBedDirection(self);
+        return self.getEntityData().get(seamlesssleep$BED_LOOK_PITCH);
+    }
 
-        self.getEntityData().set(seamlesssleep$RESTING, false);
-        self.getEntityData().set(seamlesssleep$RESTING_BED_POS, Optional.empty());
-        this.seamlesssleep$restingEnterTick = Integer.MIN_VALUE;
-        this.seamlesssleep$lastRestingPromotionProblem = null;
-        if (!self.isSleeping()) {
-            this.seamlesssleep$pendingBedHudSleepProgressSync = false;
+    @Override
+    public void seamlesssleep$setBedLookYaw(float yaw) {
+        Player self = (Player) (Object) this;
+        self.getEntityData().set(seamlesssleep$BED_LOOK_YAW, yaw);
+    }
+
+    @Override
+    public void seamlesssleep$setBedLookPitch(float pitch) {
+        Player self = (Player) (Object) this;
+        self.getEntityData().set(seamlesssleep$BED_LOOK_PITCH, pitch);
+    }
+
+    @Override
+    public float seamlesssleep$getVisualBedLookYaw(float partialTick) {
+        Player self = (Player) (Object) this;
+        if (!self.level().isClientSide() || !this.seamlesssleep$hasClientBedLookVisualState) {
+            return this.seamlesssleep$getBedLookYaw();
         }
 
-        if (releaseBed && bedPos != null && !self.isSleeping()) {
-            BedRestingHelper.setBedOccupied(self.level(), bedPos, false);
+        return Mth.rotLerp(
+                this.seamlesssleep$getClientBedLookVisualProgress(self, partialTick),
+                this.seamlesssleep$clientPrevBedLookYaw,
+                this.seamlesssleep$clientTargetBedLookYaw
+        );
+    }
+
+    @Override
+    public float seamlesssleep$getVisualBedLookPitch(float partialTick) {
+        Player self = (Player) (Object) this;
+        if (!self.level().isClientSide() || !this.seamlesssleep$hasClientBedLookVisualState) {
+            return this.seamlesssleep$getBedLookPitch();
         }
 
-        if (!self.isSleeping()) {
-            if (syncPosition && bedPos != null) {
-                Vec3 standPos = BedRestingHelper.findStandUpPosition(self, bedPos, direction);
-                self.snapTo(standPos.x, standPos.y, standPos.z, self.getYRot(), self.getXRot());
-                self.setYHeadRot(self.getYRot());
-                self.setYBodyRot(self.getYRot());
-            }
-            self.setPose(Pose.STANDING);
-            self.setDeltaMovement(Vec3.ZERO);
+        return Mth.lerp(
+                this.seamlesssleep$getClientBedLookVisualProgress(self, partialTick),
+                this.seamlesssleep$clientPrevBedLookPitch,
+                this.seamlesssleep$clientTargetBedLookPitch
+        );
+    }
+
+    @Unique
+    private void seamlesssleep$tickClientBedLookVisualState(Player self) {
+        float syncedYaw = self.getEntityData().get(seamlesssleep$BED_LOOK_YAW);
+        float syncedPitch = self.getEntityData().get(seamlesssleep$BED_LOOK_PITCH);
+
+        if (!this.seamlesssleep$hasClientBedLookVisualState) {
+            this.seamlesssleep$hasClientBedLookVisualState = true;
+            this.seamlesssleep$clientPrevBedLookYaw = syncedYaw;
+            this.seamlesssleep$clientPrevBedLookPitch = syncedPitch;
+            this.seamlesssleep$clientTargetBedLookYaw = syncedYaw;
+            this.seamlesssleep$clientTargetBedLookPitch = syncedPitch;
+            this.seamlesssleep$clientBedLookUpdateTick = self.tickCount;
+            return;
         }
 
-        if (syncPosition && self instanceof ServerPlayer serverPlayer && serverPlayer.connection != null) {
-            serverPlayer.connection.teleport(serverPlayer.getX(), serverPlayer.getY(), serverPlayer.getZ(), serverPlayer.getYRot(), serverPlayer.getXRot());
+        if (!BedRestingHelper.isManagedBedState(self)) {
+            this.seamlesssleep$clientPrevBedLookYaw = syncedYaw;
+            this.seamlesssleep$clientPrevBedLookPitch = syncedPitch;
+            this.seamlesssleep$clientTargetBedLookYaw = syncedYaw;
+            this.seamlesssleep$clientTargetBedLookPitch = syncedPitch;
+            this.seamlesssleep$clientBedLookUpdateTick = self.tickCount;
+            return;
         }
 
-        Constants.debug("Player {} left resting state", self.getPlainTextName());
+        if (Math.abs(Mth.wrapDegrees(syncedYaw - this.seamlesssleep$clientTargetBedLookYaw)) < 0.01F
+                && Math.abs(syncedPitch - this.seamlesssleep$clientTargetBedLookPitch) < 0.01F) {
+            return;
+        }
+
+        this.seamlesssleep$clientPrevBedLookYaw = this.seamlesssleep$getVisualBedLookYaw(0.0F);
+        this.seamlesssleep$clientPrevBedLookPitch = this.seamlesssleep$getVisualBedLookPitch(0.0F);
+        this.seamlesssleep$clientTargetBedLookYaw = syncedYaw;
+        this.seamlesssleep$clientTargetBedLookPitch = syncedPitch;
+        this.seamlesssleep$clientBedLookUpdateTick = self.tickCount;
+    }
+
+    @Unique
+    private float seamlesssleep$getClientBedLookVisualProgress(Player self, float partialTick) {
+        float ticksSinceUpdate = (self.tickCount - this.seamlesssleep$clientBedLookUpdateTick) + partialTick;
+        return Mth.clamp(ticksSinceUpdate / seamlesssleep$REMOTE_BED_LOOK_LERP_TICKS, 0.0F, 1.0F);
     }
 }

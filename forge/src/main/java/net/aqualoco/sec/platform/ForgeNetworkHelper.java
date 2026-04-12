@@ -1,5 +1,7 @@
 package net.aqualoco.sec.platform;
 
+import net.aqualoco.sec.network.BedLookNetworking;
+import net.aqualoco.sec.network.BedLookSyncPayload;
 import net.aqualoco.sec.Constants;
 import net.aqualoco.sec.network.BedHudSleepProgressPayload;
 import net.aqualoco.sec.network.ServerConfigSyncPayload;
@@ -64,6 +66,12 @@ public class ForgeNetworkHelper implements INetworkHelper {
                         ServerConfigSyncPayload.CODEC.cast(),
                         ForgeNetworkHelper::handleServerConfig
                 )
+                .serverbound()
+                .addMain(
+                        BedLookSyncPayload.ID,
+                        BedLookSyncPayload.CODEC.cast(),
+                        ForgeNetworkHelper::handleBedLookSync
+                )
                 .build();
     }
 
@@ -83,6 +91,15 @@ public class ForgeNetworkHelper implements INetworkHelper {
         for (ServerPlayer player : world.players()) {
             channel.send(payload, PacketDistributor.PLAYER.with(player));
         }
+    }
+
+    @Override
+    public void sendToServer(CustomPacketPayload payload) {
+        if (channel == null) {
+            return;
+        }
+
+        channel.send(payload, PacketDistributor.SERVER.noArg());
     }
 
     private static void handleStart(SleepAnimationStartPayload payload, CustomPayloadEvent.Context context) {
@@ -127,5 +144,18 @@ public class ForgeNetworkHelper implements INetworkHelper {
         if (handler != null) {
             handler.handleServerConfig(payload);
         }
+    }
+
+    private static void handleBedLookSync(BedLookSyncPayload payload, CustomPayloadEvent.Context context) {
+        if (context.isClientSide()) {
+            return;
+        }
+
+        context.enqueueWork(() -> {
+            ServerPlayer player = context.getSender();
+            if (player != null) {
+                BedLookNetworking.handleServer(player, payload);
+            }
+        });
     }
 }

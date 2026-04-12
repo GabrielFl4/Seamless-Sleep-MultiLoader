@@ -1,11 +1,15 @@
 package net.aqualoco.sec.client;
 
 import net.aqualoco.sec.bed.BedRestingHelper;
+import net.aqualoco.sec.config.SeamlessSleepClientConfig;
 import net.aqualoco.sec.config.SeamlessSleepClientConfigManager;
+import net.aqualoco.sec.network.BedLookSyncPayload;
+import net.aqualoco.sec.platform.Services;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.Direction;
 import net.minecraft.network.protocol.game.ServerboundPlayerCommandPacket;
+import net.minecraft.util.Mth;
 import net.minecraft.util.SmoothDouble;
 import net.minecraft.world.entity.Entity;
 import org.jspecify.annotations.Nullable;
@@ -14,14 +18,27 @@ public final class ClientBedWorkflow {
 
     private static final SmoothDouble seamlesssleep$smoothTurnYaw = new SmoothDouble();
     private static final SmoothDouble seamlesssleep$smoothTurnPitch = new SmoothDouble();
+    private static final double seamlesssleep$overlayFadeStartProgress = 0.40D;
+    private static final long seamlesssleep$overlayWakeFadeOutMillis = 250L;
+    private static final float seamlesssleep$bedLookSyncThresholdDegrees = 0.75F;
+    private static final int seamlesssleep$bedLookSyncMinIntervalTicks = 2;
+    private static final int seamlesssleep$bedLookSyncHeartbeatTicks = 20;
 
-    private static boolean seamlesssleep$wasResting;
     private static boolean seamlesssleep$wasManagedBedState;
-    private static boolean seamlesssleep$wasAnimationActive;
-    private static boolean seamlesssleep$wasAnimationWakeShiftDown;
     private static boolean seamlesssleep$hasViewState;
     private static float seamlesssleep$viewYaw;
     private static float seamlesssleep$viewPitch;
+    private static float seamlesssleep$overlayAlpha;
+    private static boolean seamlesssleep$overlayFadeOutActive;
+    private static float seamlesssleep$overlayFadeStartAlpha;
+    private static long seamlesssleep$overlayFadeStartMillis;
+    private static boolean seamlesssleep$wasOverlayAnimationActive;
+    private static boolean seamlesssleep$overlaySuppressedUntilWake;
+    private static double seamlesssleep$lastOverlayAnimationProgress;
+    private static boolean seamlesssleep$wasBedLookSyncManaged;
+    private static float seamlesssleep$lastSyncedBedLookYaw = Float.NaN;
+    private static float seamlesssleep$lastSyncedBedLookPitch = Float.NaN;
+    private static int seamlesssleep$bedLookTicksSinceSync = seamlesssleep$bedLookSyncHeartbeatTicks;
 
     private ClientBedWorkflow() {
     }
@@ -30,17 +47,17 @@ public final class ClientBedWorkflow {
         return BedRestingHelper.isResting(player);
     }
 
+    public static boolean isCountedForSleep(LocalPlayer player) {
+        return BedRestingHelper.isCountedForSleep(player);
+    }
+
     public static boolean isPreAnimationBedState(LocalPlayer player) {
-        if (!BedRestingHelper.isOverworldWorkflow(player)) {
-            return false;
-        }
-        return isResting(player)
-                || (player.isSleeping() && !SeamlessSleepClientState.SLEEP_ANIMATION.isActive());
+        return isManagedBedState(player)
+                && !SeamlessSleepClientState.SLEEP_ANIMATION.isActive();
     }
 
     public static boolean isManagedBedState(LocalPlayer player) {
-        return BedRestingHelper.isOverworldWorkflow(player)
-                && (isResting(player) || player.isSleeping());
+        return BedRestingHelper.isManagedBedState(player);
     }
 
     public static boolean shouldSuppressBedScreen(LocalPlayer player) {
@@ -59,19 +76,72 @@ public final class ClientBedWorkflow {
         return isManagedBedState(player);
     }
 
+    public static boolean shouldControlSleepOverlay(LocalPlayer player) {
+        return BedRestingHelper.isOverworldWorkflow(player)
+                && (player.isSleeping()
+                || player.getSleepTimer() > 0
+                || seamlesssleep$overlayFadeOutActive
+                || seamlesssleep$overlayAlpha > 0.0F);
+    }
+
+    public static float getSleepOverlayAlpha(LocalPlayer player) {
+        SeamlessSleepClientConfig cfg = SeamlessSleepClientConfigManager.get();
+        boolean animationActive = SeamlessSleepClientState.SLEEP_ANIMATION.isActive();
+        if (!cfg.sleepOverlayEnabled || !BedRestingHelper.isOverworldWorkflow(player)) {
+            seamlesssleep$overlayAlpha = 0.0F;
+            seamlesssleep$overlayFadeOutActive = false;
+            seamlesssleep$overlaySuppressedUntilWake = false;
+            seamlesssleep$lastOverlayAnimationProgress = 0.0D;
+            seamlesssleep$wasOverlayAnimationActive = animationActive;
+            return 0.0F;
+        }
+
+        if (!isManagedBedState(player)) {
+            seamlesssleep$overlaySuppressedUntilWake = false;
+        }
+
+        if (animationActive) {
+            seamlesssleep$lastOverlayAnimationProgress = SeamlessSleepClientState.SLEEP_ANIMATION.getProgress();
+        } else if (seamlesssleep$wasOverlayAnimationActive) {
+            seamlesssleep$overlaySuppressedUntilWake = true;
+            if (seamlesssleep$lastOverlayAnimationProgress < 0.999D && seamlesssleep$overlayAlpha > 0.0F) {
+                seamlesssleep$startOverlayFadeOut();
+            }
+        }
+        seamlesssleep$wasOverlayAnimationActive = animationActive;
+
+        float liveAlpha = seamlesssleep$computeLiveSleepOverlayAlpha(player, cfg);
+        boolean liveSourceActive = isManagedBedState(player) && isCountedForSleep(player);
+        if (seamlesssleep$overlayFadeOutActive) {
+            return seamlesssleep$tickOverlayFadeOut();
+        }
+
+        if (liveSourceActive || liveAlpha > 0.0F) {
+            seamlesssleep$overlayFadeOutActive = false;
+            seamlesssleep$overlayAlpha = liveAlpha;
+            return liveAlpha;
+        }
+
+        if (seamlesssleep$overlayAlpha <= 0.0F) {
+            seamlesssleep$overlayFadeOutActive = false;
+            return 0.0F;
+        }
+
+        seamlesssleep$startOverlayFadeOut();
+        return seamlesssleep$tickOverlayFadeOut();
+    }
+
     public static void tick(LocalPlayer player) {
         FirstPersonModelCompat.ensureBedCompatibilityInstalled();
 
-        boolean resting = isResting(player);
         boolean managed = isManagedBedState(player);
-        boolean animationActive = isAnimationLookDamped(player);
 
         if (!managed) {
             if (seamlesssleep$wasManagedBedState) {
                 BedHudMessageManager.clearAll();
             }
             seamlesssleep$resetLookState();
-            seamlesssleep$wasAnimationWakeShiftDown = false;
+            seamlesssleep$resetBedLookSyncState();
         } else {
             BedHudMessageManager.syncManagedBedState(player);
             if (!seamlesssleep$hasViewState) {
@@ -81,11 +151,10 @@ public final class ClientBedWorkflow {
                 seamlesssleep$resetLookSmoothing();
             }
             seamlesssleep$applyView(player, player.getBedOrientation());
+            seamlesssleep$syncAuthoritativeBedLook(player);
         }
 
-        seamlesssleep$wasResting = resting;
         seamlesssleep$wasManagedBedState = managed;
-        seamlesssleep$wasAnimationActive = animationActive;
     }
 
     public static boolean isAnimationLookDamped(LocalPlayer player) {
@@ -102,21 +171,16 @@ public final class ClientBedWorkflow {
         return isAnimationLookDamped(player);
     }
 
-    public static void handleAnimationWakeInput(LocalPlayer player, boolean shiftDown) {
-        if (!shouldWakeOnAnimationExit(player)) {
-            seamlesssleep$wasAnimationWakeShiftDown = shiftDown;
-            return;
-        }
-
-        if (shiftDown && !seamlesssleep$wasAnimationWakeShiftDown) {
-            seamlesssleep$sendWakePacket(player);
-        }
-
-        seamlesssleep$wasAnimationWakeShiftDown = shiftDown;
-    }
-
     public static boolean tryWakeFromAnimation(LocalPlayer player) {
         if (!shouldWakeOnAnimationExit(player)) {
+            return false;
+        }
+
+        return seamlesssleep$sendWakePacket(player);
+    }
+
+    public static boolean tryWakeFromPreAnimation(LocalPlayer player) {
+        if (!isPreAnimationBedState(player)) {
             return false;
         }
 
@@ -235,9 +299,10 @@ public final class ClientBedWorkflow {
         );
     }
 
-    // Keeps the existing config value semantics, but now maps them directly to the player's real pitch.
+    // Keeps the positive config semantics and inverts them into the real player pitch used while lying down.
     private static float seamlesssleep$getConfiguredBedPitch() {
-        return (float) -SeamlessSleepClientConfigManager.get().sleepCameraTiltDegrees;
+        double configuredTiltDegrees = Math.max(0.1D, SeamlessSleepClientConfigManager.get().sleepCameraTiltDegrees);
+        return (float) -configuredTiltDegrees;
     }
 
     private static boolean seamlesssleep$sendWakePacket(LocalPlayer player) {
@@ -247,5 +312,90 @@ public final class ClientBedWorkflow {
 
         player.connection.send(new ServerboundPlayerCommandPacket(player, ServerboundPlayerCommandPacket.Action.STOP_SLEEPING));
         return true;
+    }
+
+    private static float seamlesssleep$computeLiveSleepOverlayAlpha(LocalPlayer player, SeamlessSleepClientConfig cfg) {
+        if (!isManagedBedState(player) || !isCountedForSleep(player)) {
+            return 0.0F;
+        }
+
+        if (seamlesssleep$overlaySuppressedUntilWake) {
+            return 0.0F;
+        }
+
+        float baseAlpha = Mth.clamp((float) (player.getSleepTimer() * cfg.sleepOverlayDarknessMultiplier / 100.0D), 0.0F, 1.0F);
+        if (!SeamlessSleepClientState.SLEEP_ANIMATION.isActive()) {
+            return baseAlpha;
+        }
+
+        double progress = SeamlessSleepClientState.SLEEP_ANIMATION.getProgress();
+        double fadeProgress = Mth.clamp(
+                (progress - seamlesssleep$overlayFadeStartProgress) / (1.0D - seamlesssleep$overlayFadeStartProgress),
+                0.0D,
+                1.0D
+        );
+        float animationFadeAlpha = (float) (1.0D - fadeProgress);
+        return Math.min(baseAlpha, animationFadeAlpha);
+    }
+
+    private static void seamlesssleep$startOverlayFadeOut() {
+        if (seamlesssleep$overlayFadeOutActive) {
+            return;
+        }
+
+        seamlesssleep$overlayFadeOutActive = true;
+        seamlesssleep$overlayFadeStartAlpha = seamlesssleep$overlayAlpha;
+        seamlesssleep$overlayFadeStartMillis = System.currentTimeMillis();
+    }
+
+    private static float seamlesssleep$tickOverlayFadeOut() {
+        long now = System.currentTimeMillis();
+        double fadeProgress = Mth.clamp(
+                (now - seamlesssleep$overlayFadeStartMillis) / (double) seamlesssleep$overlayWakeFadeOutMillis,
+                0.0D,
+                1.0D
+        );
+        double easedFade = 1.0D - Math.pow(1.0D - fadeProgress, 2.0D);
+        seamlesssleep$overlayAlpha = (float) (seamlesssleep$overlayFadeStartAlpha * (1.0D - easedFade));
+        if (fadeProgress >= 1.0D) {
+            seamlesssleep$overlayAlpha = 0.0F;
+            seamlesssleep$overlayFadeOutActive = false;
+        }
+
+        return seamlesssleep$overlayAlpha;
+    }
+
+    private static void seamlesssleep$syncAuthoritativeBedLook(LocalPlayer player) {
+        if (player.connection == null) {
+            return;
+        }
+
+        float yaw = getCameraYaw(player);
+        float pitch = getCameraPitch(player);
+        boolean forceSync = !seamlesssleep$wasBedLookSyncManaged
+                || Float.isNaN(seamlesssleep$lastSyncedBedLookYaw)
+                || Float.isNaN(seamlesssleep$lastSyncedBedLookPitch);
+        boolean heartbeat = seamlesssleep$bedLookTicksSinceSync >= seamlesssleep$bedLookSyncHeartbeatTicks;
+        boolean changedEnough = Math.abs(Mth.wrapDegrees(yaw - seamlesssleep$lastSyncedBedLookYaw)) >= seamlesssleep$bedLookSyncThresholdDegrees
+                || Math.abs(pitch - seamlesssleep$lastSyncedBedLookPitch) >= seamlesssleep$bedLookSyncThresholdDegrees;
+
+        if (forceSync || heartbeat || (changedEnough && seamlesssleep$bedLookTicksSinceSync >= seamlesssleep$bedLookSyncMinIntervalTicks)) {
+            Services.NETWORK.sendToServer(new BedLookSyncPayload(yaw, pitch));
+            seamlesssleep$lastSyncedBedLookYaw = yaw;
+            seamlesssleep$lastSyncedBedLookPitch = pitch;
+            seamlesssleep$bedLookTicksSinceSync = 0;
+            seamlesssleep$wasBedLookSyncManaged = true;
+            return;
+        }
+
+        seamlesssleep$bedLookTicksSinceSync++;
+        seamlesssleep$wasBedLookSyncManaged = true;
+    }
+
+    private static void seamlesssleep$resetBedLookSyncState() {
+        seamlesssleep$wasBedLookSyncManaged = false;
+        seamlesssleep$lastSyncedBedLookYaw = Float.NaN;
+        seamlesssleep$lastSyncedBedLookPitch = Float.NaN;
+        seamlesssleep$bedLookTicksSinceSync = seamlesssleep$bedLookSyncHeartbeatTicks;
     }
 }

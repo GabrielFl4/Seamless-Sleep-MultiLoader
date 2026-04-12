@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-// Owns the local input suppression loop that keeps the player bed-bound while still allowing controlled exits.
+// Owns the local input suppression loop that keeps the player bed-bound while vanilla wake stays server-authoritative.
 @Mixin(LocalPlayer.class)
 public abstract class LocalPlayerBedWorkflowMixin {
 
@@ -34,11 +34,7 @@ public abstract class LocalPlayerBedWorkflowMixin {
         }
 
         ClientInputAccessor accessor = (ClientInputAccessor) this.input;
-        boolean shift = accessor.seamlesssleep$getKeyPresses().shift();
-        ClientBedWorkflow.handleAnimationWakeInput(self, shift);
-
-        boolean preserveShift = shift && !ClientBedWorkflow.shouldWakeOnAnimationExit(self);
-        accessor.seamlesssleep$setKeyPresses(new Input(false, false, false, false, false, preserveShift, false));
+        accessor.seamlesssleep$setKeyPresses(new Input(false, false, false, false, false, false, false));
         accessor.seamlesssleep$setMoveVector(Vec2.ZERO);
     }
 }

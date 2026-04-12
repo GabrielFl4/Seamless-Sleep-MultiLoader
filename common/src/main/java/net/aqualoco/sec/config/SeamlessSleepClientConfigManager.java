@@ -151,7 +151,7 @@ public final class SeamlessSleepClientConfigManager {
         appendSectionGap(sb, 2);
         appendSectionHeader(sb, "camera");
         appendEntry(sb,
-                "Initial bed look angle. Range: -90.0 to 90.0. Default: 10.0",
+                "Initial bed look angle. Range: 0.0 to 90.0. Value 0.0 is canonicalized to 0.1. Default: 10.0",
                 "sleepCameraTiltDegrees",
                 Double.toString(cfg.sleepCameraTiltDegrees));
 

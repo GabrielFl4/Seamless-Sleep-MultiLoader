@@ -1,6 +1,7 @@
 package net.aqualoco.sec.bed;
 
 import net.aqualoco.sec.SeamlessSleepCommon;
+import net.aqualoco.sec.network.BedHudNetworking;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.ChatFormatting;
@@ -8,11 +9,15 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BedBlock;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.attribute.EnvironmentAttributes;
 import org.jspecify.annotations.Nullable;
 
 // Centralizes the bed workflow rules shared by mixins and client helpers.
@@ -46,31 +51,82 @@ public final class BedRestingHelper {
     }
 
     public static boolean isResting(Player player) {
-        return player instanceof BedRestingPlayer restingPlayer && restingPlayer.seamlesssleep$isResting();
+        return isManagedBedState(player) && !isCountedForSleep(player);
     }
 
     public static boolean isOverworldWorkflow(Player player) {
         return player.level().dimension().equals(Level.OVERWORLD);
     }
 
+    public static boolean isManagedBedState(Player player) {
+        return isOverworldWorkflow(player) && player.isSleeping();
+    }
+
     public static boolean isPreAnimationBedStateServer(Player player) {
-        if (!isOverworldWorkflow(player)) {
-            return false;
-        }
-        return isResting(player)
-                || (player.isSleeping() && !SeamlessSleepCommon.OVERWORLD_SLEEP_ANIMATION.isActive());
+        return isManagedBedState(player)
+                && !SeamlessSleepCommon.OVERWORLD_SLEEP_ANIMATION.isActive();
     }
 
     public static boolean isManagedBedStateServer(Player player) {
-        return isOverworldWorkflow(player) && (isResting(player) || player.isSleeping());
+        return isManagedBedState(player);
+    }
+
+    public static boolean isCountedForSleep(Player player) {
+        return player instanceof BedRestingPlayer restingPlayer
+                && restingPlayer.seamlesssleep$isCountedForSleep();
+    }
+
+    public static float getAuthoritativeBedLookYaw(Player player) {
+        return player instanceof BedRestingPlayer restingPlayer
+                ? restingPlayer.seamlesssleep$getBedLookYaw()
+                : player.getYRot();
+    }
+
+    public static float getAuthoritativeBedLookPitch(Player player) {
+        return player instanceof BedRestingPlayer restingPlayer
+                ? restingPlayer.seamlesssleep$getBedLookPitch()
+                : player.getXRot();
+    }
+
+    public static void initializeAuthoritativeBedLook(ServerPlayer player, @Nullable BlockPos bedPos) {
+        Direction direction = getBedDirection(player.level(), bedPos);
+        float yaw = direction != null
+                ? clampYawToBed(player.getYRot(), direction)
+                : player.getYRot();
+        float pitch = clampPitch(player.getXRot());
+        setAuthoritativeBedLook(player, yaw, pitch);
+    }
+
+    public static void setAuthoritativeBedLook(ServerPlayer player, float yaw, float pitch) {
+        Direction direction = player.getBedOrientation();
+        float clampedYaw = direction != null ? clampYawToBed(yaw, direction) : yaw;
+        float clampedPitch = clampPitch(pitch);
+
+        if (player instanceof BedRestingPlayer restingPlayer) {
+            float currentYaw = restingPlayer.seamlesssleep$getBedLookYaw();
+            float currentPitch = restingPlayer.seamlesssleep$getBedLookPitch();
+            if (Math.abs(Mth.wrapDegrees(clampedYaw - currentYaw)) >= 0.01F
+                    || Math.abs(clampedPitch - currentPitch) >= 0.01F) {
+                restingPlayer.seamlesssleep$setBedLook(clampedYaw, clampedPitch);
+            }
+        }
+
+        applySleepingBedLook(player, clampedYaw, clampedPitch, direction);
+    }
+
+    public static void syncManagedSleepState(ServerPlayer player, boolean countedForSleep) {
+        if (player instanceof BedRestingPlayer restingPlayer) {
+            restingPlayer.seamlesssleep$setCountedForSleep(countedForSleep);
+        }
+
+        ServerLevel level = (ServerLevel) player.level();
+        level.updateSleepingPlayerList();
+        BedHudNetworking.syncSleepProgress(level);
     }
 
     @Nullable
     public static BlockPos getRestingBedPos(Player player) {
-        if (player instanceof BedRestingPlayer restingPlayer) {
-            return restingPlayer.seamlesssleep$getRestingBedPos().orElse(null);
-        }
-        return null;
+        return player.getSleepingPos().orElse(null);
     }
 
     @Nullable
@@ -93,6 +149,38 @@ public final class BedRestingHelper {
 
     public static boolean canStartResting(Player player, BlockPos bedPos, Direction direction) {
         return isReachableBedBlock(player, bedPos, direction) && !isBedBlocked(player, bedPos, direction);
+    }
+
+    public static boolean canCountForSleep(ServerPlayer player, @Nullable BlockPos bedPos) {
+        if (!isManagedBedState(player) || !player.isAlive() || bedPos == null) {
+            return false;
+        }
+
+        Direction direction = getBedDirection(player.level(), bedPos);
+        if (direction == null) {
+            return false;
+        }
+
+        if (!player.level().environmentAttributes().getValue(EnvironmentAttributes.BED_RULE, bedPos).canSleep(player.level())) {
+            return false;
+        }
+
+        if (!canStartResting(player, bedPos, direction)) {
+            return false;
+        }
+
+        if (player.isCreative()) {
+            return true;
+        }
+
+        Vec3 center = Vec3.atBottomCenterOf(bedPos);
+        return player.level()
+                .getEntitiesOfClass(
+                        Monster.class,
+                        new AABB(center.x() - 8.0D, center.y() - 5.0D, center.z() - 8.0D, center.x() + 8.0D, center.y() + 5.0D, center.z() + 8.0D),
+                        monster -> monster.isPreventingPlayerRest(player.level(), player)
+                )
+                .isEmpty();
     }
 
     public static boolean isReachableBedBlock(Player player, BlockPos bedPos, Direction direction) {
@@ -145,6 +233,20 @@ public final class BedRestingHelper {
         return Mth.clamp(pitch, REST_MIN_CAMERA_PITCH, REST_MAX_CAMERA_PITCH);
     }
 
+    public static void applySleepingBedLook(Player player, float yaw, float pitch, @Nullable Direction direction) {
+        float baseYaw = direction != null ? getBedBaseYaw(direction) : yaw;
+        player.setYRot(yaw);
+        player.setXRot(pitch);
+        player.yRotO = yaw;
+        player.xRotO = pitch;
+        player.setYHeadRot(yaw);
+        player.setYBodyRot(baseYaw);
+        if (player instanceof LivingEntity livingEntity) {
+            livingEntity.yHeadRotO = yaw;
+            livingEntity.yBodyRotO = baseYaw;
+        }
+    }
+
     // Converts raw animation progress into a feel-oriented blend for camera damping.
     public static double getAnimationLookBlend(double animationProgress) {
         double clamped = Mth.clamp(animationProgress, 0.0D, 1.0D);
@@ -176,6 +278,13 @@ public final class BedRestingHelper {
                 "seamlesssleep.text.leave_bed",
                 Component.keybind("key.sneak").withStyle(ChatFormatting.BOLD)
         );
+    }
+
+    public static boolean isManagedSleepFallbackProblem(Player.@Nullable BedSleepingProblem problem) {
+        return problem != null
+                && !Player.BedSleepingProblem.TOO_FAR_AWAY.equals(problem)
+                && !Player.BedSleepingProblem.OBSTRUCTED.equals(problem)
+                && !Player.BedSleepingProblem.OTHER_PROBLEM.equals(problem);
     }
 
     @Nullable

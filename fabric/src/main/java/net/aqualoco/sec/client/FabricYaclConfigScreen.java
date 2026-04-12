@@ -93,9 +93,9 @@ final class FabricYaclConfigScreen {
                                         Component.translatable("config.seamlesssleep.camera.tilt_degrees.desc"),
                                         Component.empty(),
                                         10.0D,
-                                        -90.0D,
+                                        0.0D,
                                         90.0D,
-                                        1.0D,
+                                        0.1D,
                                         () -> cfg.sleepCameraTiltDegrees,
                                         val -> cfg.sleepCameraTiltDegrees = val,
                                         true

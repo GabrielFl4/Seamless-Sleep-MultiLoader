@@ -1,5 +1,6 @@
 package net.aqualoco.sec.network;
 
+import net.aqualoco.sec.bed.BedRestingHelper;
 import net.aqualoco.sec.platform.Services;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
@@ -42,7 +43,7 @@ public final class BedHudNetworking {
                 continue;
             }
             activePlayers++;
-            if (player.isSleeping()) {
+            if (BedRestingHelper.isCountedForSleep(player)) {
                 sleepingPlayers++;
             }
         }

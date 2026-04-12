@@ -10,6 +10,7 @@
     "sleep.LevelSleepBrightnessAccessor",
     "bed.LivingEntityBedRestingMixin",
     "bed.PlayerBedRestingMixin",
+    "sleep.SleepStatusBedCountMixin",
     "sleep.ServerWorldSleepAnimationMixin",
     "sleep.PlayerEntitySleepAnimationMixin",
     "network.ServerGamePacketListenerBedRestingMixin",

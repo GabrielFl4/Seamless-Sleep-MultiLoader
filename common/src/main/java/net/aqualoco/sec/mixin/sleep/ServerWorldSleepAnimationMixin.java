@@ -2,6 +2,7 @@ package net.aqualoco.sec.mixin.sleep;
 
 import net.aqualoco.sec.Constants;
 import net.aqualoco.sec.SeamlessSleepCommon;
+import net.aqualoco.sec.bed.BedRestingHelper;
 import net.aqualoco.sec.config.SeamlessSleepServerConfigManager;
 import net.aqualoco.sec.network.BedHudNetworking;
 import net.aqualoco.sec.network.SleepAnimationNetworking;
@@ -175,7 +176,7 @@ public abstract class ServerWorldSleepAnimationMixin {
                 continue;
             }
             total++;
-            if (player.isSleeping()) {
+            if (BedRestingHelper.isCountedForSleep(player)) {
                 sleeping++;
             }
         }

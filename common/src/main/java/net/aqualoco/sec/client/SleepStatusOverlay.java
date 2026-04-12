@@ -20,6 +20,10 @@ public final class SleepStatusOverlay {
             return;
         }
 
+        if (client.options.hideGui) {
+            return;
+        }
+
         if (!client.level.dimension().equals(Level.OVERWORLD)) {
             return;
         }

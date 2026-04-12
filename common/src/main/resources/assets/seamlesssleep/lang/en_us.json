@@ -34,7 +34,7 @@
   "config.seamlesssleep.chat.max_lines.desc": "Maximum chat lines visible while sleeping.\n\nUse 0 to hide.",
 
   "config.seamlesssleep.camera.tilt_degrees": "Tilt (Degrees)",
-  "config.seamlesssleep.camera.tilt_degrees.desc": "Camera tilt angle when lying down.\n\n0 is the vanilla default.",
+  "config.seamlesssleep.camera.tilt_degrees.desc": "Camera tilt angle when lying down.\n\nAccepted range: 0 to 90.\n0 is treated as 0.1 internally.",
 
   "config.seamlesssleep.misc.debug_logs": "Debug Logs",
   "config.seamlesssleep.misc.debug_logs.desc": "Shows Seamless Sleep technical logs in the console.",

@@ -11,4 +11,6 @@ public interface INetworkHelper {
     void registerClientHandlers();
 
     void sendToPlayers(ServerLevel world, CustomPacketPayload payload);
+
+    void sendToServer(CustomPacketPayload payload);
 }

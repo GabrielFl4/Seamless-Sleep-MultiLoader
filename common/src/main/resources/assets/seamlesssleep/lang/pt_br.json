@@ -34,7 +34,7 @@
   "config.seamlesssleep.chat.max_lines.desc": "Máximo de linhas visíveis no chat ao dormir.\n\nUse 0 para ocultar.",
 
   "config.seamlesssleep.camera.tilt_degrees": "Inclinação (Graus)",
-  "config.seamlesssleep.camera.tilt_degrees.desc": "Ângulo de inclinação da câmera ao deitar.\n\n0 é o padrão vanilla.",
+  "config.seamlesssleep.camera.tilt_degrees.desc": "Ângulo de inclinação da câmera ao deitar.\n\nFaixa aceita: 0 a 90.\n0 é tratado como 0.1 internamente.",
 
   "config.seamlesssleep.misc.debug_logs": "Logs de Depuração",
   "config.seamlesssleep.misc.debug_logs.desc": "Exibe logs técnicos do Seamless Sleep no console.",

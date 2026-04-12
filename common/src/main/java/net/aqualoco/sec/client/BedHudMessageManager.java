@@ -78,7 +78,7 @@ public final class BedHudMessageManager {
 
         seamlesssleep$clearVanillaOverlayMessage();
 
-        if (!player.isSleeping() || SeamlessSleepClientState.SLEEP_ANIMATION.isActive()) {
+        if (!ClientBedWorkflow.isCountedForSleep(player) || SeamlessSleepClientState.SLEEP_ANIMATION.isActive()) {
             seamlesssleep$clearSleepProgressContext();
         } else if (seamlesssleep$hasPendingSleepProgress()) {
             seamlesssleep$showSleepProgressContext(seamlesssleep$pendingSleepProgressText);
@@ -194,7 +194,7 @@ public final class BedHudMessageManager {
         }
 
         Component text = Component.translatable("sleep.players_sleeping", sleepingPlayers, sleepersNeeded);
-        if (!player.isSleeping() && !pendingDirectSleepContext) {
+        if (!ClientBedWorkflow.isCountedForSleep(player) && !pendingDirectSleepContext) {
             seamlesssleep$clearSleepProgressContext();
             seamlesssleep$storePendingSleepProgress(text);
             return;

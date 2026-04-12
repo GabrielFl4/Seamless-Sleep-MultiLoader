@@ -1,16 +1,29 @@
 package net.aqualoco.sec.bed;
 
-import net.minecraft.core.BlockPos;
-
-import java.util.Optional;
-
 public interface BedRestingPlayer {
 
-    boolean seamlesssleep$isResting();
+    boolean seamlesssleep$isCountedForSleep();
 
-    Optional<BlockPos> seamlesssleep$getRestingBedPos();
+    void seamlesssleep$setCountedForSleep(boolean countedForSleep);
 
-    boolean seamlesssleep$startResting(BlockPos bedPos);
+    float seamlesssleep$getBedLookYaw();
 
-    void seamlesssleep$stopResting(boolean releaseBed, boolean syncPosition);
+    float seamlesssleep$getBedLookPitch();
+
+    void seamlesssleep$setBedLookYaw(float yaw);
+
+    void seamlesssleep$setBedLookPitch(float pitch);
+
+    default void seamlesssleep$setBedLook(float yaw, float pitch) {
+        this.seamlesssleep$setBedLookYaw(yaw);
+        this.seamlesssleep$setBedLookPitch(pitch);
+    }
+
+    default float seamlesssleep$getVisualBedLookYaw(float partialTick) {
+        return this.seamlesssleep$getBedLookYaw();
+    }
+
+    default float seamlesssleep$getVisualBedLookPitch(float partialTick) {
+        return this.seamlesssleep$getBedLookPitch();
+    }
 }
