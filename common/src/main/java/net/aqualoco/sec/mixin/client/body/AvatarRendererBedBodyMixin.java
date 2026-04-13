@@ -4,10 +4,14 @@ import net.aqualoco.sec.bed.BedRestingHelper;
 import net.aqualoco.sec.bed.BedRestingPlayer;
 import net.aqualoco.sec.client.BedCameraRenderState;
 import net.aqualoco.sec.client.ClientBedWorkflow;
+import net.aqualoco.sec.client.EssentialCompat;
 import net.aqualoco.sec.client.ReplayPlaybackCompat;
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.entity.player.AvatarRenderer;
 import net.minecraft.client.renderer.entity.state.AvatarRenderState;
+import net.minecraft.client.renderer.state.CameraRenderState;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Avatar;
 import net.minecraft.world.entity.Entity;
@@ -99,6 +103,27 @@ public abstract class AvatarRendererBedBodyMixin {
 
         Vec3 baseOffset = cir.getReturnValue();
         cir.setReturnValue(baseOffset.add(0.0D, seamlesssleep$LOCAL_THIRD_PERSON_BED_Y_OFFSET, 0.0D));
+    }
+
+    @Inject(
+            method = "submitNameTag(Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;Lnet/minecraft/client/renderer/state/CameraRenderState;)V",
+            at = @At("HEAD"),
+            cancellable = true
+    )
+    private void seamlesssleep$suppressEssentialOwnNameTagOnBedCameraBody(AvatarRenderState avatarRenderState,
+                                                                           PoseStack poseStack,
+                                                                           SubmitNodeCollector submitNodeCollector,
+                                                                           CameraRenderState cameraRenderState,
+                                                                           CallbackInfo ci) {
+        if (!EssentialCompat.shouldSuppressOwnNameTagForBedCameraBody()) {
+            return;
+        }
+
+        if (!((BedCameraRenderState) avatarRenderState).seamlesssleep$isCameraBody()) {
+            return;
+        }
+
+        ci.cancel();
     }
 
     private static float seamlesssleep$mapVisualYaw(float rawHeadYaw) {
