@@ -69,6 +69,12 @@ public final class BedHudMessageManager {
             return;
         }
 
+        if (ReplayPlaybackCompat.isReplayPlaybackActive()) {
+            clearAll();
+            seamlesssleep$clearVanillaOverlayMessage();
+            return;
+        }
+
         boolean managedBedState = ClientBedWorkflow.isManagedBedState(player);
         boolean pendingContextReservation = seamlesssleep$hasPendingDirectSleepContext();
         if (!managedBedState && !pendingContextReservation) {
@@ -106,6 +112,12 @@ public final class BedHudMessageManager {
         boolean managedBedState = player != null && BedRestingHelper.isOverworldWorkflow(player) && ClientBedWorkflow.isManagedBedState(player);
         boolean pendingDirectSleepContext = seamlesssleep$hasPendingDirectSleepContext();
         String key = contents.getKey();
+
+        if (ReplayPlaybackCompat.isReplayPlaybackActive() && seamlesssleep$isReplaySuppressedBedKey(key)) {
+            clearAll();
+            seamlesssleep$clearVanillaOverlayMessage();
+            return true;
+        }
 
         if ("sleep.skipping_night".equals(key)) {
             seamlesssleep$clearSleepProgressContext();
@@ -186,6 +198,12 @@ public final class BedHudMessageManager {
             return;
         }
 
+        if (ReplayPlaybackCompat.isReplayPlaybackActive()) {
+            clearAll();
+            seamlesssleep$clearVanillaOverlayMessage();
+            return;
+        }
+
         boolean pendingDirectSleepContext = seamlesssleep$hasPendingDirectSleepContext();
         if (!active || SeamlessSleepClientState.SLEEP_ANIMATION.isActive()) {
             seamlesssleep$clearSleepProgressContext();
@@ -225,6 +243,14 @@ public final class BedHudMessageManager {
     private static boolean seamlesssleep$isManagedOnlyContextKey(String key) {
         return "block.minecraft.bed.obstructed".equals(key)
                 || "block.minecraft.bed.too_far_away".equals(key);
+    }
+
+    private static boolean seamlesssleep$isReplaySuppressedBedKey(String key) {
+        return "sleep.skipping_night".equals(key)
+                || "sleep.players_sleeping".equals(key)
+                || "seamlesssleep.text.leave_bed".equals(key)
+                || seamlesssleep$isEntryContextKey(key)
+                || seamlesssleep$isManagedContextKey(key);
     }
 
     private static void seamlesssleep$showSleepProgressContext(Component text) {

@@ -18,6 +18,11 @@ public final class BedHudMessageRenderer {
     }
 
     public static void render(GuiGraphics graphics, DeltaTracker deltaTracker) {
+        if (ReplayPlaybackCompat.isReplayPlaybackActive()) {
+            BedHudMessageManager.clearAll();
+            return;
+        }
+
         BedHudMessageManager.pruneExpired();
 
         BedHudMessageManager.TimedMessage topMessage = BedHudMessageManager.getTopMessage();

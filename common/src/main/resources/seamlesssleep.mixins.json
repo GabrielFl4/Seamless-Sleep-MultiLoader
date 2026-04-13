@@ -19,6 +19,7 @@
   "client": [
     "client.body.AvatarRendererBedBodyMixin",
     "client.input.ClientInputAccessor",
+    "client.input.OptionsAccessor",
     "client.ui.ChatHudSleepMixin",
     "client.ui.GuiOverlayMessageAccessor",
     "client.camera.CameraSleepAnimationMixin",
@@ -35,6 +36,7 @@
     "client.render.LevelRendererBedOutlineMixin",
     "client.body.LivingEntityRenderStateBedBodyMixin",
     "client.input.LocalPlayerBedWorkflowMixin",
+    "client.input.MouseHandlerBedWorkflowMixin",
     "client.ui.MinecraftBedWorkflowMixin",
     "client.ui.MinecraftSleepPauseDeferralMixin",
     "client.input.MultiPlayerGameModeBedWorkflowMixin",

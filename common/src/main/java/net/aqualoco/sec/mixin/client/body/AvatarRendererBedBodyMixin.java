@@ -4,6 +4,7 @@ import net.aqualoco.sec.bed.BedRestingHelper;
 import net.aqualoco.sec.bed.BedRestingPlayer;
 import net.aqualoco.sec.client.BedCameraRenderState;
 import net.aqualoco.sec.client.ClientBedWorkflow;
+import net.aqualoco.sec.client.ReplayPlaybackCompat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.entity.player.AvatarRenderer;
 import net.minecraft.client.renderer.entity.state.AvatarRenderState;
@@ -38,6 +39,7 @@ public abstract class AvatarRendererBedBodyMixin {
     private void seamlesssleep$markCameraBody(Avatar avatar, AvatarRenderState avatarRenderState, float tickDelta, CallbackInfo ci) {
         Minecraft client = Minecraft.getInstance();
         Entity cameraEntity = client.getCameraEntity();
+        boolean replayPlaybackActive = ReplayPlaybackCompat.isReplayPlaybackActive();
         boolean managedSleepingAvatar = avatar.isSleeping() && avatar.level().dimension().equals(Level.OVERWORLD);
         boolean renderCameraBody = client.player != null
                 && cameraEntity == client.player
@@ -46,7 +48,7 @@ public abstract class AvatarRendererBedBodyMixin {
         ((BedCameraRenderState) avatarRenderState).seamlesssleep$setCameraBody(renderCameraBody);
 
         if (!managedSleepingAvatar
-                || (avatar == client.player && client.options.getCameraType().isFirstPerson())
+                || (avatar == client.player && client.options.getCameraType().isFirstPerson() && !replayPlaybackActive)
                 || !avatarRenderState.hasPose(Pose.SLEEPING)) {
             return;
         }
@@ -86,10 +88,11 @@ public abstract class AvatarRendererBedBodyMixin {
     )
     private void seamlesssleep$liftLocalSleepingAvatarInThirdPerson(AvatarRenderState avatarRenderState, CallbackInfoReturnable<Vec3> cir) {
         Minecraft client = Minecraft.getInstance();
+        boolean replayPlaybackActive = ReplayPlaybackCompat.isReplayPlaybackActive();
         if (client.player == null
                 || avatarRenderState.id != client.player.getId()
-                || client.options.getCameraType().isFirstPerson()
-                || !ClientBedWorkflow.isManagedBedState(client.player)
+                || (client.options.getCameraType().isFirstPerson() && !replayPlaybackActive)
+                || (!replayPlaybackActive && !ClientBedWorkflow.isManagedBedState(client.player))
                 || !avatarRenderState.hasPose(Pose.SLEEPING)) {
             return;
         }

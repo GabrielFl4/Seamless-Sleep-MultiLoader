@@ -205,6 +205,10 @@ public final class ClientBedWorkflow {
             return false;
         }
 
+        if (ReplayPlaybackCompat.isReplayPlaybackActive()) {
+            return false;
+        }
+
         Minecraft client = Minecraft.getInstance();
         Entity cameraEntity = client.getCameraEntity();
         return isManagedBedState(player)
