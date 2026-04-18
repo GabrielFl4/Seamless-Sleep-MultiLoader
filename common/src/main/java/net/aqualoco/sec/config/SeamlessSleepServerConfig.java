@@ -4,6 +4,7 @@ package net.aqualoco.sec.config;
 public final class SeamlessSleepServerConfig {
     public int sleepWeatherClearChancePercent = 100;
     public double sleepAnimationDurationMultiplier = 1.0D;
+    public final WorldSleepAccelerationConfig worldSleepAcceleration = new WorldSleepAccelerationConfig();
 
     public void clamp() {
         sleepWeatherClearChancePercent = clampInt(sleepWeatherClearChancePercent, 0, 100);
@@ -13,9 +14,10 @@ public final class SeamlessSleepServerConfig {
                 8.0D,
                 1.0D
         );
+        worldSleepAcceleration.clamp();
     }
 
-    private static int clampInt(int value, int min, int max) {
+    static int clampInt(int value, int min, int max) {
         if (value < min) {
             return min;
         }
@@ -25,7 +27,7 @@ public final class SeamlessSleepServerConfig {
         return value;
     }
 
-    private static double clampRange(double value, double min, double max, double fallback) {
+    static double clampRange(double value, double min, double max, double fallback) {
         if (Double.isNaN(value) || Double.isInfinite(value)) {
             return fallback;
         }

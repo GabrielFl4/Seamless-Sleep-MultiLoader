@@ -23,7 +23,21 @@ final class SeamlessSleepServerEvents {
                 player.level(),
                 new ServerConfigSyncPayload(
                         cfg.sleepWeatherClearChancePercent,
-                        cfg.sleepAnimationDurationMultiplier
+                        cfg.sleepAnimationDurationMultiplier,
+                        cfg.worldSleepAcceleration.mode,
+                        cfg.worldSleepAcceleration.preset,
+                        cfg.worldSleepAcceleration.randomTickAccelerationEnabled,
+                        cfg.worldSleepAcceleration.processAccelerationEnabled,
+                        cfg.worldSleepAcceleration.governorAggressiveness,
+                        cfg.worldSleepAcceleration.natureFilterProfile,
+                        cfg.worldSleepAcceleration.nature.baseRadiusChunks,
+                        cfg.worldSleepAcceleration.nature.autoMinRadiusChunks,
+                        cfg.worldSleepAcceleration.nature.baseRateFraction,
+                        cfg.worldSleepAcceleration.nature.autoMinRateFraction,
+                        cfg.worldSleepAcceleration.process.baseRadiusChunks,
+                        cfg.worldSleepAcceleration.process.autoMinRadiusChunks,
+                        cfg.worldSleepAcceleration.process.baseRateFraction,
+                        cfg.worldSleepAcceleration.process.autoMinRateFraction
                 )
         );
     }

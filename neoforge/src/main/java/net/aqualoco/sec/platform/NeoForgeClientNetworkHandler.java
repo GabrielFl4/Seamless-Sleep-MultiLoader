@@ -80,7 +80,21 @@ final class NeoForgeClientNetworkHandler implements NeoForgeNetworkHelper.Client
     public void handleServerConfig(ServerConfigSyncPayload payload) {
         SeamlessSleepServerConfigSnapshot.update(
                 payload.sleepWeatherClearChancePercent(),
-                payload.sleepAnimationDurationMultiplier()
+                payload.sleepAnimationDurationMultiplier(),
+                payload.worldSleepAccelerationMode(),
+                payload.worldSleepAccelerationPreset(),
+                payload.randomTickAccelerationEnabled(),
+                payload.processAccelerationEnabled(),
+                payload.governorAggressiveness(),
+                payload.natureFilterProfile(),
+                payload.natureBaseRadiusChunks(),
+                payload.natureAutoMinRadiusChunks(),
+                payload.natureBaseRateFraction(),
+                payload.natureAutoMinRateFraction(),
+                payload.processBaseRadiusChunks(),
+                payload.processAutoMinRadiusChunks(),
+                payload.processBaseRateFraction(),
+                payload.processAutoMinRateFraction()
         );
     }
 }

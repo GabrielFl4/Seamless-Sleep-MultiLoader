@@ -16,7 +16,7 @@ public final class SeamlessSleepServerConfigManager {
     private static final String FILE_NAME = "seamless_sleep-server.toml";
     private static final String LEGACY_JSON_FILE_NAME = "seamless_sleep-server.json";
     private static final String LEGACY_JSONC_FILE_NAME = "seamless_sleep-server.jsonc";
-    private static final int CONFIG_VERSION = 2;
+    private static final int CONFIG_VERSION = 3;
 
     // Distinguishes a clean reload from recovery/fallback scenarios.
     public enum ReloadResult {
@@ -123,11 +123,13 @@ public final class SeamlessSleepServerConfigManager {
         SeamlessSleepServerConfig cfg = defaultConfig();
         cfg.sleepWeatherClearChancePercent = readWeatherClearChancePercent(file, cfg.sleepWeatherClearChancePercent);
         cfg.sleepAnimationDurationMultiplier = readDouble(file, List.of("sleep", "sleepAnimationDurationMultiplier"), "sleepAnimationDurationMultiplier", cfg.sleepAnimationDurationMultiplier);
+        readWorldSleepAcceleration(file, cfg.worldSleepAcceleration);
+        cfg.clamp();
         return cfg;
     }
 
     private static String toServerToml(SeamlessSleepServerConfig cfg, String modVersion) {
-        StringBuilder sb = new StringBuilder(512);
+        StringBuilder sb = new StringBuilder(2048);
 
         sb.append("config_version = ").append(CONFIG_VERSION).append('\n');
         sb.append("mod_version = ").append(toTomlString(modVersion)).append('\n');
@@ -142,6 +144,71 @@ public final class SeamlessSleepServerConfigManager {
                 "Sleep animation duration multiplier. Range: 0.25 to 8.0. Default: 1.0",
                 "sleepAnimationDurationMultiplier",
                 Double.toString(cfg.sleepAnimationDurationMultiplier));
+
+        appendSectionGap(sb, 1);
+        appendSectionHeader(sb, "world_sleep_acceleration");
+        appendEntry(sb,
+                "Global world acceleration mode during sleep. Values: OFF, AUTO, CUSTOM",
+                "mode",
+                toTomlString(cfg.worldSleepAcceleration.mode.name()));
+        appendEntry(sb,
+                "Preset bundle for acceleration tuning. Values: ECO, BALANCED, AGGRESSIVE, CUSTOM",
+                "preset",
+                toTomlString(cfg.worldSleepAcceleration.preset.name()));
+        appendEntry(sb,
+                "Enable extra random tick / nature acceleration while sleep animation is active",
+                "random_tick_acceleration_enabled",
+                Boolean.toString(cfg.worldSleepAcceleration.randomTickAccelerationEnabled));
+        appendEntry(sb,
+                "Enable furnace, smoker and blast furnace acceleration while sleep animation is active",
+                "process_acceleration_enabled",
+                Boolean.toString(cfg.worldSleepAcceleration.processAccelerationEnabled));
+        appendEntry(sb,
+                "AUTO governor aggressiveness. Values: CONSERVATIVE, BALANCED, AGGRESSIVE",
+                "governor_aggressiveness",
+                toTomlString(cfg.worldSleepAcceleration.governorAggressiveness.name()));
+        appendEntry(sb,
+                "Nature filter profile. Values: ALL, VANILLA_ONLY, FARM_ONLY",
+                "nature_filter_profile",
+                toTomlString(cfg.worldSleepAcceleration.natureFilterProfile.name()));
+
+        appendSectionGap(sb, 1);
+        appendSectionHeader(sb, "world_sleep_acceleration.nature");
+        appendEntry(sb,
+                "Base chunk radius around each active player for extra random ticks. Use 0 to follow simulation distance",
+                "base_radius_chunks",
+                Integer.toString(cfg.worldSleepAcceleration.nature.baseRadiusChunks));
+        appendEntry(sb,
+                "AUTO minimum chunk radius for nature acceleration. Use 0 to follow simulation distance",
+                "auto_min_radius_chunks",
+                Integer.toString(cfg.worldSleepAcceleration.nature.autoMinRadiusChunks));
+        appendEntry(sb,
+                "Base fraction of the logical world sleep rate applied to nature acceleration. Range: 0.0 to 1.0",
+                "base_rate_fraction",
+                Double.toString(cfg.worldSleepAcceleration.nature.baseRateFraction));
+        appendEntry(sb,
+                "AUTO minimum fraction of the logical world sleep rate applied to nature acceleration. Range: 0.0 to 1.0",
+                "auto_min_rate_fraction",
+                Double.toString(cfg.worldSleepAcceleration.nature.autoMinRateFraction));
+
+        appendSectionGap(sb, 1);
+        appendSectionHeader(sb, "world_sleep_acceleration.process");
+        appendEntry(sb,
+                "Base chunk radius around each active player for process acceleration. Use 0 to follow simulation distance",
+                "base_radius_chunks",
+                Integer.toString(cfg.worldSleepAcceleration.process.baseRadiusChunks));
+        appendEntry(sb,
+                "AUTO minimum chunk radius for process acceleration. Use 0 to follow simulation distance",
+                "auto_min_radius_chunks",
+                Integer.toString(cfg.worldSleepAcceleration.process.autoMinRadiusChunks));
+        appendEntry(sb,
+                "Base fraction of the logical world sleep rate applied to process acceleration. Range: 0.0 to 1.0",
+                "base_rate_fraction",
+                Double.toString(cfg.worldSleepAcceleration.process.baseRateFraction));
+        appendEntry(sb,
+                "AUTO minimum fraction of the logical world sleep rate applied to process acceleration. Range: 0.0 to 1.0",
+                "auto_min_rate_fraction",
+                Double.toString(cfg.worldSleepAcceleration.process.autoMinRateFraction));
 
         trimTrailingBlankLines(sb);
         sb.append('\n');
@@ -189,6 +256,61 @@ public final class SeamlessSleepServerConfigManager {
         return value instanceof Number number ? number.doubleValue() : fallback;
     }
 
+    private static void readWorldSleepAcceleration(CommentedFileConfig file, WorldSleepAccelerationConfig cfg) {
+        cfg.mode = readEnum(
+                file,
+                List.of("world_sleep_acceleration", "mode"),
+                "worldSleepAccelerationMode",
+                WorldSleepAccelerationMode.class,
+                cfg.mode
+        );
+        cfg.preset = readEnum(
+                file,
+                List.of("world_sleep_acceleration", "preset"),
+                "worldSleepAccelerationPreset",
+                WorldSleepAccelerationPreset.class,
+                cfg.preset
+        );
+        cfg.randomTickAccelerationEnabled = readBoolean(
+                file,
+                List.of("world_sleep_acceleration", "random_tick_acceleration_enabled"),
+                "worldSleepAccelerationRandomTickEnabled",
+                cfg.randomTickAccelerationEnabled
+        );
+        cfg.processAccelerationEnabled = readBoolean(
+                file,
+                List.of("world_sleep_acceleration", "process_acceleration_enabled"),
+                "worldSleepAccelerationProcessEnabled",
+                cfg.processAccelerationEnabled
+        );
+        cfg.governorAggressiveness = readEnum(
+                file,
+                List.of("world_sleep_acceleration", "governor_aggressiveness"),
+                "worldSleepAccelerationGovernorAggressiveness",
+                WorldSleepAccelerationGovernorAggressiveness.class,
+                cfg.governorAggressiveness
+        );
+        cfg.natureFilterProfile = readEnum(
+                file,
+                List.of("world_sleep_acceleration", "nature_filter_profile"),
+                "worldSleepAccelerationNatureFilterProfile",
+                WorldSleepNatureFilterProfile.class,
+                cfg.natureFilterProfile
+        );
+        readModuleConfig(file, List.of("world_sleep_acceleration", "nature"), "worldSleepAccelerationNature", cfg.nature);
+        readModuleConfig(file, List.of("world_sleep_acceleration", "process"), "worldSleepAccelerationProcess", cfg.process);
+    }
+
+    private static void readModuleConfig(CommentedFileConfig file,
+                                         List<String> pathPrefix,
+                                         String legacyPrefix,
+                                         WorldSleepAccelerationModuleConfig cfg) {
+        cfg.baseRadiusChunks = readInt(file, append(pathPrefix, "base_radius_chunks"), legacyPrefix + "BaseRadiusChunks", cfg.baseRadiusChunks);
+        cfg.autoMinRadiusChunks = readInt(file, append(pathPrefix, "auto_min_radius_chunks"), legacyPrefix + "AutoMinRadiusChunks", cfg.autoMinRadiusChunks);
+        cfg.baseRateFraction = readDouble(file, append(pathPrefix, "base_rate_fraction"), legacyPrefix + "BaseRateFraction", cfg.baseRateFraction);
+        cfg.autoMinRateFraction = readDouble(file, append(pathPrefix, "auto_min_rate_fraction"), legacyPrefix + "AutoMinRateFraction", cfg.autoMinRateFraction);
+    }
+
     private static int readWeatherClearChancePercent(CommentedFileConfig file, int fallback) {
         Object value = file.getRaw(List.of("sleep", "weather_clear_chance_percent"));
         if (value == null) {
@@ -230,9 +352,54 @@ public final class SeamlessSleepServerConfigManager {
         return fallback;
     }
 
+    private static int readInt(CommentedFileConfig file, List<String> path, String legacyKey, int fallback) {
+        Object value = readRaw(file, path, legacyKey);
+        return value instanceof Number number ? number.intValue() : fallback;
+    }
+
+    private static boolean readBoolean(CommentedFileConfig file, List<String> path, String legacyKey, boolean fallback) {
+        Object value = readRaw(file, path, legacyKey);
+        if (value instanceof Boolean bool) {
+            return bool;
+        }
+        if (value instanceof String string) {
+            if (string.equalsIgnoreCase("true")) {
+                return true;
+            }
+            if (string.equalsIgnoreCase("false")) {
+                return false;
+            }
+        }
+        return fallback;
+    }
+
+    private static <E extends Enum<E>> E readEnum(CommentedFileConfig file,
+                                                  List<String> path,
+                                                  String legacyKey,
+                                                  Class<E> enumType,
+                                                  E fallback) {
+        Object value = readRaw(file, path, legacyKey);
+        if (!(value instanceof String string)) {
+            return fallback;
+        }
+
+        try {
+            return Enum.valueOf(enumType, string.trim().toUpperCase());
+        } catch (IllegalArgumentException ignored) {
+            return fallback;
+        }
+    }
+
     private static Object readRaw(CommentedFileConfig file, List<String> path, String legacyKey) {
         Object value = file.getRaw(path);
         return value != null ? value : file.getRaw(legacyKey);
+    }
+
+    private static List<String> append(List<String> path, String key) {
+        java.util.ArrayList<String> fullPath = new java.util.ArrayList<>(path.size() + 1);
+        fullPath.addAll(path);
+        fullPath.add(key);
+        return fullPath;
     }
 
     private static Integer readOptionalInt(CommentedFileConfig file, String key) {

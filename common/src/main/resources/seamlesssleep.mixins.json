@@ -8,9 +8,12 @@
   "mixins": [
     "bed.BedBlockRestingMixin",
     "sleep.LevelSleepBrightnessAccessor",
+    "sleep.BlockEntitySetChangedInvoker",
+    "sleep.AbstractFurnaceBlockEntityAccelerationMixin",
     "bed.LivingEntityBedRestingMixin",
     "bed.PlayerBedRestingMixin",
     "sleep.SleepStatusBedCountMixin",
+    "sleep.ServerLevelRandomTickAccelerationMixin",
     "sleep.ServerWorldSleepAnimationMixin",
     "sleep.PlayerEntitySleepAnimationMixin",
     "network.ServerGamePacketListenerBedRestingMixin",

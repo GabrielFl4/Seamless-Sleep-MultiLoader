@@ -96,6 +96,19 @@ public final class SleepAnimationState {
         return this.startMillis;
     }
 
+    public double getLogicalWorldRate() {
+        if (!this.active) {
+            return 1.0D;
+        }
+
+        long delta = this.endTimeOfDay - this.startTimeOfDay;
+        if (delta <= 0L) {
+            return 1.0D;
+        }
+
+        return Math.max(1.0D, delta / (double) Math.max(1, this.durationTicks));
+    }
+
     private static int computeDurationTicks(long delta) {
         double fraction = delta / (double) FULL_NIGHT_TICKS;
         if (fraction < 0.0D) {
