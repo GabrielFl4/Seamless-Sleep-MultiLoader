@@ -165,11 +165,15 @@ public final class WorldSleepAccelerationManager {
                                                          boolean includeDiagnostics) {
             WorldSleepAccelerationConfig accelerationConfig = SeamlessSleepServerConfigManager.get().worldSleepAcceleration;
             SleepAnimationState sleepState = SeamlessSleepCommon.OVERWORLD_SLEEP_ANIMATION;
-            double worldSleepRate = sleepState.getLogicalWorldRate();
+            // Nature follows the instantaneous sleep curve, while processes stay on the
+            // original average-per-night rate so all furnaces remain stable together.
+            double natureWorldSleepRate = sleepState.getCurrentLogicalWorldRate();
+            double processWorldSleepRate = sleepState.getAverageLogicalWorldRate();
+            double worldSleepRate = natureWorldSleepRate;
 
             if (!sleepState.isActive()
                     || accelerationConfig.mode == WorldSleepAccelerationMode.OFF
-                    || worldSleepRate <= 1.0D) {
+                    || (natureWorldSleepRate <= 1.0D && processWorldSleepRate <= 1.0D)) {
                 resetAutomaticRuntimeState();
                 return WorldSleepAccelerationStatus.INACTIVE;
             }
@@ -232,7 +236,7 @@ public final class WorldSleepAccelerationManager {
                     effectiveRadiusChunks,
                     configuredNatureSpeedPercent,
                     effectiveNatureSpeedPercent,
-                    worldSleepRate,
+                    natureWorldSleepRate,
                     activePlayers,
                     randomTickSpeed,
                     coverageByRadius,
@@ -243,7 +247,7 @@ public final class WorldSleepAccelerationManager {
                     accelerationConfig,
                     configuredRadiusChunks,
                     effectiveRadiusChunks,
-                    worldSleepRate,
+                    processWorldSleepRate,
                     activePlayers,
                     coverageByRadius,
                     processGovernorAction

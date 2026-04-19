@@ -97,6 +97,10 @@ public final class SleepAnimationState {
     }
 
     public double getLogicalWorldRate() {
+        return getCurrentLogicalWorldRate();
+    }
+
+    public double getAverageLogicalWorldRate() {
         if (!this.active) {
             return 1.0D;
         }
@@ -107,6 +111,45 @@ public final class SleepAnimationState {
         }
 
         return Math.max(1.0D, delta / (double) Math.max(1, this.durationTicks));
+    }
+
+    public double getCurrentLogicalWorldRate() {
+        if (!this.active || this.durationTicks <= 0) {
+            return 1.0D;
+        }
+
+        long delta = this.endTimeOfDay - this.startTimeOfDay;
+        if (delta <= 0L) {
+            return 1.0D;
+        }
+
+        double baseRate = delta / (double) this.durationTicks;
+        return Math.max(1.0D, getEasedVelocityFactor() * baseRate);
+    }
+
+    public double getProgress() {
+        if (!this.active) {
+            return 0.0D;
+        }
+        return clamp01(computeProgressSnapshot());
+    }
+
+    public double getEasedVelocityFactor() {
+        if (!this.active) {
+            return 0.0D;
+        }
+
+        double x = getProgress();
+        double epsilon = 1.0D / Math.max(20.0D, this.durationTicks);
+        double from = Math.max(0.0D, x - epsilon);
+        double to = Math.min(1.0D, x + epsilon);
+        if (to <= from) {
+            return 0.0D;
+        }
+
+        double easedFrom = integralEase(from);
+        double easedTo = integralEase(to);
+        return Math.max(0.0D, (easedTo - easedFrom) / (to - from));
     }
 
     private static int computeDurationTicks(long delta) {
@@ -150,6 +193,26 @@ public final class SleepAnimationState {
             return max;
         }
         return scaled;
+    }
+
+    private double computeProgressSnapshot() {
+        long now = System.currentTimeMillis();
+        long elapsedMs = Math.max(0L, now - this.startMillis);
+        double totalMs = this.durationTicks * 50.0D;
+        if (totalMs <= 0.0D) {
+            return 1.0D;
+        }
+        return elapsedMs / totalMs;
+    }
+
+    private static double clamp01(double value) {
+        if (value <= 0.0D) {
+            return 0.0D;
+        }
+        if (value >= 1.0D) {
+            return 1.0D;
+        }
+        return value;
     }
 
     public static double integralEase(double x) {

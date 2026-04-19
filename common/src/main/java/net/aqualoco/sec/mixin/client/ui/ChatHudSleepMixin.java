@@ -53,7 +53,7 @@ public abstract class ChatHudSleepMixin {
         }
 
         SeamlessSleepClientConfig cfg = seamlesssleep$getConfig();
-        double factor = cfg.sleepChatBackgroundOpacityMultiplier * cfg.sleepChatOpacityMultiplier;
+        double factor = cfg.resolveSleepChatBackgroundOpacityFactor();
         if (factor < 0.0D) {
             factor = 0.0D;
         } else if (factor > 1.0D) {
@@ -77,7 +77,7 @@ public abstract class ChatHudSleepMixin {
         }
 
         SeamlessSleepClientConfig cfg = seamlesssleep$getConfig();
-        double factor = cfg.sleepChatTextOpacityMultiplier * cfg.sleepChatOpacityMultiplier;
+        double factor = cfg.resolveSleepChatTextOpacityFactor();
         if (factor < 0.0D) {
             factor = 0.0D;
         } else if (factor > 1.0D) {

@@ -407,7 +407,7 @@ final class FabricYaclConfigScreen {
                         () -> toPercent(cfg.sleepOverlayDarknessMultiplier),
                         value -> cfg.sleepOverlayDarknessMultiplier = fromPercent(value),
                         true,
-                        FabricYaclConfigScreen::formatPercentValue
+                        FabricYaclConfigScreen::formatVanillaHiddenPercentValue
                 ))
                 .build();
     }
@@ -421,14 +421,14 @@ final class FabricYaclConfigScreen {
                         Component.translatable("config.seamlesssleep.chat.dim_multiplier"),
                         Component.translatable("config.seamlesssleep.chat.dim_multiplier.desc"),
                         Component.empty(),
-                        100,
+                        50,
                         0,
                         100,
                         1,
                         () -> toPercent(cfg.sleepChatOpacityMultiplier),
                         value -> cfg.sleepChatOpacityMultiplier = fromPercent(value),
                         true,
-                        FabricYaclConfigScreen::formatPercentValue
+                        FabricYaclConfigScreen::formatVanillaHiddenPercentValue
                 ))
                 .option(buildIntSlider(
                         Component.translatable("config.seamlesssleep.chat.max_lines"),
@@ -682,20 +682,30 @@ final class FabricYaclConfigScreen {
 
     private static Component formatPercentValue(Integer value) {
         if (value == null || value <= 0) {
-            return Component.literal("NONE");
+            return Component.translatable("config.seamlesssleep.value.none");
         }
         if (value >= 100) {
-            return Component.literal("MAX");
+            return Component.translatable("config.seamlesssleep.value.max");
+        }
+        return Component.literal(value + "%");
+    }
+
+    private static Component formatVanillaHiddenPercentValue(Integer value) {
+        if (value == null || value <= 0) {
+            return Component.translatable("config.seamlesssleep.value.hidden");
+        }
+        if (value >= 100) {
+            return Component.translatable("config.seamlesssleep.value.vanilla");
         }
         return Component.literal(value + "%");
     }
 
     private static Component formatWeatherChanceValue(Integer value) {
         if (value == null || value <= 0) {
-            return Component.literal("NEVER");
+            return Component.translatable("config.seamlesssleep.value.never");
         }
         if (value >= 100) {
-            return Component.literal("ALWAYS");
+            return Component.translatable("config.seamlesssleep.value.always");
         }
         return Component.literal(value + "%");
     }
@@ -704,12 +714,15 @@ final class FabricYaclConfigScreen {
         int resolvedSimulationDistance = Math.max(1, simulationDistance);
         int resolvedValue = Mth.clamp(value == null ? resolvedSimulationDistance : value, 1, resolvedSimulationDistance);
         if (resolvedValue >= resolvedSimulationDistance) {
-            return Component.literal("SIMULATION DISTANCE (" + resolvedSimulationDistance + ")");
+            return Component.translatable(
+                    "config.seamlesssleep.value.simulation_distance",
+                    resolvedSimulationDistance
+            );
         }
         if (resolvedValue == 1) {
-            return Component.literal("1 CHUNK");
+            return Component.translatable("config.seamlesssleep.value.chunk.single", resolvedValue);
         }
-        return Component.literal(resolvedValue + " CHUNKS");
+        return Component.translatable("config.seamlesssleep.value.chunk.multiple", resolvedValue);
     }
 
     private static Component formatDegreesValue(Integer value) {

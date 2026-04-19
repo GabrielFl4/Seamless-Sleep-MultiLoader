@@ -86,6 +86,9 @@ public abstract class AbstractFurnaceBlockEntityAccelerationMixin {
     private double seamlesssleep$productiveBurnCarry;
 
     @Unique
+    private double seamlesssleep$idleBurnCarry;
+
+    @Unique
     private boolean seamlesssleep$fuelChangedThisTick;
 
     @Inject(method = "serverTick", at = @At("HEAD"), cancellable = true)
@@ -104,6 +107,7 @@ public abstract class AbstractFurnaceBlockEntityAccelerationMixin {
         boolean continueLockedCycle = mixin.seamlesssleep$cycleLocked && mixin.cookingTimer > 0;
 
         if (!accelerationActive && !continueLockedCycle) {
+            mixin.seamlesssleep$resetIdleBurnCarry();
             if (mixin.cookingTimer <= 0) {
                 mixin.seamlesssleep$unlockCycle();
             }
@@ -128,6 +132,10 @@ public abstract class AbstractFurnaceBlockEntityAccelerationMixin {
         boolean changed = false;
         this.seamlesssleep$fuelChangedThisTick = false;
 
+        if (!wasLit) {
+            seamlesssleep$resetIdleBurnCarry();
+        }
+
         if (this.cookingTimer <= 0 && this.seamlesssleep$cycleLocked) {
             seamlesssleep$unlockCycle();
             changed |= seamlesssleep$restoreUnlockedCookTime(level);
@@ -151,6 +159,7 @@ public abstract class AbstractFurnaceBlockEntityAccelerationMixin {
 
         if (this.seamlesssleep$isLit() || hasFuel && hasInput) {
             if (productiveAcceleration) {
+                seamlesssleep$resetIdleBurnCarry();
                 if (seamlesssleep$consumeProductiveBurn(level, hasInput, canBurnNow)) {
                     this.cookingTimer++;
                     if (this.cookingTimer >= this.cookingTotalTime) {
@@ -166,6 +175,7 @@ public abstract class AbstractFurnaceBlockEntityAccelerationMixin {
             } else {
                 if (this.seamlesssleep$isLit()) {
                     this.litTimeRemaining--;
+                    this.seamlesssleep$applyIdleBurnAcceleration(requestedMultiplier, canBurnNow);
                 }
 
                 inputStack = this.items.get(0);
@@ -201,11 +211,16 @@ public abstract class AbstractFurnaceBlockEntityAccelerationMixin {
                 }
             }
         } else if (!this.seamlesssleep$isLit() && this.cookingTimer > 0) {
+            seamlesssleep$resetIdleBurnCarry();
             this.cookingTimer = Mth.clamp(this.cookingTimer - 2, 0, this.cookingTotalTime);
             if (this.cookingTimer <= 0 && this.seamlesssleep$cycleLocked) {
                 seamlesssleep$unlockCycle();
                 changed |= seamlesssleep$restoreUnlockedCookTime(level);
             }
+        }
+
+        if (!this.seamlesssleep$isLit()) {
+            seamlesssleep$resetIdleBurnCarry();
         }
 
         boolean litNow = this.seamlesssleep$isLit();
@@ -313,6 +328,28 @@ public abstract class AbstractFurnaceBlockEntityAccelerationMixin {
         int burnUnits = Math.max(1, (int) Math.floor(total));
         this.seamlesssleep$productiveBurnCarry = total - burnUnits;
         return burnUnits;
+    }
+
+    @Unique
+    private void seamlesssleep$applyIdleBurnAcceleration(double currentMultiplier, boolean canBurnNow) {
+        if (canBurnNow || currentMultiplier <= 1.0D || !this.seamlesssleep$isLit()) {
+            seamlesssleep$resetIdleBurnCarry();
+            return;
+        }
+
+        double totalExtraBurn = this.seamlesssleep$idleBurnCarry + Math.max(0.0D, currentMultiplier - 1.0D);
+        int extraBurnUnits = Math.max(0, (int) Math.floor(totalExtraBurn));
+        this.seamlesssleep$idleBurnCarry = totalExtraBurn - extraBurnUnits;
+        if (extraBurnUnits <= 0) {
+            return;
+        }
+
+        this.litTimeRemaining = Math.max(0, this.litTimeRemaining - extraBurnUnits);
+    }
+
+    @Unique
+    private void seamlesssleep$resetIdleBurnCarry() {
+        this.seamlesssleep$idleBurnCarry = 0.0D;
     }
 
     @Unique
