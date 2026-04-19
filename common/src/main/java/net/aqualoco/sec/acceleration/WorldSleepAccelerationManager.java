@@ -43,35 +43,66 @@ public final class WorldSleepAccelerationManager {
         if (level == null || !level.dimension().equals(Level.OVERWORLD)) {
             return WorldSleepAccelerationStatus.INACTIVE;
         }
-        return SERVER_STATES.computeIfAbsent(level.getServer(), key -> new CachedServerState()).prepare(level, false);
+        return SERVER_STATES.computeIfAbsent(level.getServer(), key -> new CachedServerState()).prepare(level, false, false);
+    }
+
+    public static WorldSleepAccelerationStatus getDiagnosticStatus(ServerLevel level) {
+        if (level == null || !level.dimension().equals(Level.OVERWORLD)) {
+            return WorldSleepAccelerationStatus.INACTIVE;
+        }
+        return SERVER_STATES.computeIfAbsent(level.getServer(), key -> new CachedServerState()).prepare(level, false, true);
     }
 
     private static void prepare(ServerLevel level, boolean forceRebuild) {
         if (level == null || !level.dimension().equals(Level.OVERWORLD)) {
             return;
         }
-        SERVER_STATES.computeIfAbsent(level.getServer(), key -> new CachedServerState()).prepare(level, forceRebuild);
+        SERVER_STATES.computeIfAbsent(level.getServer(), key -> new CachedServerState()).prepare(level, forceRebuild, false);
     }
 
     private static final class CachedServerState {
         private static final double METRIC_ALPHA = 0.15D;
         private static final int METRIC_UPDATE_INTERVAL_TICKS = 10;
+        private static final int GOVERNOR_DEBUG_DELAY_TICKS = 10;
 
         private int lastPreparedTick = Integer.MIN_VALUE;
+        private int lastDiagnosticTick = Integer.MIN_VALUE;
         private int lastMetricsUpdateTick = Integer.MIN_VALUE;
         private WorldSleepAccelerationStatus lastStatus = WorldSleepAccelerationStatus.INACTIVE;
+        private WorldSleepAccelerationStatus lastDiagnosticStatus = WorldSleepAccelerationStatus.INACTIVE;
         private double averageMspt = 50.0D;
         private double p95Mspt = 50.0D;
+        private long scheduledGovernorDebugStartMillis = Long.MIN_VALUE;
+        private int scheduledGovernorDebugTick = Integer.MIN_VALUE;
+        private boolean governorDebugLoggedForCurrentSleep;
 
-        private WorldSleepAccelerationStatus prepare(ServerLevel level, boolean forceRebuild) {
+        private WorldSleepAccelerationStatus prepare(ServerLevel level, boolean forceRebuild, boolean includeDiagnostics) {
             int currentTick = level.getServer().getTickCount();
+            updateMetrics(level.getServer(), currentTick);
+
+            SeamlessSleepServerConfig config = SeamlessSleepServerConfigManager.get();
+            SleepAnimationState sleepState = SeamlessSleepCommon.OVERWORLD_SLEEP_ANIMATION;
+            updateGovernorDebugSchedule(config.worldSleepAcceleration, sleepState, currentTick);
+
+            if (includeDiagnostics) {
+                if (!forceRebuild && currentTick == lastDiagnosticTick) {
+                    return lastDiagnosticStatus;
+                }
+
+                lastDiagnosticTick = currentTick;
+                lastPreparedTick = currentTick;
+                lastDiagnosticStatus = buildStatus(level, averageMspt, p95Mspt, true);
+                lastStatus = lastDiagnosticStatus;
+                return lastDiagnosticStatus;
+            }
+
             if (!forceRebuild && currentTick == lastPreparedTick) {
                 return lastStatus;
             }
 
             lastPreparedTick = currentTick;
-            updateMetrics(level.getServer(), currentTick);
-            lastStatus = buildStatus(level, averageMspt, p95Mspt, lastStatus);
+            lastStatus = buildStatus(level, averageMspt, p95Mspt, false);
+            maybeLogGovernorDebug(level, config.worldSleepAcceleration, sleepState, currentTick);
             return lastStatus;
         }
 
@@ -107,34 +138,47 @@ public final class WorldSleepAccelerationManager {
         private WorldSleepAccelerationStatus buildStatus(ServerLevel level,
                                                          double smoothedAverageMspt,
                                                          double smoothedP95Mspt,
-                                                         WorldSleepAccelerationStatus previousStatus) {
-            SeamlessSleepServerConfig config = SeamlessSleepServerConfigManager.get();
-            WorldSleepAccelerationConfig accelerationConfig = config.worldSleepAcceleration;
+                                                         boolean includeDiagnostics) {
+            WorldSleepAccelerationConfig accelerationConfig = SeamlessSleepServerConfigManager.get().worldSleepAcceleration;
             SleepAnimationState sleepState = SeamlessSleepCommon.OVERWORLD_SLEEP_ANIMATION;
             double worldSleepRate = sleepState.getLogicalWorldRate();
 
             if (!sleepState.isActive()
                     || accelerationConfig.mode == WorldSleepAccelerationMode.OFF
                     || worldSleepRate <= 1.0D) {
-                return inactive(previousStatus);
+                return WorldSleepAccelerationStatus.INACTIVE;
             }
 
             List<ServerPlayer> activePlayers = collectActivePlayers(level);
             if (activePlayers.isEmpty()) {
-                return inactive(previousStatus);
+                return WorldSleepAccelerationStatus.INACTIVE;
             }
 
             int simulationDistance = Math.max(0, level.getServer().getPlayerList().getSimulationDistance());
-            double governorPressure = accelerationConfig.mode == WorldSleepAccelerationMode.AUTO
-                    ? computeGovernorPressure(
-                    smoothedAverageMspt,
-                    smoothedP95Mspt,
-                    worldSleepRate,
-                    activePlayers.size(),
-                    simulationDistance,
-                    accelerationConfig.governorAggressiveness
-            )
-                    : 0.0D;
+            double governorPressure = 0.0D;
+            WorldSleepAccelerationGovernorSnapshot governorSnapshot = WorldSleepAccelerationGovernorSnapshot.INACTIVE;
+            if (accelerationConfig.mode == WorldSleepAccelerationMode.AUTO) {
+                if (includeDiagnostics) {
+                    governorSnapshot = computeGovernorSnapshot(
+                            smoothedAverageMspt,
+                            smoothedP95Mspt,
+                            worldSleepRate,
+                            activePlayers.size(),
+                            simulationDistance,
+                            accelerationConfig.governorAggressiveness
+                    );
+                    governorPressure = governorSnapshot.getPressure();
+                } else {
+                    governorPressure = computeGovernorPressure(
+                            smoothedAverageMspt,
+                            smoothedP95Mspt,
+                            worldSleepRate,
+                            activePlayers.size(),
+                            simulationDistance,
+                            accelerationConfig.governorAggressiveness
+                    );
+                }
+            }
 
             Map<Integer, LongOpenHashSet> coverageByRadius = new HashMap<>();
             int randomTickSpeed = Math.max(0, level.getGameRules().get(GameRules.RANDOM_TICK_SPEED));
@@ -158,7 +202,7 @@ public final class WorldSleepAccelerationManager {
 
             boolean active = natureStatus.isActive() || processStatus.isActive();
             if (!active) {
-                return inactive(previousStatus);
+                return WorldSleepAccelerationStatus.INACTIVE;
             }
 
             WorldSleepAccelerationGovernorAction governorAction = WorldSleepAccelerationGovernorAction.combine(
@@ -178,17 +222,11 @@ public final class WorldSleepAccelerationManager {
                     accelerationConfig.preset,
                     accelerationConfig.natureFilterProfile,
                     governorAction,
+                    governorSnapshot,
                     natureStatus,
                     processStatus
             );
-
-            logStateChanges(previousStatus, nextStatus);
             return nextStatus;
-        }
-
-        private WorldSleepAccelerationStatus inactive(WorldSleepAccelerationStatus previousStatus) {
-            logStateChanges(previousStatus, WorldSleepAccelerationStatus.INACTIVE);
-            return WorldSleepAccelerationStatus.INACTIVE;
         }
 
         private List<ServerPlayer> collectActivePlayers(ServerLevel level) {
@@ -316,6 +354,7 @@ public final class WorldSleepAccelerationManager {
                     minRadius,
                     effectiveRadius,
                     baseFraction,
+                    minFraction,
                     effectiveFraction,
                     effectiveTickMultiplier,
                     extraRandomTickAttempts,
@@ -327,27 +366,65 @@ public final class WorldSleepAccelerationManager {
             );
         }
 
-        private double computeGovernorPressure(double averageMspt,
-                                               double p95Mspt,
-                                               double worldSleepRate,
-                                               int activePlayers,
-                                               int simulationDistance,
-                                               WorldSleepAccelerationGovernorAggressiveness aggressiveness) {
+        private WorldSleepAccelerationGovernorSnapshot computeGovernorSnapshot(double averageMspt,
+                                                                              double p95Mspt,
+                                                                              double worldSleepRate,
+                                                                              int activePlayers,
+                                                                              int simulationDistance,
+                                                                              WorldSleepAccelerationGovernorAggressiveness aggressiveness) {
             double averagePressure = inverseLerp(35.0D, 50.0D, averageMspt);
             double p95Pressure = inverseLerp(45.0D, 60.0D, p95Mspt);
             double perfPressure = Math.max(averagePressure, p95Pressure);
 
             double riskFactor = 1.0D;
-            riskFactor += Mth.clamp((activePlayers - 1) * 0.06D, 0.0D, 0.40D);
-            riskFactor += Mth.clamp(simulationDistance / 16.0D, 0.0D, 1.0D) * 0.12D;
-            riskFactor += Mth.clamp(worldSleepRate / 300.0D, 0.0D, 1.0D) * 0.18D;
+            double activePlayerRiskBonus = Mth.clamp((activePlayers - 1) * 0.06D, 0.0D, 0.40D);
+            double simulationDistanceRiskBonus = Mth.clamp(simulationDistance / 16.0D, 0.0D, 1.0D) * 0.12D;
+            double worldSleepRateRiskBonus = Mth.clamp(worldSleepRate / 300.0D, 0.0D, 1.0D) * 0.18D;
+            riskFactor += activePlayerRiskBonus;
+            riskFactor += simulationDistanceRiskBonus;
+            riskFactor += worldSleepRateRiskBonus;
 
             double aggressionMultiplier = switch (aggressiveness) {
                 case CONSERVATIVE -> 0.85D;
                 case AGGRESSIVE -> 1.20D;
                 case BALANCED -> 1.0D;
             };
-            return Mth.clamp(perfPressure * riskFactor * aggressionMultiplier, 0.0D, 1.0D);
+            double pressure = Mth.clamp(perfPressure * riskFactor * aggressionMultiplier, 0.0D, 1.0D);
+            double areaStageOne = Mth.clamp(pressure / 0.45D, 0.0D, 1.0D);
+            double intensityStage = Mth.clamp((pressure - 0.45D) / 0.35D, 0.0D, 1.0D);
+            double areaStageTwo = Mth.clamp((pressure - 0.80D) / 0.20D, 0.0D, 1.0D);
+
+            return new WorldSleepAccelerationGovernorSnapshot(
+                    true,
+                    averagePressure,
+                    p95Pressure,
+                    perfPressure,
+                    activePlayerRiskBonus,
+                    simulationDistanceRiskBonus,
+                    worldSleepRateRiskBonus,
+                    riskFactor,
+                    aggressionMultiplier,
+                    pressure,
+                    areaStageOne,
+                    intensityStage,
+                    areaStageTwo
+            );
+        }
+
+        private double computeGovernorPressure(double averageMspt,
+                                               double p95Mspt,
+                                               double worldSleepRate,
+                                               int activePlayers,
+                                               int simulationDistance,
+                                               WorldSleepAccelerationGovernorAggressiveness aggressiveness) {
+            return computeGovernorSnapshot(
+                    averageMspt,
+                    p95Mspt,
+                    worldSleepRate,
+                    activePlayers,
+                    simulationDistance,
+                    aggressiveness
+            ).getPressure();
         }
 
         private LongOpenHashSet unionChunkAreas(List<ServerPlayer> activePlayers, int radius) {
@@ -380,26 +457,108 @@ public final class WorldSleepAccelerationManager {
             return (value - min) / (max - min);
         }
 
-        private void logStateChanges(WorldSleepAccelerationStatus previous, WorldSleepAccelerationStatus next) {
-            if (previous.isActive() == next.isActive()
-                    && previous.getGovernorAction() == next.getGovernorAction()) {
+        private void updateGovernorDebugSchedule(WorldSleepAccelerationConfig accelerationConfig,
+                                                 SleepAnimationState sleepState,
+                                                 int currentTick) {
+            if (!Constants.isDebugLogsEnabled()
+                    || accelerationConfig.mode != WorldSleepAccelerationMode.AUTO
+                    || !sleepState.isActive()) {
+                clearGovernorDebugSchedule();
                 return;
             }
 
-            if (!next.isActive()) {
-                Constants.debug("World sleep acceleration inactive.");
+            long sleepStartMillis = sleepState.getStartMillis();
+            if (sleepStartMillis <= 0L || sleepStartMillis == scheduledGovernorDebugStartMillis) {
                 return;
             }
+
+            scheduledGovernorDebugStartMillis = sleepStartMillis;
+            scheduledGovernorDebugTick = currentTick + GOVERNOR_DEBUG_DELAY_TICKS;
+            governorDebugLoggedForCurrentSleep = false;
+        }
+
+        private void maybeLogGovernorDebug(ServerLevel level,
+                                           WorldSleepAccelerationConfig accelerationConfig,
+                                           SleepAnimationState sleepState,
+                                           int currentTick) {
+            if (!Constants.isDebugLogsEnabled()
+                    || accelerationConfig.mode != WorldSleepAccelerationMode.AUTO
+                    || !sleepState.isActive()
+                    || governorDebugLoggedForCurrentSleep
+                    || scheduledGovernorDebugTick == Integer.MIN_VALUE
+                    || currentTick < scheduledGovernorDebugTick) {
+                return;
+            }
+
+            WorldSleepAccelerationStatus diagnosticStatus = buildStatus(level, averageMspt, p95Mspt, true);
+            lastDiagnosticTick = currentTick;
+            lastDiagnosticStatus = diagnosticStatus;
+
+            if (!diagnosticStatus.isActive() || !diagnosticStatus.getGovernorSnapshot().isActive()) {
+                Constants.debug(
+                        "Governor snapshot: acceleration inactive during sleep. mode={}, preset={}",
+                        accelerationConfig.mode,
+                        accelerationConfig.preset
+                );
+                governorDebugLoggedForCurrentSleep = true;
+                return;
+            }
+
+            WorldSleepAccelerationGovernorSnapshot governorSnapshot = diagnosticStatus.getGovernorSnapshot();
+            WorldSleepAccelerationModuleStatus natureStatus = diagnosticStatus.getNature();
+            WorldSleepAccelerationModuleStatus processStatus = diagnosticStatus.getProcess();
+            int randomTickSpeed = Math.max(0, level.getGameRules().get(GameRules.RANDOM_TICK_SPEED));
+            double totalRandomTickAttempts = randomTickSpeed + natureStatus.getExtraRandomTickAttemptsPerSection();
 
             Constants.debug(
-                    "World sleep acceleration active. rate={}, avgMspt={}, p95Mspt={}, governor={}, natureRate={}, processRate={}",
-                    String.format(java.util.Locale.ROOT, "%.2f", next.getWorldSleepRate()),
-                    String.format(java.util.Locale.ROOT, "%.2f", next.getAverageMspt()),
-                    String.format(java.util.Locale.ROOT, "%.2f", next.getP95Mspt()),
-                    next.getGovernorAction(),
-                    String.format(java.util.Locale.ROOT, "%.2f", next.getNature().getEffectiveRateFraction()),
-                    String.format(java.util.Locale.ROOT, "%.2f", next.getProcess().getEffectiveRateFraction())
+                    "Governor snapshot: preset={}, rate={}x, avgMspt={}, p95Mspt={}, players={}, simDist={}, pressure={}, stages=[area1={}, intensity={}, area2={}], action={}",
+                    accelerationConfig.preset,
+                    formatDecimal(diagnosticStatus.getWorldSleepRate()),
+                    formatDecimal(diagnosticStatus.getAverageMspt()),
+                    formatDecimal(diagnosticStatus.getP95Mspt()),
+                    diagnosticStatus.getActivePlayerCount(),
+                    level.getServer().getPlayerList().getSimulationDistance(),
+                    formatPercent(governorSnapshot.getPressure()),
+                    formatPercent(governorSnapshot.getAreaStageOne()),
+                    formatPercent(governorSnapshot.getIntensityStage()),
+                    formatPercent(governorSnapshot.getAreaStageTwo()),
+                    diagnosticStatus.getGovernorAction()
             );
+
+            Constants.debug(
+                    "Governor result: nature[radius={}/{}, min={}, rate={}/{}, extraAttempts={}, totalAttempts={}, chunks={}] process[radius={}/{}, min={}, rate={}/{}, multiplier={}x, chunks={}]",
+                    natureStatus.getEffectiveRadiusChunks(),
+                    natureStatus.getBaseRadiusChunks(),
+                    natureStatus.getMinRadiusChunks(),
+                    formatPercent(natureStatus.getEffectiveRateFraction()),
+                    formatPercent(natureStatus.getMinRateFraction()),
+                    formatDecimal(natureStatus.getExtraRandomTickAttemptsPerSection()),
+                    formatDecimal(totalRandomTickAttempts),
+                    natureStatus.getCoveredChunkCount(),
+                    processStatus.getEffectiveRadiusChunks(),
+                    processStatus.getBaseRadiusChunks(),
+                    processStatus.getMinRadiusChunks(),
+                    formatPercent(processStatus.getEffectiveRateFraction()),
+                    formatPercent(processStatus.getMinRateFraction()),
+                    formatDecimal(processStatus.getEffectiveTickMultiplier()),
+                    processStatus.getCoveredChunkCount()
+            );
+
+            governorDebugLoggedForCurrentSleep = true;
+        }
+
+        private void clearGovernorDebugSchedule() {
+            scheduledGovernorDebugStartMillis = Long.MIN_VALUE;
+            scheduledGovernorDebugTick = Integer.MIN_VALUE;
+            governorDebugLoggedForCurrentSleep = false;
+        }
+
+        private String formatDecimal(double value) {
+            return String.format(java.util.Locale.ROOT, "%.2f", value);
+        }
+
+        private String formatPercent(double value) {
+            return String.format(java.util.Locale.ROOT, "%.0f%%", value * 100.0D);
         }
     }
 }

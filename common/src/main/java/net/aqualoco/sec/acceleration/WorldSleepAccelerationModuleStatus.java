@@ -4,13 +4,14 @@ import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 
 public final class WorldSleepAccelerationModuleStatus {
     public static final WorldSleepAccelerationModuleStatus INACTIVE =
-            new WorldSleepAccelerationModuleStatus(false, 0, 0, 0, 0.0D, 0.0D, 1.0D, 0.0D, 0, 0.0D, 0, new LongOpenHashSet(), WorldSleepAccelerationGovernorAction.NONE);
+            new WorldSleepAccelerationModuleStatus(false, 0, 0, 0, 0.0D, 0.0D, 0.0D, 1.0D, 0.0D, 0, 0.0D, 0, new LongOpenHashSet(), WorldSleepAccelerationGovernorAction.NONE);
 
     private final boolean active;
     private final int baseRadiusChunks;
     private final int minRadiusChunks;
     private final int effectiveRadiusChunks;
     private final double baseRateFraction;
+    private final double minRateFraction;
     private final double effectiveRateFraction;
     private final double effectiveTickMultiplier;
     private final double extraRandomTickAttemptsPerSection;
@@ -25,6 +26,7 @@ public final class WorldSleepAccelerationModuleStatus {
                                               int minRadiusChunks,
                                               int effectiveRadiusChunks,
                                               double baseRateFraction,
+                                              double minRateFraction,
                                               double effectiveRateFraction,
                                               double effectiveTickMultiplier,
                                               double extraRandomTickAttemptsPerSection,
@@ -38,6 +40,7 @@ public final class WorldSleepAccelerationModuleStatus {
         this.minRadiusChunks = minRadiusChunks;
         this.effectiveRadiusChunks = effectiveRadiusChunks;
         this.baseRateFraction = baseRateFraction;
+        this.minRateFraction = minRateFraction;
         this.effectiveRateFraction = effectiveRateFraction;
         this.effectiveTickMultiplier = effectiveTickMultiplier;
         this.extraRandomTickAttemptsPerSection = extraRandomTickAttemptsPerSection;
@@ -66,6 +69,10 @@ public final class WorldSleepAccelerationModuleStatus {
 
     public double getBaseRateFraction() {
         return baseRateFraction;
+    }
+
+    public double getMinRateFraction() {
+        return minRateFraction;
     }
 
     public double getEffectiveRateFraction() {

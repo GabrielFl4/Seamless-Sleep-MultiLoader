@@ -7,6 +7,7 @@ import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import net.aqualoco.sec.acceleration.WorldSleepAccelerationManager;
 import net.aqualoco.sec.acceleration.WorldSleepAccelerationModuleStatus;
+import net.aqualoco.sec.acceleration.WorldSleepAccelerationGovernorSnapshot;
 import net.aqualoco.sec.acceleration.WorldSleepAccelerationStatus;
 import net.aqualoco.sec.config.SeamlessSleepServerConfig;
 import net.aqualoco.sec.config.SeamlessSleepServerConfigManager;
@@ -18,6 +19,7 @@ import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.permissions.Permissions;
+import net.minecraft.world.level.gamerules.GameRules;
 
 import java.util.Locale;
 
@@ -85,7 +87,9 @@ public final class SeamlessSleepCommands {
                                                 )))))
                         .then(Commands.literal("acceleration")
                                 .then(Commands.literal("status")
-                                        .executes(SeamlessSleepCommands::getWorldAccelerationStatus)))
+                                        .executes(SeamlessSleepCommands::getWorldAccelerationStatus))
+                                .then(Commands.literal("governor")
+                                        .executes(SeamlessSleepCommands::getWorldAccelerationGovernor)))
         );
     }
 
@@ -221,6 +225,103 @@ public final class SeamlessSleepCommands {
         return 1;
     }
 
+    private static int getWorldAccelerationGovernor(CommandContext<CommandSourceStack> context) {
+        ServerLevel overworld = context.getSource().getServer().overworld();
+        if (overworld == null) {
+            context.getSource().sendFailure(Component.translatable("command.seamlesssleep.acceleration.status.unavailable"));
+            return 0;
+        }
+
+        SeamlessSleepServerConfig config = SeamlessSleepServerConfigManager.get();
+        WorldSleepAccelerationStatus status = WorldSleepAccelerationManager.getDiagnosticStatus(overworld);
+        WorldSleepAccelerationGovernorSnapshot governor = status.getGovernorSnapshot();
+        int randomTickSpeed = Math.max(0, overworld.getGameRules().get(GameRules.RANDOM_TICK_SPEED));
+
+        context.getSource().sendSuccess(
+                () -> Component.translatable(
+                        "command.seamlesssleep.acceleration.governor.header",
+                        config.worldSleepAcceleration.mode.name(),
+                        config.worldSleepAcceleration.preset.name(),
+                        config.worldSleepAcceleration.governorAggressiveness.name()
+                ),
+                false
+        );
+
+        if (config.worldSleepAcceleration.mode != WorldSleepAccelerationMode.AUTO) {
+            context.getSource().sendSuccess(
+                    () -> Component.translatable(
+                            "command.seamlesssleep.acceleration.governor.bypassed",
+                            config.worldSleepAcceleration.mode.name()
+                    ),
+                    false
+            );
+            context.getSource().sendSuccess(
+                    () -> formatNatureGovernorLine(status.getNature(), randomTickSpeed),
+                    false
+            );
+            context.getSource().sendSuccess(
+                    () -> formatProcessGovernorLine(status.getProcess()),
+                    false
+            );
+            return 1;
+        }
+
+        if (!status.isActive() || !governor.isActive()) {
+            context.getSource().sendSuccess(
+                    () -> Component.translatable("command.seamlesssleep.acceleration.governor.inactive"),
+                    false
+            );
+            return 1;
+        }
+
+        context.getSource().sendSuccess(
+                () -> Component.translatable(
+                        "command.seamlesssleep.acceleration.governor.inputs",
+                        formatDecimal(status.getWorldSleepRate()),
+                        formatDecimal(status.getAverageMspt()),
+                        formatDecimal(status.getP95Mspt()),
+                        Integer.toString(status.getActivePlayerCount()),
+                        Integer.toString(context.getSource().getServer().getPlayerList().getSimulationDistance()),
+                        Integer.toString(randomTickSpeed)
+                ),
+                false
+        );
+        context.getSource().sendSuccess(
+                () -> Component.translatable(
+                        "command.seamlesssleep.acceleration.governor.pressure",
+                        formatPercent(governor.getAverageMsptPressure()),
+                        formatPercent(governor.getP95MsptPressure()),
+                        formatPercent(governor.getPerformancePressure()),
+                        formatSignedPercent(governor.getActivePlayerRiskBonus()),
+                        formatSignedPercent(governor.getSimulationDistanceRiskBonus()),
+                        formatSignedPercent(governor.getWorldSleepRateRiskBonus()),
+                        formatDecimal(governor.getRiskFactor()),
+                        formatDecimal(governor.getAggressivenessMultiplier()),
+                        formatPercent(governor.getPressure())
+                ),
+                false
+        );
+        context.getSource().sendSuccess(
+                () -> Component.translatable(
+                        "command.seamlesssleep.acceleration.governor.stages",
+                        formatPercent(governor.getAreaStageOne()),
+                        formatPercent(governor.getIntensityStage()),
+                        formatPercent(governor.getAreaStageTwo()),
+                        status.getGovernorAction().name()
+                ),
+                false
+        );
+        context.getSource().sendSuccess(
+                () -> formatNatureGovernorLine(status.getNature(), randomTickSpeed),
+                false
+        );
+        context.getSource().sendSuccess(
+                () -> formatProcessGovernorLine(status.getProcess()),
+                false
+        );
+        return 1;
+    }
+
     private static Component formatNatureLine(WorldSleepAccelerationModuleStatus status) {
         if (!status.isActive()) {
             return Component.translatable("command.seamlesssleep.acceleration.status.nature.inactive");
@@ -235,6 +336,30 @@ public final class SeamlessSleepCommands {
         );
     }
 
+    private static Component formatNatureGovernorLine(WorldSleepAccelerationModuleStatus status, int randomTickSpeed) {
+        if (!status.isActive()) {
+            return Component.translatable("command.seamlesssleep.acceleration.status.nature.inactive");
+        }
+
+        double totalAttempts = randomTickSpeed + status.getExtraRandomTickAttemptsPerSection();
+        return Component.translatable(
+                "command.seamlesssleep.acceleration.governor.nature",
+                status.getGovernorAction().name(),
+                Integer.toString(status.getEffectiveRadiusChunks()),
+                Integer.toString(status.getBaseRadiusChunks()),
+                Integer.toString(status.getMinRadiusChunks()),
+                formatPercent(status.getEffectiveRateFraction()),
+                formatPercent(status.getBaseRateFraction()),
+                formatPercent(status.getMinRateFraction()),
+                formatDecimal(status.getExtraRandomTickAttemptsPerSection()),
+                Integer.toString(status.getExtraRandomTickWholeAttemptsPerSection()),
+                formatDecimal(status.getExtraRandomTickFractionalAttemptsPerSection()),
+                formatDecimal(totalAttempts),
+                formatDecimal(status.getEffectiveTickMultiplier()),
+                Integer.toString(status.getCoveredChunkCount())
+        );
+    }
+
     private static Component formatProcessLine(WorldSleepAccelerationModuleStatus status) {
         if (!status.isActive()) {
             return Component.translatable("command.seamlesssleep.acceleration.status.process.inactive");
@@ -246,6 +371,25 @@ public final class SeamlessSleepCommands {
                 formatPercent(status.getEffectiveRateFraction()),
                 formatDecimal(status.getEffectiveTickMultiplier()),
                 status.getCoveredChunkCount()
+        );
+    }
+
+    private static Component formatProcessGovernorLine(WorldSleepAccelerationModuleStatus status) {
+        if (!status.isActive()) {
+            return Component.translatable("command.seamlesssleep.acceleration.status.process.inactive");
+        }
+
+        return Component.translatable(
+                "command.seamlesssleep.acceleration.governor.process",
+                status.getGovernorAction().name(),
+                Integer.toString(status.getEffectiveRadiusChunks()),
+                Integer.toString(status.getBaseRadiusChunks()),
+                Integer.toString(status.getMinRadiusChunks()),
+                formatPercent(status.getEffectiveRateFraction()),
+                formatPercent(status.getBaseRateFraction()),
+                formatPercent(status.getMinRateFraction()),
+                formatDecimal(status.getEffectiveTickMultiplier()),
+                Integer.toString(status.getCoveredChunkCount())
         );
     }
 
@@ -323,6 +467,10 @@ public final class SeamlessSleepCommands {
 
     private static String formatPercent(double value) {
         return String.format(Locale.ROOT, "%.0f%%", value * 100.0D);
+    }
+
+    private static String formatSignedPercent(double value) {
+        return (value >= 0.0D ? "+" : "") + formatPercent(value);
     }
 
     private static String formatWeatherChance(int value) {

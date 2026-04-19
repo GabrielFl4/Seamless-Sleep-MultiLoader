@@ -19,6 +19,7 @@ public final class WorldSleepAccelerationStatus {
             WorldSleepAccelerationPreset.BALANCED,
             WorldSleepNatureFilterProfile.ALL,
             WorldSleepAccelerationGovernorAction.NONE,
+            WorldSleepAccelerationGovernorSnapshot.INACTIVE,
             WorldSleepAccelerationModuleStatus.INACTIVE,
             WorldSleepAccelerationModuleStatus.INACTIVE
     );
@@ -34,6 +35,7 @@ public final class WorldSleepAccelerationStatus {
     private final WorldSleepAccelerationPreset preset;
     private final WorldSleepNatureFilterProfile natureFilterProfile;
     private final WorldSleepAccelerationGovernorAction governorAction;
+    private final WorldSleepAccelerationGovernorSnapshot governorSnapshot;
     private final WorldSleepAccelerationModuleStatus nature;
     private final WorldSleepAccelerationModuleStatus process;
 
@@ -48,6 +50,7 @@ public final class WorldSleepAccelerationStatus {
                                         WorldSleepAccelerationPreset preset,
                                         WorldSleepNatureFilterProfile natureFilterProfile,
                                         WorldSleepAccelerationGovernorAction governorAction,
+                                        WorldSleepAccelerationGovernorSnapshot governorSnapshot,
                                         WorldSleepAccelerationModuleStatus nature,
                                         WorldSleepAccelerationModuleStatus process) {
         this.active = active;
@@ -61,6 +64,7 @@ public final class WorldSleepAccelerationStatus {
         this.preset = preset;
         this.natureFilterProfile = natureFilterProfile;
         this.governorAction = governorAction;
+        this.governorSnapshot = governorSnapshot;
         this.nature = nature;
         this.process = process;
     }
@@ -107,6 +111,10 @@ public final class WorldSleepAccelerationStatus {
 
     public WorldSleepAccelerationGovernorAction getGovernorAction() {
         return governorAction;
+    }
+
+    public WorldSleepAccelerationGovernorSnapshot getGovernorSnapshot() {
+        return governorSnapshot;
     }
 
     public WorldSleepAccelerationModuleStatus getNature() {
