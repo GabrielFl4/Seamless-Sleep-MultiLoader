@@ -16,7 +16,7 @@ public final class SeamlessSleepClientConfigManager {
     private static final String FILE_NAME = "seamless_sleep.toml";
     private static final String LEGACY_JSON_FILE_NAME = "seamless_sleep.json";
     private static final String LEGACY_JSONC_FILE_NAME = "seamless_sleep.jsonc";
-    private static final int CONFIG_VERSION = 1;
+    private static final int CONFIG_VERSION = 2;
 
     private static SeamlessSleepClientConfig config = defaultConfig();
     private static Path configPath;
@@ -107,6 +107,7 @@ public final class SeamlessSleepClientConfigManager {
         cfg.sleepChatOpacityMultiplier = readDouble(file, List.of("chat", "sleepChatOpacityMultiplier"), "sleepChatOpacityMultiplier", cfg.sleepChatOpacityMultiplier);
         cfg.sleepChatMaxLines = readInt(file, List.of("chat", "sleepChatMaxLines"), "sleepChatMaxLines", cfg.sleepChatMaxLines);
         cfg.sleepCameraTiltDegrees = readDouble(file, List.of("camera", "sleepCameraTiltDegrees"), "sleepCameraTiltDegrees", cfg.sleepCameraTiltDegrees);
+        cfg.mouseSmoothnessPercent = readInt(file, List.of("camera", "mouseSmoothnessPercent"), "mouseSmoothnessPercent", cfg.mouseSmoothnessPercent);
         cfg.replayCompatibilityEnabled = readBoolean(file, List.of("advanced", "replayCompatibilityEnabled"), "replayCompatibilityEnabled", cfg.replayCompatibilityEnabled);
         cfg.debugLogsEnabled = readBoolean(file, List.of("advanced", "debugLogsEnabled"), "debugLogsEnabled", cfg.debugLogsEnabled);
         return cfg;
@@ -132,33 +133,37 @@ public final class SeamlessSleepClientConfigManager {
         appendSectionGap(sb, 2);
         appendSectionHeader(sb, "chat");
         appendEntry(sb,
-                "Chat text opacity multiplier. Range: 0.0 to 1.0. Default: 0.5",
-                "sleepChatTextOpacityMultiplier",
-                Double.toString(cfg.sleepChatTextOpacityMultiplier));
-        appendEntry(sb,
-                "Chat background opacity multiplier. Range: 0.0 to 1.0. Default: 0.4",
-                "sleepChatBackgroundOpacityMultiplier",
-                Double.toString(cfg.sleepChatBackgroundOpacityMultiplier));
-        appendEntry(sb,
-                "Global chat opacity multiplier. Range: 0.1 to 2.0. Default: 1.0",
+                "Overall chat opacity while resting in bed. Range: 0.0 to 1.0. Default: 1.0",
                 "sleepChatOpacityMultiplier",
                 Double.toString(cfg.sleepChatOpacityMultiplier));
         appendEntry(sb,
-                "Max chat lines in bed chat. Range: integer 0 to 12. Default: 4",
+                "Visible chat lines while resting in bed. Range: integer 0 to 12. Default: 4",
                 "sleepChatMaxLines",
                 Integer.toString(cfg.sleepChatMaxLines));
+        appendEntry(sb,
+                "Legacy chat text opacity multiplier kept for compatibility. Range: 0.0 to 1.0. Default: 0.5",
+                "sleepChatTextOpacityMultiplier",
+                Double.toString(cfg.sleepChatTextOpacityMultiplier));
+        appendEntry(sb,
+                "Legacy chat background opacity multiplier kept for compatibility. Range: 0.0 to 1.0. Default: 0.4",
+                "sleepChatBackgroundOpacityMultiplier",
+                Double.toString(cfg.sleepChatBackgroundOpacityMultiplier));
 
         appendSectionGap(sb, 2);
         appendSectionHeader(sb, "camera");
         appendEntry(sb,
-                "Initial bed look angle. Range: 0.0 to 90.0. Value 0.0 is canonicalized to 0.1. Default: 10.0",
+                "Lay down camera tilt in degrees. Range: 0.0 to 90.0. Value 0.0 is canonicalized to 0.1. Default: 10.0",
                 "sleepCameraTiltDegrees",
                 Double.toString(cfg.sleepCameraTiltDegrees));
+        appendEntry(sb,
+                "Mouse damping percent while resting and during the sleep skip. It scales both the smoothing and the custom reduced look response. Range: 0 to 100. 0=vanilla, 100=max. Default: 100",
+                "mouseSmoothnessPercent",
+                Integer.toString(cfg.mouseSmoothnessPercent));
 
         appendSectionGap(sb, 2);
         appendSectionHeader(sb, "advanced");
         appendEntry(sb,
-                "Replay compatibility mode. Range: true | false. Default: true",
+                "Replay and Flashback compatibility mode. Range: true | false. Default: true",
                 "replayCompatibilityEnabled",
                 Boolean.toString(cfg.replayCompatibilityEnabled));
         appendEntry(sb,

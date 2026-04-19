@@ -1,7 +1,6 @@
 package net.aqualoco.sec.acceleration;
 
 import it.unimi.dsi.fastutil.objects.Reference2ByteOpenHashMap;
-import net.aqualoco.sec.config.WorldSleepNatureFilterProfile;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.block.BambooSaplingBlock;
@@ -28,42 +27,49 @@ import net.minecraft.world.level.block.state.BlockState;
 
 public final class WorldSleepRandomTickFilters {
     private static final byte UNCACHED_FLAGS = (byte) -1;
-    private static final byte FLAG_FARM = 1;
-    private static final byte FLAG_VANILLA_NATURE = 1 << 1;
-    private static final byte FLAG_MODDED_NATURE = 1 << 2;
-    private static final byte FLAG_EXCLUDED = 1 << 3;
+    private static final byte FLAG_GRASS_AND_FOLIAGE = 1;
+    private static final byte FLAG_CROPS_AND_SAPLINGS = 1 << 1;
+    private static final byte FLAG_KELP = 1 << 2;
+    private static final byte FLAG_VANILLA = 1 << 3;
+    private static final byte FLAG_EXCLUDED = 1 << 4;
 
-    private static final String[] MODDED_NATURE_PATH_HINTS = {
-            "bamboo",
-            "berry",
+    private static final String[] MODDED_GRASS_AND_FOLIAGE_HINTS = {
             "blossom",
+            "bloom",
             "bush",
-            "cactus",
-            "cane",
-            "crop",
             "flower",
             "fung",
             "grass",
             "herb",
-            "kelp",
             "leaf",
             "leaves",
             "mushroom",
             "mycel",
-            "nether_wart",
             "nyli",
             "petal",
             "plant",
-            "propagule",
-            "reed",
             "root",
-            "sapling",
             "shoot",
             "sprout",
+            "vine"
+    };
+
+    private static final String[] MODDED_CROPS_AND_SAPLINGS_HINTS = {
+            "bamboo",
+            "berry",
+            "cactus",
+            "cane",
+            "crop",
+            "nether_wart",
+            "propagule",
+            "reed",
+            "sapling",
             "stem",
-            "sugar_cane",
-            "vine",
             "wart"
+    };
+
+    private static final String[] MODDED_KELP_HINTS = {
+            "kelp"
     };
 
     private static final String[] MODDED_EXCLUDED_PATH_HINTS = {
@@ -85,8 +91,8 @@ public final class WorldSleepRandomTickFilters {
     private WorldSleepRandomTickFilters() {
     }
 
-    public static boolean isEligible(WorldSleepNatureFilterProfile profile, BlockState state) {
-        if (profile == null || state == null || !state.isRandomlyTicking()) {
+    public static boolean isEligible(WorldSleepAccelerationFilterPolicy policy, BlockState state) {
+        if (policy == null || !policy.isAnyEnabled() || state == null || !state.isRandomlyTicking()) {
             return false;
         }
 
@@ -95,11 +101,17 @@ public final class WorldSleepRandomTickFilters {
             return false;
         }
 
-        return switch (profile) {
-            case VANILLA_ONLY -> (flags & FLAG_VANILLA_NATURE) != 0;
-            case FARM_ONLY -> (flags & FLAG_FARM) != 0;
-            case ALL -> (flags & (FLAG_VANILLA_NATURE | FLAG_MODDED_NATURE)) != 0;
-        };
+        if (policy.isVanillaOnly() && (flags & FLAG_VANILLA) == 0) {
+            return false;
+        }
+
+        if (policy.isCropsAndSaplingsEnabled() && (flags & FLAG_CROPS_AND_SAPLINGS) != 0) {
+            return true;
+        }
+        if (policy.isGrassAndFoliageEnabled() && (flags & FLAG_GRASS_AND_FOLIAGE) != 0) {
+            return true;
+        }
+        return policy.isKelpEnabled() && (flags & FLAG_KELP) != 0;
     }
 
     private static byte getOrComputeFlags(Block block) {
@@ -120,32 +132,32 @@ public final class WorldSleepRandomTickFilters {
             return FLAG_EXCLUDED;
         }
 
-        boolean farmLike = isFarmLikeBlock(block);
-        if (farmLike) {
-            flags |= FLAG_FARM;
-            flags |= FLAG_VANILLA_NATURE;
+        if (isVanillaBlock(block)) {
+            flags |= FLAG_VANILLA;
         }
 
-        if (isVanillaNatureBlock(block)) {
-            flags |= FLAG_VANILLA_NATURE;
+        if (block instanceof KelpBlock || isModdedCandidate(block, MODDED_KELP_HINTS)) {
+            flags |= FLAG_KELP;
         }
 
-        if (isModdedNatureCandidate(block)) {
-            flags |= FLAG_MODDED_NATURE;
+        if (isFarmLikeBlock(block) || isModdedCandidate(block, MODDED_CROPS_AND_SAPLINGS_HINTS)) {
+            flags |= FLAG_CROPS_AND_SAPLINGS;
+        }
+
+        if (isGrassAndFoliageBlock(block) || isModdedCandidate(block, MODDED_GRASS_AND_FOLIAGE_HINTS)) {
+            flags |= FLAG_GRASS_AND_FOLIAGE;
         }
 
         return flags;
     }
 
-    private static boolean isVanillaNatureBlock(Block block) {
+    private static boolean isGrassAndFoliageBlock(Block block) {
         return block instanceof SpreadingSnowyDirtBlock
                 || block instanceof NyliumBlock
                 || block instanceof LeavesBlock
-                || block instanceof KelpBlock
                 || block instanceof MushroomBlock
                 || block instanceof ChorusFlowerBlock
-                || block instanceof GrowingPlantHeadBlock
-                || isFarmLikeBlock(block);
+                || (block instanceof GrowingPlantHeadBlock && !(block instanceof KelpBlock));
     }
 
     private static boolean isFarmLikeBlock(Block block) {
@@ -162,17 +174,21 @@ public final class WorldSleepRandomTickFilters {
                 || block instanceof MangrovePropaguleBlock;
     }
 
-    private static boolean isModdedNatureCandidate(Block block) {
+    private static boolean isVanillaBlock(Block block) {
+        Identifier id = BuiltInRegistries.BLOCK.getKey(block);
+        return id != null && "minecraft".equals(id.getNamespace());
+    }
+
+    private static boolean isModdedCandidate(Block block, String[] hints) {
         Identifier id = BuiltInRegistries.BLOCK.getKey(block);
         if (id == null || "minecraft".equals(id.getNamespace())) {
             return false;
         }
-
         String path = id.getPath();
         if (containsAny(path, MODDED_EXCLUDED_PATH_HINTS)) {
             return false;
         }
-        return containsAny(path, MODDED_NATURE_PATH_HINTS);
+        return containsAny(path, hints);
     }
 
     private static boolean containsAny(String path, String[] hints) {

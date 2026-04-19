@@ -10,15 +10,13 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
-// Loads, validates, and saves the server config TOML with reload status reporting.
 public final class SeamlessSleepServerConfigManager {
 
     private static final String FILE_NAME = "seamless_sleep-server.toml";
     private static final String LEGACY_JSON_FILE_NAME = "seamless_sleep-server.json";
     private static final String LEGACY_JSONC_FILE_NAME = "seamless_sleep-server.jsonc";
-    private static final int CONFIG_VERSION = 3;
+    private static final int CONFIG_VERSION = 5;
 
-    // Distinguishes a clean reload from recovery/fallback scenarios.
     public enum ReloadResult {
         SUCCESS,
         CREATED,
@@ -81,7 +79,7 @@ public final class SeamlessSleepServerConfigManager {
 
             SeamlessSleepServerConfig cfg = readServerConfig(file);
             cfg.clamp();
-            save(path, cfg); // Canonicalize order/comments and keep metadata fresh.
+            save(path, cfg);
             return new LoadResult(cfg, ReloadResult.SUCCESS);
         } catch (Exception e) {
             Constants.warn("Failed to read server config {}, using defaults. Error: {}", path, e.getMessage());
@@ -122,10 +120,222 @@ public final class SeamlessSleepServerConfigManager {
     private static SeamlessSleepServerConfig readServerConfig(CommentedFileConfig file) {
         SeamlessSleepServerConfig cfg = defaultConfig();
         cfg.sleepWeatherClearChancePercent = readWeatherClearChancePercent(file, cfg.sleepWeatherClearChancePercent);
-        cfg.sleepAnimationDurationMultiplier = readDouble(file, List.of("sleep", "sleepAnimationDurationMultiplier"), "sleepAnimationDurationMultiplier", cfg.sleepAnimationDurationMultiplier);
+        cfg.sleepAnimationDurationMultiplier = readDouble(
+                file,
+                List.of("sleep", "sleepAnimationDurationMultiplier"),
+                "sleepAnimationDurationMultiplier",
+                cfg.sleepAnimationDurationMultiplier
+        );
         readWorldSleepAcceleration(file, cfg.worldSleepAcceleration);
         cfg.clamp();
         return cfg;
+    }
+
+    private static void readWorldSleepAcceleration(CommentedFileConfig file, WorldSleepAccelerationConfig cfg) {
+        LegacyAccelerationData legacy = readLegacyAccelerationData(file);
+
+        cfg.mode = readAccelerationMode(
+                file,
+                List.of("world_sleep_acceleration", "mode"),
+                "worldSleepAccelerationMode",
+                legacy.mode
+        );
+        cfg.automaticMode = readAutomaticMode(
+                file,
+                List.of("world_sleep_acceleration", "automatic_mode"),
+                "worldSleepAccelerationAutomaticMode",
+                legacy.automaticMode
+        );
+        cfg.playersAffected = readPlayersAffected(
+                file,
+                List.of("world_sleep_acceleration", "players_affected"),
+                "worldSleepAccelerationPlayersAffected",
+                legacy.playersAffected
+        );
+        cfg.manualAccelerationRadiusChunks = readInt(
+                file,
+                List.of("world_sleep_acceleration", "manual_radius_chunks"),
+                "worldSleepAccelerationManualRadiusChunks",
+                legacy.manualRadiusChunks
+        );
+        cfg.manualAccelerationSpeedPercent = readInt(
+                file,
+                List.of("world_sleep_acceleration", "manual_speed_percent"),
+                "worldSleepAccelerationManualSpeedPercent",
+                legacy.manualSpeedPercent
+        );
+        cfg.grassAndFoliageAccelerationEnabled = readBoolean(
+                file,
+                List.of("world_sleep_acceleration", "grass_and_foliage_acceleration_enabled"),
+                "worldSleepAccelerationGrassAndFoliageEnabled",
+                legacy.grassAndFoliageEnabled
+        );
+        cfg.cropsAndSaplingsAccelerationEnabled = readBoolean(
+                file,
+                List.of("world_sleep_acceleration", "crops_and_saplings_acceleration_enabled"),
+                "worldSleepAccelerationCropsAndSaplingsEnabled",
+                legacy.cropsAndSaplingsEnabled
+        );
+        cfg.kelpAccelerationEnabled = readBoolean(
+                file,
+                List.of("world_sleep_acceleration", "kelp_acceleration_enabled"),
+                "worldSleepAccelerationKelpEnabled",
+                legacy.kelpEnabled
+        );
+        cfg.vanillaOnlyAcceleration = readBoolean(
+                file,
+                List.of("world_sleep_acceleration", "vanilla_only_acceleration"),
+                "worldSleepAccelerationVanillaOnly",
+                legacy.vanillaOnlyAcceleration
+        );
+        cfg.processesAccelerationEnabled = readBoolean(
+                file,
+                List.of("world_sleep_acceleration", "processes_acceleration_enabled"),
+                "worldSleepAccelerationProcessesEnabled",
+                legacy.processesAccelerationEnabled
+        );
+        cfg.processesSpeedPercent = readInt(
+                file,
+                List.of("world_sleep_acceleration", "processes_speed_percent"),
+                "worldSleepAccelerationProcessesSpeedPercent",
+                legacy.processesSpeedPercent
+        );
+    }
+
+    private static LegacyAccelerationData readLegacyAccelerationData(CommentedFileConfig file) {
+        WorldSleepAccelerationMode legacyMode = readAccelerationMode(
+                file,
+                List.of("world_sleep_acceleration", "mode"),
+                "worldSleepAccelerationMode",
+                WorldSleepAccelerationMode.AUTOMATIC
+        );
+        WorldSleepAutomaticMode legacyAutomaticMode = readAutomaticMode(
+                file,
+                List.of("world_sleep_acceleration", "preset"),
+                "worldSleepAccelerationPreset",
+                WorldSleepAutomaticMode.AGGRESSIVE
+        );
+        boolean legacyRandomTickEnabled = readBoolean(
+                file,
+                List.of("world_sleep_acceleration", "random_tick_acceleration_enabled"),
+                "worldSleepAccelerationRandomTickEnabled",
+                true
+        );
+        boolean legacyProcessEnabled = readBoolean(
+                file,
+                List.of("world_sleep_acceleration", "process_acceleration_enabled"),
+                "worldSleepAccelerationProcessEnabled",
+                true
+        );
+        WorldSleepNatureFilterProfile legacyNatureProfile = readEnum(
+                file,
+                List.of("world_sleep_acceleration", "nature_filter_profile"),
+                "worldSleepAccelerationNatureFilterProfile",
+                WorldSleepNatureFilterProfile.class,
+                WorldSleepNatureFilterProfile.ALL
+        );
+
+        WorldSleepAccelerationModuleConfig legacyNature = new WorldSleepAccelerationModuleConfig();
+        readLegacyModuleConfig(
+                file,
+                List.of("world_sleep_acceleration", "nature"),
+                "worldSleepAccelerationNature",
+                legacyNature
+        );
+        WorldSleepAccelerationModuleConfig legacyProcess = new WorldSleepAccelerationModuleConfig();
+        readLegacyModuleConfig(
+                file,
+                List.of("world_sleep_acceleration", "process"),
+                "worldSleepAccelerationProcess",
+                legacyProcess
+        );
+
+        LegacyNatureFilterMapping filters = mapLegacyNatureFilters(legacyRandomTickEnabled, legacyNatureProfile);
+        int manualRadiusChunks = legacyNature.baseRadiusChunks > 0
+                ? legacyNature.baseRadiusChunks
+                : legacyProcess.baseRadiusChunks;
+        int manualSpeedPercent = fractionToPercent(legacyNature.baseRateFraction, 100);
+        int processesSpeedPercent = fractionToPercent(legacyProcess.baseRateFraction, 100);
+
+        return new LegacyAccelerationData(
+                legacyMode,
+                legacyAutomaticMode,
+                WorldSleepAccelerationPlayersAffected.ALL_PLAYERS,
+                manualRadiusChunks,
+                manualSpeedPercent,
+                filters.grassAndFoliageEnabled,
+                filters.cropsAndSaplingsEnabled,
+                filters.kelpEnabled,
+                filters.vanillaOnlyAcceleration,
+                legacyProcessEnabled,
+                processesSpeedPercent
+        );
+    }
+
+    private static void readLegacyModuleConfig(CommentedFileConfig file,
+                                               List<String> pathPrefix,
+                                               String legacyPrefix,
+                                               WorldSleepAccelerationModuleConfig cfg) {
+        cfg.baseRadiusChunks = readInt(
+                file,
+                append(pathPrefix, "base_radius_chunks"),
+                legacyPrefix + "BaseRadiusChunks",
+                cfg.baseRadiusChunks
+        );
+        cfg.autoMinRadiusChunks = readInt(
+                file,
+                append(pathPrefix, "auto_min_radius_chunks"),
+                legacyPrefix + "AutoMinRadiusChunks",
+                cfg.autoMinRadiusChunks
+        );
+        cfg.baseRateFraction = readDouble(
+                file,
+                append(pathPrefix, "base_rate_fraction"),
+                legacyPrefix + "BaseRateFraction",
+                cfg.baseRateFraction
+        );
+        cfg.autoMinRateFraction = readDouble(
+                file,
+                append(pathPrefix, "auto_min_rate_fraction"),
+                legacyPrefix + "AutoMinRateFraction",
+                cfg.autoMinRateFraction
+        );
+        cfg.clamp();
+    }
+
+    private static LegacyNatureFilterMapping mapLegacyNatureFilters(boolean randomTickEnabled,
+                                                                    WorldSleepNatureFilterProfile profile) {
+        boolean grassAndFoliageEnabled = false;
+        boolean cropsAndSaplingsEnabled = false;
+        boolean kelpEnabled = false;
+        boolean vanillaOnlyAcceleration = profile == WorldSleepNatureFilterProfile.VANILLA_ONLY;
+
+        if (randomTickEnabled) {
+            switch (profile) {
+                case ALL -> {
+                    grassAndFoliageEnabled = true;
+                    cropsAndSaplingsEnabled = true;
+                    kelpEnabled = true;
+                }
+                case VANILLA_ONLY -> {
+                    grassAndFoliageEnabled = true;
+                    cropsAndSaplingsEnabled = true;
+                    kelpEnabled = true;
+                }
+                case FARM_ONLY -> {
+                    grassAndFoliageEnabled = false;
+                    cropsAndSaplingsEnabled = true;
+                    kelpEnabled = false;
+                }
+            }
+        }
+
+        return new LegacyNatureFilterMapping(
+                grassAndFoliageEnabled,
+                cropsAndSaplingsEnabled,
+                kelpEnabled,
+                vanillaOnlyAcceleration
+        );
     }
 
     private static String toServerToml(SeamlessSleepServerConfig cfg, String modVersion) {
@@ -137,7 +347,7 @@ public final class SeamlessSleepServerConfigManager {
         appendSectionGap(sb, 2);
         appendSectionHeader(sb, "sleep");
         appendEntry(sb,
-                "Chance to clear rain/thunder after sleeping. Range: 0 to 100. 0=never, 100=always",
+                "Chance to clear rain or thunder after sleeping. Range: 0 to 100. 0=never, 100=always",
                 "weather_clear_chance_percent",
                 Integer.toString(cfg.sleepWeatherClearChancePercent));
         appendEntry(sb,
@@ -148,67 +358,49 @@ public final class SeamlessSleepServerConfigManager {
         appendSectionGap(sb, 1);
         appendSectionHeader(sb, "world_sleep_acceleration");
         appendEntry(sb,
-                "Global world acceleration mode during sleep. Values: OFF, AUTO, CUSTOM",
+                "Acceleration mode during sleep. Values: OFF, AUTOMATIC, MANUAL. Default: AUTOMATIC",
                 "mode",
                 toTomlString(cfg.worldSleepAcceleration.mode.name()));
         appendEntry(sb,
-                "Preset bundle for acceleration tuning. Values: ECO, BALANCED, AGGRESSIVE, CUSTOM",
-                "preset",
-                toTomlString(cfg.worldSleepAcceleration.preset.name()));
+                "Governor ceiling used by AUTOMATIC. Values: PERFORMANCE, BALANCED, AGGRESSIVE. Default: AGGRESSIVE",
+                "automatic_mode",
+                toTomlString(cfg.worldSleepAcceleration.automaticMode.name()));
         appendEntry(sb,
-                "Enable extra random tick / nature acceleration while sleep animation is active",
-                "random_tick_acceleration_enabled",
-                Boolean.toString(cfg.worldSleepAcceleration.randomTickAccelerationEnabled));
+                "Players affected by the acceleration area in MANUAL. Values: SLEEPERS, ALL_PLAYERS. AUTOMATIC overrides this based on the automatic mode. Default: ALL_PLAYERS",
+                "players_affected",
+                toTomlString(cfg.worldSleepAcceleration.playersAffected.name()));
         appendEntry(sb,
-                "Enable furnace, smoker and blast furnace acceleration while sleep animation is active",
-                "process_acceleration_enabled",
-                Boolean.toString(cfg.worldSleepAcceleration.processAccelerationEnabled));
+                "Manual acceleration radius in chunks. Range: 1 to current simulation distance. Default fallback: 12. The effective runtime value is always clamped by the live server simulation distance",
+                "manual_radius_chunks",
+                Integer.toString(cfg.worldSleepAcceleration.manualAccelerationRadiusChunks));
         appendEntry(sb,
-                "AUTO governor aggressiveness. Values: CONSERVATIVE, BALANCED, AGGRESSIVE",
-                "governor_aggressiveness",
-                toTomlString(cfg.worldSleepAcceleration.governorAggressiveness.name()));
+                "Manual random tick acceleration speed percent. Range: 0 to 100. 0=none, 100=max",
+                "manual_speed_percent",
+                Integer.toString(cfg.worldSleepAcceleration.manualAccelerationSpeedPercent));
         appendEntry(sb,
-                "Nature filter profile. Values: ALL, VANILLA_ONLY, FARM_ONLY",
-                "nature_filter_profile",
-                toTomlString(cfg.worldSleepAcceleration.natureFilterProfile.name()));
-
-        appendSectionGap(sb, 1);
-        appendSectionHeader(sb, "world_sleep_acceleration.nature");
+                "Enable safe grass, spreadables and foliage acceleration for random ticks",
+                "grass_and_foliage_acceleration_enabled",
+                Boolean.toString(cfg.worldSleepAcceleration.grassAndFoliageAccelerationEnabled));
         appendEntry(sb,
-                "Base chunk radius around each active player for extra random ticks. Use 0 to follow simulation distance",
-                "base_radius_chunks",
-                Integer.toString(cfg.worldSleepAcceleration.nature.baseRadiusChunks));
+                "Enable crop, farm and sapling acceleration for random ticks",
+                "crops_and_saplings_acceleration_enabled",
+                Boolean.toString(cfg.worldSleepAcceleration.cropsAndSaplingsAccelerationEnabled));
         appendEntry(sb,
-                "AUTO minimum chunk radius for nature acceleration. Use 0 to follow simulation distance",
-                "auto_min_radius_chunks",
-                Integer.toString(cfg.worldSleepAcceleration.nature.autoMinRadiusChunks));
+                "Enable kelp acceleration for random ticks",
+                "kelp_acceleration_enabled",
+                Boolean.toString(cfg.worldSleepAcceleration.kelpAccelerationEnabled));
         appendEntry(sb,
-                "Base fraction of the logical world sleep rate applied to nature acceleration. Range: 0.0 to 1.0",
-                "base_rate_fraction",
-                Double.toString(cfg.worldSleepAcceleration.nature.baseRateFraction));
+                "When true, only vanilla blocks remain eligible for nature acceleration",
+                "vanilla_only_acceleration",
+                Boolean.toString(cfg.worldSleepAcceleration.vanillaOnlyAcceleration));
         appendEntry(sb,
-                "AUTO minimum fraction of the logical world sleep rate applied to nature acceleration. Range: 0.0 to 1.0",
-                "auto_min_rate_fraction",
-                Double.toString(cfg.worldSleepAcceleration.nature.autoMinRateFraction));
-
-        appendSectionGap(sb, 1);
-        appendSectionHeader(sb, "world_sleep_acceleration.process");
+                "Enable furnace, smoker and blast furnace acceleration during sleep",
+                "processes_acceleration_enabled",
+                Boolean.toString(cfg.worldSleepAcceleration.processesAccelerationEnabled));
         appendEntry(sb,
-                "Base chunk radius around each active player for process acceleration. Use 0 to follow simulation distance",
-                "base_radius_chunks",
-                Integer.toString(cfg.worldSleepAcceleration.process.baseRadiusChunks));
-        appendEntry(sb,
-                "AUTO minimum chunk radius for process acceleration. Use 0 to follow simulation distance",
-                "auto_min_radius_chunks",
-                Integer.toString(cfg.worldSleepAcceleration.process.autoMinRadiusChunks));
-        appendEntry(sb,
-                "Base fraction of the logical world sleep rate applied to process acceleration. Range: 0.0 to 1.0",
-                "base_rate_fraction",
-                Double.toString(cfg.worldSleepAcceleration.process.baseRateFraction));
-        appendEntry(sb,
-                "AUTO minimum fraction of the logical world sleep rate applied to process acceleration. Range: 0.0 to 1.0",
-                "auto_min_rate_fraction",
-                Double.toString(cfg.worldSleepAcceleration.process.autoMinRateFraction));
+                "Process acceleration speed percent. Range: 0 to 100. 0=none, 100=max",
+                "processes_speed_percent",
+                Integer.toString(cfg.worldSleepAcceleration.processesSpeedPercent));
 
         trimTrailingBlankLines(sb);
         sb.append('\n');
@@ -251,64 +443,56 @@ public final class SeamlessSleepServerConfigManager {
         return "\"" + escaped + "\"";
     }
 
+    private static WorldSleepAccelerationMode readAccelerationMode(CommentedFileConfig file,
+                                                                   List<String> path,
+                                                                   String legacyKey,
+                                                                   WorldSleepAccelerationMode fallback) {
+        Object value = readRaw(file, path, legacyKey);
+        if (!(value instanceof String string)) {
+            return fallback;
+        }
+        return switch (string.trim().toUpperCase()) {
+            case "OFF" -> WorldSleepAccelerationMode.OFF;
+            case "AUTO", "AUTOMATIC" -> WorldSleepAccelerationMode.AUTOMATIC;
+            case "CUSTOM", "MANUAL" -> WorldSleepAccelerationMode.MANUAL;
+            default -> fallback;
+        };
+    }
+
+    private static WorldSleepAutomaticMode readAutomaticMode(CommentedFileConfig file,
+                                                             List<String> path,
+                                                             String legacyKey,
+                                                             WorldSleepAutomaticMode fallback) {
+        Object value = readRaw(file, path, legacyKey);
+        if (!(value instanceof String string)) {
+            return fallback;
+        }
+        return switch (string.trim().toUpperCase()) {
+            case "ECO", "PERFORMANCE" -> WorldSleepAutomaticMode.PERFORMANCE;
+            case "BALANCED" -> WorldSleepAutomaticMode.BALANCED;
+            case "AGGRESSIVE" -> WorldSleepAutomaticMode.AGGRESSIVE;
+            default -> fallback;
+        };
+    }
+
+    private static WorldSleepAccelerationPlayersAffected readPlayersAffected(CommentedFileConfig file,
+                                                                             List<String> path,
+                                                                             String legacyKey,
+                                                                             WorldSleepAccelerationPlayersAffected fallback) {
+        Object value = readRaw(file, path, legacyKey);
+        if (!(value instanceof String string)) {
+            return fallback;
+        }
+        return switch (string.trim().toUpperCase()) {
+            case "SLEEPERS", "SLEEPING" -> WorldSleepAccelerationPlayersAffected.SLEEPERS;
+            case "ALL", "ALL_PLAYERS", "PLAYERS" -> WorldSleepAccelerationPlayersAffected.ALL_PLAYERS;
+            default -> fallback;
+        };
+    }
+
     private static double readDouble(CommentedFileConfig file, List<String> path, String legacyKey, double fallback) {
         Object value = readRaw(file, path, legacyKey);
         return value instanceof Number number ? number.doubleValue() : fallback;
-    }
-
-    private static void readWorldSleepAcceleration(CommentedFileConfig file, WorldSleepAccelerationConfig cfg) {
-        cfg.mode = readEnum(
-                file,
-                List.of("world_sleep_acceleration", "mode"),
-                "worldSleepAccelerationMode",
-                WorldSleepAccelerationMode.class,
-                cfg.mode
-        );
-        cfg.preset = readEnum(
-                file,
-                List.of("world_sleep_acceleration", "preset"),
-                "worldSleepAccelerationPreset",
-                WorldSleepAccelerationPreset.class,
-                cfg.preset
-        );
-        cfg.randomTickAccelerationEnabled = readBoolean(
-                file,
-                List.of("world_sleep_acceleration", "random_tick_acceleration_enabled"),
-                "worldSleepAccelerationRandomTickEnabled",
-                cfg.randomTickAccelerationEnabled
-        );
-        cfg.processAccelerationEnabled = readBoolean(
-                file,
-                List.of("world_sleep_acceleration", "process_acceleration_enabled"),
-                "worldSleepAccelerationProcessEnabled",
-                cfg.processAccelerationEnabled
-        );
-        cfg.governorAggressiveness = readEnum(
-                file,
-                List.of("world_sleep_acceleration", "governor_aggressiveness"),
-                "worldSleepAccelerationGovernorAggressiveness",
-                WorldSleepAccelerationGovernorAggressiveness.class,
-                cfg.governorAggressiveness
-        );
-        cfg.natureFilterProfile = readEnum(
-                file,
-                List.of("world_sleep_acceleration", "nature_filter_profile"),
-                "worldSleepAccelerationNatureFilterProfile",
-                WorldSleepNatureFilterProfile.class,
-                cfg.natureFilterProfile
-        );
-        readModuleConfig(file, List.of("world_sleep_acceleration", "nature"), "worldSleepAccelerationNature", cfg.nature);
-        readModuleConfig(file, List.of("world_sleep_acceleration", "process"), "worldSleepAccelerationProcess", cfg.process);
-    }
-
-    private static void readModuleConfig(CommentedFileConfig file,
-                                         List<String> pathPrefix,
-                                         String legacyPrefix,
-                                         WorldSleepAccelerationModuleConfig cfg) {
-        cfg.baseRadiusChunks = readInt(file, append(pathPrefix, "base_radius_chunks"), legacyPrefix + "BaseRadiusChunks", cfg.baseRadiusChunks);
-        cfg.autoMinRadiusChunks = readInt(file, append(pathPrefix, "auto_min_radius_chunks"), legacyPrefix + "AutoMinRadiusChunks", cfg.autoMinRadiusChunks);
-        cfg.baseRateFraction = readDouble(file, append(pathPrefix, "base_rate_fraction"), legacyPrefix + "BaseRateFraction", cfg.baseRateFraction);
-        cfg.autoMinRateFraction = readDouble(file, append(pathPrefix, "auto_min_rate_fraction"), legacyPrefix + "AutoMinRateFraction", cfg.autoMinRateFraction);
     }
 
     private static int readWeatherClearChancePercent(CommentedFileConfig file, int fallback) {
@@ -402,6 +586,13 @@ public final class SeamlessSleepServerConfigManager {
         return fullPath;
     }
 
+    private static int fractionToPercent(double fraction, int fallback) {
+        if (Double.isNaN(fraction) || Double.isInfinite(fraction)) {
+            return fallback;
+        }
+        return SeamlessSleepServerConfig.clampInt((int) Math.round(fraction * 100.0D), 0, 100);
+    }
+
     private static Integer readOptionalInt(CommentedFileConfig file, String key) {
         Object value = file.getRaw(key);
         return value instanceof Number number ? number.intValue() : null;
@@ -464,7 +655,25 @@ public final class SeamlessSleepServerConfigManager {
         }
     }
 
-    // Small wrapper so reload can return both config data and a status flag.
+    private record LegacyNatureFilterMapping(boolean grassAndFoliageEnabled,
+                                             boolean cropsAndSaplingsEnabled,
+                                             boolean kelpEnabled,
+                                             boolean vanillaOnlyAcceleration) {
+    }
+
+    private record LegacyAccelerationData(WorldSleepAccelerationMode mode,
+                                          WorldSleepAutomaticMode automaticMode,
+                                          WorldSleepAccelerationPlayersAffected playersAffected,
+                                          int manualRadiusChunks,
+                                          int manualSpeedPercent,
+                                          boolean grassAndFoliageEnabled,
+                                          boolean cropsAndSaplingsEnabled,
+                                          boolean kelpEnabled,
+                                          boolean vanillaOnlyAcceleration,
+                                          boolean processesAccelerationEnabled,
+                                          int processesSpeedPercent) {
+    }
+
     private static final class LoadResult {
         private final SeamlessSleepServerConfig config;
         private final ReloadResult status;

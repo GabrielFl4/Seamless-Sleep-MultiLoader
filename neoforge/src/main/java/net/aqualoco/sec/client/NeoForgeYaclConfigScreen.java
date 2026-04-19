@@ -1,6 +1,7 @@
 package net.aqualoco.sec.client;
 
 import dev.isxander.yacl3.api.ConfigCategory;
+import dev.isxander.yacl3.api.LabelOption;
 import dev.isxander.yacl3.api.Option;
 import dev.isxander.yacl3.api.OptionDescription;
 import dev.isxander.yacl3.api.OptionGroup;
@@ -15,15 +16,20 @@ import net.aqualoco.sec.config.SeamlessSleepServerConfig;
 import net.aqualoco.sec.config.SeamlessSleepServerConfigManager;
 import net.aqualoco.sec.config.SeamlessSleepServerConfigSnapshot;
 import net.aqualoco.sec.config.WorldSleepAccelerationConfig;
-import net.aqualoco.sec.config.WorldSleepAccelerationGovernorAggressiveness;
 import net.aqualoco.sec.config.WorldSleepAccelerationMode;
-import net.aqualoco.sec.config.WorldSleepAccelerationPreset;
-import net.aqualoco.sec.config.WorldSleepNatureFilterProfile;
+import net.aqualoco.sec.config.WorldSleepAccelerationPlayersAffected;
+import net.aqualoco.sec.config.WorldSleepAutomaticMode;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.util.Mth;
 
 import java.util.Locale;
+import java.util.Objects;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 public final class NeoForgeYaclConfigScreen {
 
@@ -31,28 +37,30 @@ public final class NeoForgeYaclConfigScreen {
     }
 
     public static Screen create(Screen parent) {
-        SeamlessSleepClientConfig cfg = SeamlessSleepClientConfigManager.get();
-        cfg.clamp();
+        SeamlessSleepClientConfig clientCfg = SeamlessSleepClientConfigManager.get();
+        clientCfg.clamp();
+
         SeamlessSleepServerConfig serverCfg = SeamlessSleepServerConfigManager.get();
         serverCfg.clamp();
 
         Minecraft client = Minecraft.getInstance();
         boolean connectedToRemote = client.getConnection() != null && !client.hasSingleplayerServer();
         boolean canEditServerConfig = !connectedToRemote;
-        WorldSleepAccelerationConfig accelerationCfg = serverCfg.worldSleepAcceleration;
+        int simulationDistance = resolveSimulationDistance(client, serverCfg);
+        ServerConfigUiState serverUiState = canEditServerConfig
+                ? ServerConfigUiState.fromLocal(serverCfg, simulationDistance)
+                : ServerConfigUiState.fromSnapshot();
 
         return YetAnotherConfigLib.createBuilder()
                 .title(Component.translatable("config.seamlesssleep.title"))
-                .category(buildOverlayCategory(cfg))
-                .category(buildChatCategory(cfg))
-                .category(buildCameraCategory(cfg))
-                .category(buildMiscCategory(cfg))
-                .category(buildSleepCategory(serverCfg, canEditServerConfig))
-                .category(buildWorldAccelerationCategory(accelerationCfg, canEditServerConfig))
+                .category(buildClientConfigCategory(clientCfg))
+                .category(buildServerConfigCategory(serverUiState, canEditServerConfig))
+                .category(buildAdvancedCategory(clientCfg))
                 .save(() -> {
-                    cfg.clamp();
+                    clientCfg.clamp();
                     SeamlessSleepClientConfigManager.save();
                     if (canEditServerConfig) {
+                        serverUiState.applyTo(serverCfg);
                         serverCfg.clamp();
                         SeamlessSleepServerConfigManager.save();
                     }
@@ -61,88 +69,305 @@ public final class NeoForgeYaclConfigScreen {
                 .generateScreen(parent);
     }
 
-    private static ConfigCategory buildOverlayCategory(SeamlessSleepClientConfig cfg) {
+    private static ConfigCategory buildClientConfigCategory(SeamlessSleepClientConfig cfg) {
         return ConfigCategory.createBuilder()
-                .name(Component.translatable("config.seamlesssleep.category.overlay"))
-                .option(buildToggle(
-                        Component.translatable("config.seamlesssleep.overlay.enabled"),
-                        Component.translatable("config.seamlesssleep.overlay.enabled.desc"),
-                        Component.empty(),
-                        true,
-                        () -> cfg.sleepOverlayEnabled,
-                        val -> cfg.sleepOverlayEnabled = val,
-                        true
-                ))
-                .option(buildDoubleSlider(
-                        Component.translatable("config.seamlesssleep.overlay.darkness"),
-                        Component.translatable("config.seamlesssleep.overlay.darkness.desc"),
-                        Component.empty(),
-                        0.35D,
-                        0.0D,
-                        1.0D,
-                        0.05D,
-                        () -> cfg.sleepOverlayDarknessMultiplier,
-                        val -> cfg.sleepOverlayDarknessMultiplier = val,
-                        true
-                ))
+                .name(Component.translatable("config.seamlesssleep.category.client"))
+                .group(buildOverlayGroup(cfg))
+                .group(buildChatGroup(cfg))
+                .group(buildCameraGroup(cfg))
                 .build();
     }
 
-    private static ConfigCategory buildChatCategory(SeamlessSleepClientConfig cfg) {
+    private static ConfigCategory buildServerConfigCategory(ServerConfigUiState uiState, boolean canEditServerConfig) {
+        Option<Integer> weatherChanceOption = buildIntSlider(
+                Component.translatable("config.seamlesssleep.sleep.clears_weather"),
+                serverDescription(
+                        Component.translatable("config.seamlesssleep.sleep.clears_weather.desc"),
+                        "config.seamlesssleep.sleep.clears_weather.command"
+                ),
+                Component.empty(),
+                100,
+                0,
+                100,
+                5,
+                () -> uiState.boundSleepWeatherClearChancePercent,
+                value -> uiState.boundSleepWeatherClearChancePercent = value,
+                canEditServerConfig,
+                NeoForgeYaclConfigScreen::formatWeatherChanceValue
+        );
+        listen(weatherChanceOption, value -> uiState.sleepWeatherClearChancePercent = value);
+
+        Option<Double> animationDurationOption = buildDoubleSlider(
+                Component.translatable("config.seamlesssleep.sleep.duration_multiplier"),
+                serverDescription(
+                        Component.translatable("config.seamlesssleep.sleep.duration_multiplier.desc"),
+                        "config.seamlesssleep.sleep.duration_multiplier.command"
+                ),
+                Component.empty(),
+                1.0D,
+                0.25D,
+                8.0D,
+                0.05D,
+                () -> uiState.boundSleepAnimationDurationMultiplier,
+                value -> uiState.boundSleepAnimationDurationMultiplier = value,
+                canEditServerConfig,
+                NeoForgeYaclConfigScreen::formatMultiplierValue
+        );
+        listen(animationDurationOption, value -> uiState.sleepAnimationDurationMultiplier = value);
+
+        Option<WorldSleepAccelerationMode> modeOption = buildEnumOption(
+                Component.translatable("config.seamlesssleep.world_acceleration.mode"),
+                serverDescription(
+                        Component.translatable("config.seamlesssleep.world_acceleration.mode.desc"),
+                        "config.seamlesssleep.world_acceleration.mode.command"
+                ),
+                Component.empty(),
+                WorldSleepAccelerationMode.AUTOMATIC,
+                WorldSleepAccelerationMode.class,
+                () -> uiState.boundMode,
+                value -> uiState.boundMode = value == null ? WorldSleepAccelerationMode.AUTOMATIC : value,
+                canEditServerConfig,
+                value -> enumText("config.seamlesssleep.world_acceleration.mode", value)
+        );
+        Option<Integer> radiusOption = buildIntSlider(
+                Component.translatable("config.seamlesssleep.world_acceleration.radius"),
+                serverDescription(
+                        Component.translatable("config.seamlesssleep.world_acceleration.radius.desc"),
+                        "config.seamlesssleep.world_acceleration.radius.command"
+                ),
+                Component.empty(),
+                uiState.resolveDisplayedAccelerationRadius(),
+                1,
+                uiState.simulationDistance,
+                1,
+                () -> uiState.boundDisplayedAccelerationRadius,
+                value -> uiState.boundDisplayedAccelerationRadius = Mth.clamp(value, 1, uiState.simulationDistance),
+                canEditServerConfig && uiState.mode == WorldSleepAccelerationMode.MANUAL,
+                value -> formatRadiusValue(value, uiState.simulationDistance)
+        );
+        Option<Integer> speedOption = buildIntSlider(
+                Component.translatable("config.seamlesssleep.world_acceleration.speed"),
+                serverDescription(
+                        Component.translatable("config.seamlesssleep.world_acceleration.speed.desc"),
+                        "config.seamlesssleep.world_acceleration.speed.command"
+                ),
+                Component.empty(),
+                uiState.resolveDisplayedAccelerationSpeedPercent(),
+                0,
+                100,
+                1,
+                () -> uiState.boundDisplayedAccelerationSpeedPercent,
+                value -> uiState.boundDisplayedAccelerationSpeedPercent = Mth.clamp(value, 0, 100),
+                canEditServerConfig && uiState.mode == WorldSleepAccelerationMode.MANUAL,
+                NeoForgeYaclConfigScreen::formatPercentValue
+        );
+        Option<WorldSleepAccelerationPlayersAffected> playersAffectedOption = buildEnumOption(
+                Component.translatable("config.seamlesssleep.world_acceleration.players_affected"),
+                serverDescription(
+                        Component.translatable("config.seamlesssleep.world_acceleration.players_affected.desc"),
+                        "config.seamlesssleep.world_acceleration.players_affected.command"
+                ),
+                Component.empty(),
+                WorldSleepAccelerationPlayersAffected.ALL_PLAYERS,
+                WorldSleepAccelerationPlayersAffected.class,
+                () -> uiState.boundDisplayedPlayersAffected,
+                value -> uiState.boundDisplayedPlayersAffected = value == null
+                        ? WorldSleepAccelerationPlayersAffected.ALL_PLAYERS
+                        : value,
+                canEditServerConfig && uiState.mode == WorldSleepAccelerationMode.MANUAL,
+                value -> enumText("config.seamlesssleep.world_acceleration.players_affected", value)
+        );
+        Option<WorldSleepAutomaticMode> automaticModeOption = buildEnumOption(
+                Component.translatable("config.seamlesssleep.world_acceleration.automatic_mode"),
+                serverDescription(
+                        Component.translatable("config.seamlesssleep.world_acceleration.automatic_mode.desc"),
+                        "config.seamlesssleep.world_acceleration.automatic_mode.command"
+                ),
+                Component.empty(),
+                WorldSleepAutomaticMode.AGGRESSIVE,
+                WorldSleepAutomaticMode.class,
+                () -> uiState.boundAutomaticMode,
+                value -> uiState.boundAutomaticMode = value == null ? WorldSleepAutomaticMode.AGGRESSIVE : value,
+                canEditServerConfig && uiState.mode == WorldSleepAccelerationMode.AUTOMATIC,
+                value -> enumText("config.seamlesssleep.world_acceleration.automatic_mode", value)
+        );
+        Option<Boolean> grassOption = buildToggle(
+                Component.translatable("config.seamlesssleep.world_acceleration.grass_and_foliage"),
+                serverDescription(
+                        Component.translatable("config.seamlesssleep.world_acceleration.grass_and_foliage.desc"),
+                        "config.seamlesssleep.world_acceleration.grass_and_foliage.command"
+                ),
+                Component.empty(),
+                true,
+                () -> uiState.boundGrassAndFoliageAccelerationEnabled,
+                value -> uiState.boundGrassAndFoliageAccelerationEnabled = value,
+                canEditServerConfig && uiState.mode != WorldSleepAccelerationMode.OFF
+        );
+        Option<Boolean> cropsOption = buildToggle(
+                Component.translatable("config.seamlesssleep.world_acceleration.crops_and_saplings"),
+                serverDescription(
+                        Component.translatable("config.seamlesssleep.world_acceleration.crops_and_saplings.desc"),
+                        "config.seamlesssleep.world_acceleration.crops_and_saplings.command"
+                ),
+                Component.empty(),
+                true,
+                () -> uiState.boundCropsAndSaplingsAccelerationEnabled,
+                value -> uiState.boundCropsAndSaplingsAccelerationEnabled = value,
+                canEditServerConfig && uiState.mode != WorldSleepAccelerationMode.OFF
+        );
+        Option<Boolean> kelpOption = buildToggle(
+                Component.translatable("config.seamlesssleep.world_acceleration.kelp"),
+                serverDescription(
+                        Component.translatable("config.seamlesssleep.world_acceleration.kelp.desc"),
+                        "config.seamlesssleep.world_acceleration.kelp.command"
+                ),
+                Component.empty(),
+                false,
+                () -> uiState.boundKelpAccelerationEnabled,
+                value -> uiState.boundKelpAccelerationEnabled = value,
+                canEditServerConfig && uiState.mode != WorldSleepAccelerationMode.OFF
+        );
+        Option<Boolean> vanillaOnlyOption = buildToggle(
+                Component.translatable("config.seamlesssleep.world_acceleration.vanilla_only"),
+                serverDescription(
+                        Component.translatable("config.seamlesssleep.world_acceleration.vanilla_only.desc"),
+                        "config.seamlesssleep.world_acceleration.vanilla_only.command"
+                ),
+                Component.empty(),
+                true,
+                () -> uiState.boundVanillaOnlyAcceleration,
+                value -> uiState.boundVanillaOnlyAcceleration = value,
+                canEditServerConfig && uiState.mode != WorldSleepAccelerationMode.OFF
+        );
+        Option<Boolean> processesOption = buildToggle(
+                Component.translatable("config.seamlesssleep.world_acceleration.processes_enabled"),
+                serverDescription(
+                        Component.translatable("config.seamlesssleep.world_acceleration.processes_enabled.desc"),
+                        "config.seamlesssleep.world_acceleration.processes_enabled.command"
+                ),
+                Component.empty(),
+                true,
+                () -> uiState.boundProcessesAccelerationEnabled,
+                value -> uiState.boundProcessesAccelerationEnabled = value,
+                canEditServerConfig && uiState.mode != WorldSleepAccelerationMode.OFF
+        );
+        Option<Integer> processesSpeedOption = buildIntSlider(
+                Component.translatable("config.seamlesssleep.world_acceleration.processes_speed"),
+                serverDescription(
+                        Component.translatable("config.seamlesssleep.world_acceleration.processes_speed.desc"),
+                        "config.seamlesssleep.world_acceleration.processes_speed.command"
+                ),
+                Component.empty(),
+                uiState.processesSpeedPercent,
+                0,
+                100,
+                1,
+                () -> uiState.boundProcessesSpeedPercent,
+                value -> uiState.boundProcessesSpeedPercent = Mth.clamp(value, 0, 100),
+                canEditServerConfig && uiState.mode != WorldSleepAccelerationMode.OFF && uiState.processesAccelerationEnabled,
+                NeoForgeYaclConfigScreen::formatPercentValue
+        );
+
+        Runnable refreshAccelerationOptions = () -> refreshAccelerationOptions(
+                canEditServerConfig,
+                uiState,
+                radiusOption,
+                speedOption,
+                playersAffectedOption,
+                automaticModeOption,
+                grassOption,
+                cropsOption,
+                kelpOption,
+                vanillaOnlyOption,
+                processesOption,
+                processesSpeedOption
+        );
+
+        listen(modeOption, value -> {
+            uiState.mode = value;
+            refreshAccelerationOptions.run();
+        });
+        listen(radiusOption, value -> {
+            if (uiState.mode == WorldSleepAccelerationMode.MANUAL) {
+                uiState.manualAccelerationRadiusChunks = value;
+            }
+        });
+        listen(speedOption, value -> {
+            if (uiState.mode == WorldSleepAccelerationMode.MANUAL) {
+                uiState.manualAccelerationSpeedPercent = value;
+            }
+        });
+        listen(playersAffectedOption, value -> {
+            if (uiState.mode == WorldSleepAccelerationMode.MANUAL) {
+                uiState.playersAffected = value;
+            }
+        });
+        listen(automaticModeOption, value -> {
+            uiState.automaticMode = value;
+            refreshAccelerationOptions.run();
+        });
+        listen(grassOption, value -> uiState.grassAndFoliageAccelerationEnabled = value);
+        listen(cropsOption, value -> uiState.cropsAndSaplingsAccelerationEnabled = value);
+        listen(kelpOption, value -> uiState.kelpAccelerationEnabled = value);
+        listen(vanillaOnlyOption, value -> uiState.vanillaOnlyAcceleration = value);
+        listen(processesOption, value -> {
+            uiState.processesAccelerationEnabled = value;
+            refreshAccelerationOptions.run();
+        });
+        listen(processesSpeedOption, value -> uiState.processesSpeedPercent = value);
+        refreshAccelerationOptions.run();
+
+        OptionGroup generalGroup = OptionGroup.createBuilder()
+                .name(Component.translatable("config.seamlesssleep.server.group.general"))
+                .description(description(
+                        Component.translatable("config.seamlesssleep.server.group.general.desc"),
+                        canEditServerConfig
+                ))
+                .collapsed(false)
+                .option(weatherChanceOption)
+                .option(animationDurationOption)
+                .build();
+
+        OptionGroup accelerationGroup = OptionGroup.createBuilder()
+                .name(Component.translatable("config.seamlesssleep.server.group.acceleration"))
+                .description(description(
+                        Component.translatable("config.seamlesssleep.server.group.acceleration.desc"),
+                        canEditServerConfig
+                ))
+                .collapsed(false)
+                .option(modeOption)
+                .option(LabelOption.create(Component.translatable("config.seamlesssleep.world_acceleration.manual_section")))
+                .option(radiusOption)
+                .option(speedOption)
+                .option(playersAffectedOption)
+                .option(LabelOption.create(Component.translatable("config.seamlesssleep.world_acceleration.automatic_section")))
+                .option(automaticModeOption)
+                .option(grassOption)
+                .option(cropsOption)
+                .option(kelpOption)
+                .option(vanillaOnlyOption)
+                .option(processesOption)
+                .option(processesSpeedOption)
+                .build();
+
         return ConfigCategory.createBuilder()
-                .name(Component.translatable("config.seamlesssleep.category.chat"))
-                .option(buildDoubleSlider(
-                        Component.translatable("config.seamlesssleep.chat.dim_multiplier"),
-                        Component.translatable("config.seamlesssleep.chat.dim_multiplier.desc"),
-                        Component.empty(),
-                        1.0D,
-                        0.1D,
-                        2.0D,
-                        0.05D,
-                        () -> cfg.sleepChatOpacityMultiplier,
-                        val -> cfg.sleepChatOpacityMultiplier = val,
-                        true
-                ))
-                .option(buildIntSlider(
-                        Component.translatable("config.seamlesssleep.chat.max_lines"),
-                        Component.translatable("config.seamlesssleep.chat.max_lines.desc"),
-                        4,
-                        0,
-                        12,
-                        () -> cfg.sleepChatMaxLines,
-                        val -> cfg.sleepChatMaxLines = val
-                ))
+                .name(Component.translatable("config.seamlesssleep.category.server"))
+                .group(generalGroup)
+                .group(accelerationGroup)
                 .build();
     }
 
-    private static ConfigCategory buildCameraCategory(SeamlessSleepClientConfig cfg) {
+    private static ConfigCategory buildAdvancedCategory(SeamlessSleepClientConfig cfg) {
         return ConfigCategory.createBuilder()
-                .name(Component.translatable("config.seamlesssleep.category.camera"))
-                .option(buildDoubleSlider(
-                        Component.translatable("config.seamlesssleep.camera.tilt_degrees"),
-                        Component.translatable("config.seamlesssleep.camera.tilt_degrees.desc"),
-                        Component.empty(),
-                        10.0D,
-                        0.0D,
-                        90.0D,
-                        0.1D,
-                        () -> cfg.sleepCameraTiltDegrees,
-                        val -> cfg.sleepCameraTiltDegrees = val,
-                        true
-                ))
-                .build();
-    }
-
-    private static ConfigCategory buildMiscCategory(SeamlessSleepClientConfig cfg) {
-        return ConfigCategory.createBuilder()
-                .name(Component.translatable("config.seamlesssleep.category.misc"))
+                .name(Component.translatable("config.seamlesssleep.category.advanced"))
+                .option(LabelOption.create(Component.translatable("config.seamlesssleep.advanced.notice")))
                 .option(buildToggle(
                         Component.translatable("config.seamlesssleep.misc.debug_logs"),
                         Component.translatable("config.seamlesssleep.misc.debug_logs.desc"),
                         Component.empty(),
                         false,
                         () -> cfg.debugLogsEnabled,
-                        val -> cfg.debugLogsEnabled = val,
+                        value -> cfg.debugLogsEnabled = value,
                         true
                 ))
                 .option(buildToggle(
@@ -151,368 +376,206 @@ public final class NeoForgeYaclConfigScreen {
                         Component.empty(),
                         true,
                         () -> cfg.replayCompatibilityEnabled,
-                        val -> cfg.replayCompatibilityEnabled = val,
+                        value -> cfg.replayCompatibilityEnabled = value,
                         true
                 ))
                 .build();
     }
 
-    private static ConfigCategory buildSleepCategory(SeamlessSleepServerConfig serverCfg, boolean canEditServerConfig) {
-        return ConfigCategory.createBuilder()
-                .name(Component.translatable("config.seamlesssleep.category.sleep"))
-                .option(buildServerIntSlider(
-                        Component.translatable("config.seamlesssleep.sleep.clears_weather"),
-                        Component.translatable("config.seamlesssleep.sleep.clears_weather.desc"),
-                        Component.translatable("config.seamlesssleep.server_controlled"),
+    private static OptionGroup buildOverlayGroup(SeamlessSleepClientConfig cfg) {
+        return OptionGroup.createBuilder()
+                .name(Component.translatable("config.seamlesssleep.client.group.overlay"))
+                .description(OptionDescription.of(Component.translatable("config.seamlesssleep.client.group.overlay.desc")))
+                .collapsed(false)
+                .option(buildToggle(
+                        Component.translatable("config.seamlesssleep.overlay.enabled"),
+                        Component.translatable("config.seamlesssleep.overlay.enabled.desc"),
+                        Component.empty(),
+                        true,
+                        () -> cfg.sleepOverlayEnabled,
+                        value -> cfg.sleepOverlayEnabled = value,
+                        true
+                ))
+                .option(buildIntSlider(
+                        Component.translatable("config.seamlesssleep.overlay.darkness"),
+                        Component.translatable("config.seamlesssleep.overlay.darkness.desc"),
+                        Component.empty(),
+                        35,
+                        0,
+                        100,
+                        1,
+                        () -> toPercent(cfg.sleepOverlayDarknessMultiplier),
+                        value -> cfg.sleepOverlayDarknessMultiplier = fromPercent(value),
+                        true,
+                        NeoForgeYaclConfigScreen::formatPercentValue
+                ))
+                .build();
+    }
+
+    private static OptionGroup buildChatGroup(SeamlessSleepClientConfig cfg) {
+        return OptionGroup.createBuilder()
+                .name(Component.translatable("config.seamlesssleep.client.group.chat"))
+                .description(OptionDescription.of(Component.translatable("config.seamlesssleep.client.group.chat.desc")))
+                .collapsed(false)
+                .option(buildIntSlider(
+                        Component.translatable("config.seamlesssleep.chat.dim_multiplier"),
+                        Component.translatable("config.seamlesssleep.chat.dim_multiplier.desc"),
+                        Component.empty(),
                         100,
                         0,
                         100,
-                        5,
-                        () -> canEditServerConfig
-                                ? serverCfg.sleepWeatherClearChancePercent
-                                : SeamlessSleepServerConfigSnapshot.getSleepWeatherClearChancePercent(),
-                        val -> {
-                            if (canEditServerConfig) {
-                                serverCfg.sleepWeatherClearChancePercent = val;
-                            }
-                        },
-                        canEditServerConfig,
-                        NeoForgeYaclConfigScreen::formatWeatherChanceValue
-                ))
-                .option(buildDoubleSlider(
-                        Component.translatable("config.seamlesssleep.sleep.duration_multiplier"),
-                        Component.translatable("config.seamlesssleep.sleep.duration_multiplier.desc"),
-                        Component.translatable("config.seamlesssleep.server_controlled"),
-                        1.0D,
-                        0.25D,
-                        8.0D,
-                        0.05D,
-                        () -> canEditServerConfig
-                                ? serverCfg.sleepAnimationDurationMultiplier
-                                : SeamlessSleepServerConfigSnapshot.getSleepAnimationDurationMultiplier(),
-                        val -> {
-                            if (canEditServerConfig) {
-                                serverCfg.sleepAnimationDurationMultiplier = val;
-                            }
-                        },
-                        canEditServerConfig
-                ))
-                .build();
-    }
-
-    private static ConfigCategory buildWorldAccelerationCategory(WorldSleepAccelerationConfig accelerationCfg,
-                                                                 boolean canEditServerConfig) {
-        return ConfigCategory.createBuilder()
-                .name(Component.translatable("config.seamlesssleep.category.world_acceleration"))
-                .group(buildAccelerationGeneralGroup(accelerationCfg, canEditServerConfig))
-                .group(buildNatureGroup(accelerationCfg, canEditServerConfig))
-                .group(buildProcessGroup(accelerationCfg, canEditServerConfig))
-                .build();
-    }
-
-    private static OptionGroup buildAccelerationGeneralGroup(WorldSleepAccelerationConfig accelerationCfg,
-                                                             boolean canEditServerConfig) {
-        return OptionGroup.createBuilder()
-                .name(Component.translatable("config.seamlesssleep.world_acceleration.group.general"))
-                .description(description(
-                        Component.translatable("config.seamlesssleep.world_acceleration.group.general.desc"),
-                        canEditServerConfig
-                ))
-                .option(buildEnumOption(
-                        Component.translatable("config.seamlesssleep.world_acceleration.mode"),
-                        Component.translatable("config.seamlesssleep.world_acceleration.mode.desc"),
-                        Component.translatable("config.seamlesssleep.server_controlled"),
-                        WorldSleepAccelerationMode.AUTO,
-                        WorldSleepAccelerationMode.class,
-                        () -> canEditServerConfig
-                                ? accelerationCfg.mode
-                                : SeamlessSleepServerConfigSnapshot.getWorldSleepAccelerationMode(),
-                        value -> {
-                            if (canEditServerConfig) {
-                                accelerationCfg.mode = value;
-                            }
-                        },
-                        canEditServerConfig,
-                        value -> enumText("config.seamlesssleep.world_acceleration.mode", value)
-                ))
-                .option(buildEnumOption(
-                        Component.translatable("config.seamlesssleep.world_acceleration.preset"),
-                        Component.translatable("config.seamlesssleep.world_acceleration.preset.desc"),
-                        Component.translatable("config.seamlesssleep.server_controlled"),
-                        WorldSleepAccelerationPreset.BALANCED,
-                        WorldSleepAccelerationPreset.class,
-                        () -> canEditServerConfig
-                                ? accelerationCfg.preset
-                                : SeamlessSleepServerConfigSnapshot.getWorldSleepAccelerationPreset(),
-                        value -> {
-                            if (canEditServerConfig) {
-                                if (value == WorldSleepAccelerationPreset.CUSTOM) {
-                                    accelerationCfg.markPresetCustom();
-                                } else {
-                                    accelerationCfg.applyPreset(value);
-                                }
-                            }
-                        },
-                        canEditServerConfig,
-                        value -> enumText("config.seamlesssleep.world_acceleration.preset", value)
-                ))
-                .option(buildToggle(
-                        Component.translatable("config.seamlesssleep.world_acceleration.random_tick_enabled"),
-                        Component.translatable("config.seamlesssleep.world_acceleration.random_tick_enabled.desc"),
-                        Component.translatable("config.seamlesssleep.server_controlled"),
+                        1,
+                        () -> toPercent(cfg.sleepChatOpacityMultiplier),
+                        value -> cfg.sleepChatOpacityMultiplier = fromPercent(value),
                         true,
-                        () -> canEditServerConfig
-                                ? accelerationCfg.randomTickAccelerationEnabled
-                                : SeamlessSleepServerConfigSnapshot.isRandomTickAccelerationEnabled(),
-                        val -> {
-                            if (canEditServerConfig) {
-                                accelerationCfg.randomTickAccelerationEnabled = val;
-                                accelerationCfg.markPresetCustom();
-                            }
-                        },
-                        canEditServerConfig
+                        NeoForgeYaclConfigScreen::formatPercentValue
                 ))
-                .option(buildToggle(
-                        Component.translatable("config.seamlesssleep.world_acceleration.process_enabled"),
-                        Component.translatable("config.seamlesssleep.world_acceleration.process_enabled.desc"),
-                        Component.translatable("config.seamlesssleep.server_controlled"),
+                .option(buildIntSlider(
+                        Component.translatable("config.seamlesssleep.chat.max_lines"),
+                        Component.translatable("config.seamlesssleep.chat.max_lines.desc"),
+                        Component.empty(),
+                        4,
+                        0,
+                        12,
+                        1,
+                        () -> cfg.sleepChatMaxLines,
+                        value -> cfg.sleepChatMaxLines = value,
                         true,
-                        () -> canEditServerConfig
-                                ? accelerationCfg.processAccelerationEnabled
-                                : SeamlessSleepServerConfigSnapshot.isProcessAccelerationEnabled(),
-                        val -> {
-                            if (canEditServerConfig) {
-                                accelerationCfg.processAccelerationEnabled = val;
-                                accelerationCfg.markPresetCustom();
-                            }
-                        },
-                        canEditServerConfig
-                ))
-                .option(buildEnumOption(
-                        Component.translatable("config.seamlesssleep.world_acceleration.governor"),
-                        Component.translatable("config.seamlesssleep.world_acceleration.governor.desc"),
-                        Component.translatable("config.seamlesssleep.server_controlled"),
-                        WorldSleepAccelerationGovernorAggressiveness.BALANCED,
-                        WorldSleepAccelerationGovernorAggressiveness.class,
-                        () -> canEditServerConfig
-                                ? accelerationCfg.governorAggressiveness
-                                : SeamlessSleepServerConfigSnapshot.getGovernorAggressiveness(),
-                        value -> {
-                            if (canEditServerConfig) {
-                                accelerationCfg.governorAggressiveness = value;
-                                accelerationCfg.markPresetCustom();
-                            }
-                        },
-                        canEditServerConfig,
-                        value -> enumText("config.seamlesssleep.world_acceleration.governor", value)
-                ))
-                .option(buildEnumOption(
-                        Component.translatable("config.seamlesssleep.world_acceleration.nature_filter"),
-                        Component.translatable("config.seamlesssleep.world_acceleration.nature_filter.desc"),
-                        Component.translatable("config.seamlesssleep.server_controlled"),
-                        WorldSleepNatureFilterProfile.ALL,
-                        WorldSleepNatureFilterProfile.class,
-                        () -> canEditServerConfig
-                                ? accelerationCfg.natureFilterProfile
-                                : SeamlessSleepServerConfigSnapshot.getNatureFilterProfile(),
-                        value -> {
-                            if (canEditServerConfig) {
-                                accelerationCfg.natureFilterProfile = value;
-                                accelerationCfg.markPresetCustom();
-                            }
-                        },
-                        canEditServerConfig,
-                        value -> enumText("config.seamlesssleep.world_acceleration.nature_filter", value)
+                        value -> Component.literal(Integer.toString(value))
                 ))
                 .build();
     }
 
-    private static OptionGroup buildNatureGroup(WorldSleepAccelerationConfig accelerationCfg,
-                                                boolean canEditServerConfig) {
+    private static OptionGroup buildCameraGroup(SeamlessSleepClientConfig cfg) {
         return OptionGroup.createBuilder()
-                .name(Component.translatable("config.seamlesssleep.world_acceleration.group.nature"))
-                .description(description(
-                        Component.translatable("config.seamlesssleep.world_acceleration.group.nature.desc"),
-                        canEditServerConfig
-                ))
-                .option(buildServerIntSlider(
-                        Component.translatable("config.seamlesssleep.world_acceleration.base_radius"),
-                        Component.translatable("config.seamlesssleep.world_acceleration.base_radius.desc"),
-                        Component.translatable("config.seamlesssleep.server_controlled"),
-                        6,
+                .name(Component.translatable("config.seamlesssleep.client.group.camera"))
+                .description(OptionDescription.of(Component.translatable("config.seamlesssleep.client.group.camera.desc")))
+                .collapsed(false)
+                .option(buildIntSlider(
+                        Component.translatable("config.seamlesssleep.camera.tilt_degrees"),
+                        Component.translatable("config.seamlesssleep.camera.tilt_degrees.desc"),
+                        Component.empty(),
+                        10,
                         0,
-                        32,
+                        90,
                         1,
-                        () -> canEditServerConfig
-                                ? accelerationCfg.nature.baseRadiusChunks
-                                : SeamlessSleepServerConfigSnapshot.getNatureBaseRadiusChunks(),
-                        val -> {
-                            if (canEditServerConfig) {
-                                accelerationCfg.nature.baseRadiusChunks = val;
-                                accelerationCfg.markPresetCustom();
-                            }
-                        },
-                        canEditServerConfig,
-                        NeoForgeYaclConfigScreen::formatRadiusValue
+                        () -> Mth.clamp((int) Math.round(cfg.sleepCameraTiltDegrees), 0, 90),
+                        value -> cfg.sleepCameraTiltDegrees = value,
+                        true,
+                        NeoForgeYaclConfigScreen::formatDegreesValue
                 ))
-                .option(buildServerIntSlider(
-                        Component.translatable("config.seamlesssleep.world_acceleration.auto_min_radius"),
-                        Component.translatable("config.seamlesssleep.world_acceleration.auto_min_radius.desc"),
-                        Component.translatable("config.seamlesssleep.server_controlled"),
-                        3,
+                .option(buildIntSlider(
+                        Component.translatable("config.seamlesssleep.camera.mouse_smoothness"),
+                        Component.translatable("config.seamlesssleep.camera.mouse_smoothness.desc"),
+                        Component.empty(),
+                        100,
                         0,
-                        32,
+                        100,
                         1,
-                        () -> canEditServerConfig
-                                ? accelerationCfg.nature.autoMinRadiusChunks
-                                : SeamlessSleepServerConfigSnapshot.getNatureAutoMinRadiusChunks(),
-                        val -> {
-                            if (canEditServerConfig) {
-                                accelerationCfg.nature.autoMinRadiusChunks = val;
-                                accelerationCfg.markPresetCustom();
-                            }
-                        },
-                        canEditServerConfig,
-                        NeoForgeYaclConfigScreen::formatRadiusValue
-                ))
-                .option(buildDoubleSlider(
-                        Component.translatable("config.seamlesssleep.world_acceleration.base_rate_fraction"),
-                        Component.translatable("config.seamlesssleep.world_acceleration.base_rate_fraction.desc"),
-                        Component.translatable("config.seamlesssleep.server_controlled"),
-                        0.45D,
-                        0.0D,
-                        1.0D,
-                        0.05D,
-                        () -> canEditServerConfig
-                                ? accelerationCfg.nature.baseRateFraction
-                                : SeamlessSleepServerConfigSnapshot.getNatureBaseRateFraction(),
-                        val -> {
-                            if (canEditServerConfig) {
-                                accelerationCfg.nature.baseRateFraction = val;
-                                accelerationCfg.markPresetCustom();
-                            }
-                        },
-                        canEditServerConfig,
-                        NeoForgeYaclConfigScreen::formatRateFraction
-                ))
-                .option(buildDoubleSlider(
-                        Component.translatable("config.seamlesssleep.world_acceleration.auto_min_rate_fraction"),
-                        Component.translatable("config.seamlesssleep.world_acceleration.auto_min_rate_fraction.desc"),
-                        Component.translatable("config.seamlesssleep.server_controlled"),
-                        0.20D,
-                        0.0D,
-                        1.0D,
-                        0.05D,
-                        () -> canEditServerConfig
-                                ? accelerationCfg.nature.autoMinRateFraction
-                                : SeamlessSleepServerConfigSnapshot.getNatureAutoMinRateFraction(),
-                        val -> {
-                            if (canEditServerConfig) {
-                                accelerationCfg.nature.autoMinRateFraction = val;
-                                accelerationCfg.markPresetCustom();
-                            }
-                        },
-                        canEditServerConfig,
-                        NeoForgeYaclConfigScreen::formatRateFraction
+                        () -> cfg.mouseSmoothnessPercent,
+                        value -> cfg.mouseSmoothnessPercent = value,
+                        true,
+                        NeoForgeYaclConfigScreen::formatPercentValue
                 ))
                 .build();
     }
 
-    private static OptionGroup buildProcessGroup(WorldSleepAccelerationConfig accelerationCfg,
-                                                 boolean canEditServerConfig) {
-        return OptionGroup.createBuilder()
-                .name(Component.translatable("config.seamlesssleep.world_acceleration.group.process"))
-                .description(description(
-                        Component.translatable("config.seamlesssleep.world_acceleration.group.process.desc"),
-                        canEditServerConfig
-                ))
-                .option(buildServerIntSlider(
-                        Component.translatable("config.seamlesssleep.world_acceleration.base_radius"),
-                        Component.translatable("config.seamlesssleep.world_acceleration.base_radius.desc"),
-                        Component.translatable("config.seamlesssleep.server_controlled"),
-                        6,
-                        0,
-                        32,
-                        1,
-                        () -> canEditServerConfig
-                                ? accelerationCfg.process.baseRadiusChunks
-                                : SeamlessSleepServerConfigSnapshot.getProcessBaseRadiusChunks(),
-                        val -> {
-                            if (canEditServerConfig) {
-                                accelerationCfg.process.baseRadiusChunks = val;
-                                accelerationCfg.markPresetCustom();
-                            }
-                        },
-                        canEditServerConfig,
-                        NeoForgeYaclConfigScreen::formatRadiusValue
-                ))
-                .option(buildServerIntSlider(
-                        Component.translatable("config.seamlesssleep.world_acceleration.auto_min_radius"),
-                        Component.translatable("config.seamlesssleep.world_acceleration.auto_min_radius.desc"),
-                        Component.translatable("config.seamlesssleep.server_controlled"),
-                        3,
-                        0,
-                        32,
-                        1,
-                        () -> canEditServerConfig
-                                ? accelerationCfg.process.autoMinRadiusChunks
-                                : SeamlessSleepServerConfigSnapshot.getProcessAutoMinRadiusChunks(),
-                        val -> {
-                            if (canEditServerConfig) {
-                                accelerationCfg.process.autoMinRadiusChunks = val;
-                                accelerationCfg.markPresetCustom();
-                            }
-                        },
-                        canEditServerConfig,
-                        NeoForgeYaclConfigScreen::formatRadiusValue
-                ))
-                .option(buildDoubleSlider(
-                        Component.translatable("config.seamlesssleep.world_acceleration.base_rate_fraction"),
-                        Component.translatable("config.seamlesssleep.world_acceleration.process_base_rate_fraction.desc"),
-                        Component.translatable("config.seamlesssleep.server_controlled"),
-                        0.75D,
-                        0.0D,
-                        1.0D,
-                        0.05D,
-                        () -> canEditServerConfig
-                                ? accelerationCfg.process.baseRateFraction
-                                : SeamlessSleepServerConfigSnapshot.getProcessBaseRateFraction(),
-                        val -> {
-                            if (canEditServerConfig) {
-                                accelerationCfg.process.baseRateFraction = val;
-                                accelerationCfg.markPresetCustom();
-                            }
-                        },
-                        canEditServerConfig,
-                        NeoForgeYaclConfigScreen::formatRateFraction
-                ))
-                .option(buildDoubleSlider(
-                        Component.translatable("config.seamlesssleep.world_acceleration.auto_min_rate_fraction"),
-                        Component.translatable("config.seamlesssleep.world_acceleration.process_auto_min_rate_fraction.desc"),
-                        Component.translatable("config.seamlesssleep.server_controlled"),
-                        0.40D,
-                        0.0D,
-                        1.0D,
-                        0.05D,
-                        () -> canEditServerConfig
-                                ? accelerationCfg.process.autoMinRateFraction
-                                : SeamlessSleepServerConfigSnapshot.getProcessAutoMinRateFraction(),
-                        val -> {
-                            if (canEditServerConfig) {
-                                accelerationCfg.process.autoMinRateFraction = val;
-                                accelerationCfg.markPresetCustom();
-                            }
-                        },
-                        canEditServerConfig,
-                        NeoForgeYaclConfigScreen::formatRateFraction
-                ))
-                .build();
+    private static void refreshAccelerationOptions(boolean canEditServerConfig,
+                                                   ServerConfigUiState uiState,
+                                                   Option<Integer> radiusOption,
+                                                   Option<Integer> speedOption,
+                                                   Option<WorldSleepAccelerationPlayersAffected> playersAffectedOption,
+                                                   Option<WorldSleepAutomaticMode> automaticModeOption,
+                                                   Option<Boolean> grassOption,
+                                                   Option<Boolean> cropsOption,
+                                                   Option<Boolean> kelpOption,
+                                                   Option<Boolean> vanillaOnlyOption,
+                                                   Option<Boolean> processesOption,
+                                                   Option<Integer> processesSpeedOption) {
+        boolean systemEnabled = canEditServerConfig && uiState.mode != WorldSleepAccelerationMode.OFF;
+        boolean automaticModeAvailable = canEditServerConfig && uiState.mode == WorldSleepAccelerationMode.AUTOMATIC;
+        boolean manualControlsAvailable = canEditServerConfig && uiState.mode == WorldSleepAccelerationMode.MANUAL;
+
+        radiusOption.setAvailable(manualControlsAvailable);
+        speedOption.setAvailable(manualControlsAvailable);
+        playersAffectedOption.setAvailable(manualControlsAvailable);
+        automaticModeOption.setAvailable(automaticModeAvailable);
+        grassOption.setAvailable(systemEnabled);
+        cropsOption.setAvailable(systemEnabled);
+        kelpOption.setAvailable(systemEnabled);
+        vanillaOnlyOption.setAvailable(systemEnabled);
+        processesOption.setAvailable(systemEnabled);
+        processesSpeedOption.setAvailable(systemEnabled && uiState.processesAccelerationEnabled);
+
+        setPendingIfChanged(radiusOption, uiState.resolveDisplayedAccelerationRadius());
+        setPendingIfChanged(speedOption, uiState.resolveDisplayedAccelerationSpeedPercent());
+        setPendingIfChanged(playersAffectedOption, uiState.resolveDisplayedPlayersAffected());
+    }
+
+    private static int resolveSimulationDistance(Minecraft client, SeamlessSleepServerConfig serverCfg) {
+        if (client.hasSingleplayerServer() && client.getSingleplayerServer() != null) {
+            return Math.max(1, client.getSingleplayerServer().getPlayerList().getSimulationDistance());
+        }
+        int snapshotDistance = Math.max(1, SeamlessSleepServerConfigSnapshot.getServerSimulationDistance());
+        int configuredRadius = serverCfg.worldSleepAcceleration.resolveManualRadiusChunks(
+                WorldSleepAccelerationConfig.DEFAULT_MANUAL_RADIUS_CHUNKS
+        );
+        return Math.max(snapshotDistance, configuredRadius);
+    }
+
+    private static <T> void listen(Option<T> option, Consumer<T> consumer) {
+        option.addEventListener((opt, event) -> {
+            if (event == dev.isxander.yacl3.api.OptionEventListener.Event.STATE_CHANGE) {
+                consumer.accept(opt.pendingValue());
+            }
+        });
+    }
+
+    private static <T> void setPendingIfChanged(Option<T> option, T value) {
+        if (!Objects.equals(option.pendingValue(), value)) {
+            option.requestSet(value);
+        }
+    }
+
+    private static int toPercent(double value) {
+        return Mth.clamp((int) Math.round(value * 100.0D), 0, 100);
+    }
+
+    private static double fromPercent(int value) {
+        return Mth.clamp(value, 0, 100) / 100.0D;
+    }
+
+    private static Component serverDescription(Component description, String commandKey) {
+        return Component.empty()
+                .append(description)
+                .append("\n\n")
+                .append(serverControlledBadge())
+                .append("\n")
+                .append(serverCommandHint(commandKey));
+    }
+
+    private static Component serverControlledBadge() {
+        return Component.translatable("config.seamlesssleep.server_controlled").withStyle(ChatFormatting.YELLOW);
+    }
+
+    private static Component serverCommandHint(String commandKey) {
+        return Component.translatable(
+                "config.seamlesssleep.server_command",
+                Component.translatable(commandKey)
+        ).withStyle(ChatFormatting.GRAY);
     }
 
     private static OptionDescription description(Component description, boolean available) {
         return available
                 ? OptionDescription.of(description)
-                : OptionDescription.of(description, Component.translatable("config.seamlesssleep.server_controlled"));
+                : OptionDescription.of(description, serverControlledBadge());
+    }
+
+    private static OptionDescription optionDescription(Component description, Component disabledReason, boolean available) {
+        if (available || disabledReason.getString().isBlank()) {
+            return OptionDescription.of(description);
+        }
+        return OptionDescription.of(description, disabledReason);
     }
 
     private static Option<Double> buildDoubleSlider(Component name,
@@ -522,34 +585,15 @@ public final class NeoForgeYaclConfigScreen {
                                                     double min,
                                                     double max,
                                                     double step,
-                                                    java.util.function.Supplier<Double> getter,
-                                                    java.util.function.Consumer<Double> setter,
-                                                    boolean available) {
-        return buildDoubleSlider(name, description, disabledReason, def, min, max, step, getter, setter, available, null);
-    }
-
-    private static Option<Double> buildDoubleSlider(Component name,
-                                                    Component description,
-                                                    Component disabledReason,
-                                                    double def,
-                                                    double min,
-                                                    double max,
-                                                    double step,
-                                                    java.util.function.Supplier<Double> getter,
-                                                    java.util.function.Consumer<Double> setter,
+                                                    Supplier<Double> getter,
+                                                    Consumer<Double> setter,
                                                     boolean available,
-                                                    java.util.function.Function<Double, Component> formatter) {
-        OptionDescription optionDescription = available
-                ? OptionDescription.of(description)
-                : OptionDescription.of(description, disabledReason);
+                                                    Function<Double, Component> formatter) {
+        OptionDescription optionDescription = optionDescription(description, disabledReason, available);
         Option.Builder<Double> builder = Option.<Double>createBuilder()
                 .name(name)
                 .description(optionDescription)
-                .binding(def, getter::get, value -> {
-                    if (available) {
-                        setter.accept(value);
-                    }
-                })
+                .binding(def, getter::get, setter::accept)
                 .controller(opt -> {
                     DoubleSliderControllerBuilder slider = DoubleSliderControllerBuilder.create(opt)
                             .range(min, max)
@@ -565,60 +609,26 @@ public final class NeoForgeYaclConfigScreen {
 
     private static Option<Integer> buildIntSlider(Component name,
                                                   Component description,
+                                                  Component disabledReason,
                                                   int def,
                                                   int min,
                                                   int max,
-                                                  java.util.function.Supplier<Integer> getter,
-                                                  java.util.function.Consumer<Integer> setter) {
-        return Option.<Integer>createBuilder()
-                .name(name)
-                .description(OptionDescription.of(description))
-                .binding(def, getter::get, setter::accept)
-                .controller(opt -> IntegerSliderControllerBuilder.create(opt)
-                        .range(min, max)
-                        .step(1))
-                .build();
-    }
-
-    private static Option<Integer> buildServerIntSlider(Component name,
-                                                        Component description,
-                                                        Component disabledReason,
-                                                        int def,
-                                                        int min,
-                                                        int max,
-                                                        int step,
-                                                        java.util.function.Supplier<Integer> getter,
-                                                        java.util.function.Consumer<Integer> setter,
-                                                        boolean available) {
-        return buildServerIntSlider(name, description, disabledReason, def, min, max, step, getter, setter, available, null);
-    }
-
-    private static Option<Integer> buildServerIntSlider(Component name,
-                                                        Component description,
-                                                        Component disabledReason,
-                                                        int def,
-                                                        int min,
-                                                        int max,
-                                                        int step,
-                                                        java.util.function.Supplier<Integer> getter,
-                                                        java.util.function.Consumer<Integer> setter,
-                                                        boolean available,
-                                                        java.util.function.Function<Integer, Component> formatter) {
-        OptionDescription optionDescription = available
-                ? OptionDescription.of(description)
-                : OptionDescription.of(description, disabledReason);
+                                                  int step,
+                                                  Supplier<Integer> getter,
+                                                  Consumer<Integer> setter,
+                                                  boolean available,
+                                                  Function<Integer, Component> formatter) {
+        OptionDescription optionDescription = optionDescription(description, disabledReason, available);
+        int safeStep = Math.max(1, step);
+        int safeMax = max <= min ? min + safeStep : max;
         Option.Builder<Integer> builder = Option.<Integer>createBuilder()
                 .name(name)
                 .description(optionDescription)
-                .binding(def, getter::get, value -> {
-                    if (available) {
-                        setter.accept(value);
-                    }
-                })
+                .binding(def, getter::get, setter::accept)
                 .controller(opt -> {
                     IntegerSliderControllerBuilder slider = IntegerSliderControllerBuilder.create(opt)
-                            .range(min, max)
-                            .step(step);
+                            .range(min, safeMax)
+                            .step(safeStep);
                     if (formatter != null) {
                         slider = slider.formatValue(formatter::apply);
                     }
@@ -632,21 +642,15 @@ public final class NeoForgeYaclConfigScreen {
                                                Component description,
                                                Component disabledReason,
                                                boolean def,
-                                               java.util.function.Supplier<Boolean> getter,
-                                               java.util.function.Consumer<Boolean> setter,
+                                               Supplier<Boolean> getter,
+                                               Consumer<Boolean> setter,
                                                boolean available) {
-        OptionDescription optionDescription = available
-                ? OptionDescription.of(description)
-                : OptionDescription.of(description, disabledReason);
+        OptionDescription optionDescription = optionDescription(description, disabledReason, available);
         Option.Builder<Boolean> builder = Option.<Boolean>createBuilder()
                 .name(name)
                 .description(optionDescription)
-                .binding(def, getter::get, value -> {
-                    if (available) {
-                        setter.accept(value);
-                    }
-                })
-                .controller(opt -> BooleanControllerBuilder.create(opt));
+                .binding(def, getter::get, setter::accept)
+                .controller(BooleanControllerBuilder::create);
         builder.available(available);
         return builder.build();
     }
@@ -656,21 +660,15 @@ public final class NeoForgeYaclConfigScreen {
                                                                  Component disabledReason,
                                                                  E def,
                                                                  Class<E> enumClass,
-                                                                 java.util.function.Supplier<E> getter,
-                                                                 java.util.function.Consumer<E> setter,
+                                                                 Supplier<E> getter,
+                                                                 Consumer<E> setter,
                                                                  boolean available,
-                                                                 java.util.function.Function<E, Component> formatter) {
-        OptionDescription optionDescription = available
-                ? OptionDescription.of(description)
-                : OptionDescription.of(description, disabledReason);
+                                                                 Function<E, Component> formatter) {
+        OptionDescription optionDescription = optionDescription(description, disabledReason, available);
         Option.Builder<E> builder = Option.<E>createBuilder()
                 .name(name)
                 .description(optionDescription)
-                .binding(def, getter::get, value -> {
-                    if (available) {
-                        setter.accept(value);
-                    }
-                })
+                .binding(def, getter::get, setter::accept)
                 .controller(opt -> EnumControllerBuilder.create(opt)
                         .enumClass(enumClass)
                         .formatValue(formatter::apply));
@@ -682,28 +680,195 @@ public final class NeoForgeYaclConfigScreen {
         return Component.translatable(keyPrefix + "." + value.name().toLowerCase(Locale.ROOT));
     }
 
-    private static Component formatWeatherChanceValue(Integer value) {
+    private static Component formatPercentValue(Integer value) {
         if (value == null || value <= 0) {
-            return Component.literal("false");
+            return Component.literal("NONE");
         }
         if (value >= 100) {
-            return Component.literal("true");
+            return Component.literal("MAX");
         }
         return Component.literal(value + "%");
     }
 
-    private static Component formatRadiusValue(Integer value) {
+    private static Component formatWeatherChanceValue(Integer value) {
         if (value == null || value <= 0) {
-            return Component.translatable("config.seamlesssleep.world_acceleration.radius.simulation_distance");
+            return Component.literal("NEVER");
         }
-        return Component.translatable("config.seamlesssleep.world_acceleration.radius.chunks", value);
+        if (value >= 100) {
+            return Component.literal("ALWAYS");
+        }
+        return Component.literal(value + "%");
     }
 
-    private static Component formatRateFraction(Double value) {
-        if (value == null) {
-            return Component.literal("0%");
+    private static Component formatRadiusValue(Integer value, int simulationDistance) {
+        int resolvedSimulationDistance = Math.max(1, simulationDistance);
+        int resolvedValue = Mth.clamp(value == null ? resolvedSimulationDistance : value, 1, resolvedSimulationDistance);
+        if (resolvedValue >= resolvedSimulationDistance) {
+            return Component.literal("SIMULATION DISTANCE (" + resolvedSimulationDistance + ")");
         }
-        int percent = (int) Math.round(value * 100.0D);
-        return Component.literal(percent + "%");
+        if (resolvedValue == 1) {
+            return Component.literal("1 CHUNK");
+        }
+        return Component.literal(resolvedValue + " CHUNKS");
+    }
+
+    private static Component formatDegreesValue(Integer value) {
+        int resolved = value == null ? 0 : value;
+        return Component.literal(resolved + "\u00B0");
+    }
+
+    private static Component formatMultiplierValue(Double value) {
+        double resolved = value == null ? 1.0D : value;
+        return Component.literal(String.format(Locale.ROOT, "%.2fx", resolved));
+    }
+
+    private static final class ServerConfigUiState {
+        private final int simulationDistance;
+
+        private int sleepWeatherClearChancePercent;
+        private double sleepAnimationDurationMultiplier;
+        private WorldSleepAccelerationMode mode;
+        private WorldSleepAutomaticMode automaticMode;
+        private WorldSleepAccelerationPlayersAffected playersAffected;
+        private int manualAccelerationRadiusChunks;
+        private int manualAccelerationSpeedPercent;
+        private boolean grassAndFoliageAccelerationEnabled;
+        private boolean cropsAndSaplingsAccelerationEnabled;
+        private boolean kelpAccelerationEnabled;
+        private boolean vanillaOnlyAcceleration;
+        private boolean processesAccelerationEnabled;
+        private int processesSpeedPercent;
+        private int boundSleepWeatherClearChancePercent;
+        private double boundSleepAnimationDurationMultiplier;
+        private WorldSleepAccelerationMode boundMode;
+        private int boundDisplayedAccelerationRadius;
+        private int boundDisplayedAccelerationSpeedPercent;
+        private WorldSleepAccelerationPlayersAffected boundDisplayedPlayersAffected;
+        private WorldSleepAutomaticMode boundAutomaticMode;
+        private boolean boundGrassAndFoliageAccelerationEnabled;
+        private boolean boundCropsAndSaplingsAccelerationEnabled;
+        private boolean boundKelpAccelerationEnabled;
+        private boolean boundVanillaOnlyAcceleration;
+        private boolean boundProcessesAccelerationEnabled;
+        private int boundProcessesSpeedPercent;
+
+        private ServerConfigUiState(int simulationDistance) {
+            this.simulationDistance = Math.max(1, simulationDistance);
+        }
+
+        private static ServerConfigUiState fromLocal(SeamlessSleepServerConfig serverCfg, int simulationDistance) {
+            ServerConfigUiState state = new ServerConfigUiState(simulationDistance);
+            state.sleepWeatherClearChancePercent = serverCfg.sleepWeatherClearChancePercent;
+            state.sleepAnimationDurationMultiplier = serverCfg.sleepAnimationDurationMultiplier;
+            state.mode = serverCfg.worldSleepAcceleration.mode;
+            state.automaticMode = serverCfg.worldSleepAcceleration.automaticMode;
+            state.playersAffected = serverCfg.worldSleepAcceleration.playersAffected;
+            state.manualAccelerationRadiusChunks = serverCfg.worldSleepAcceleration.manualAccelerationRadiusChunks;
+            state.manualAccelerationSpeedPercent = serverCfg.worldSleepAcceleration.manualAccelerationSpeedPercent;
+            state.grassAndFoliageAccelerationEnabled = serverCfg.worldSleepAcceleration.grassAndFoliageAccelerationEnabled;
+            state.cropsAndSaplingsAccelerationEnabled = serverCfg.worldSleepAcceleration.cropsAndSaplingsAccelerationEnabled;
+            state.kelpAccelerationEnabled = serverCfg.worldSleepAcceleration.kelpAccelerationEnabled;
+            state.vanillaOnlyAcceleration = serverCfg.worldSleepAcceleration.vanillaOnlyAcceleration;
+            state.processesAccelerationEnabled = serverCfg.worldSleepAcceleration.processesAccelerationEnabled;
+            state.processesSpeedPercent = serverCfg.worldSleepAcceleration.processesSpeedPercent;
+            state.snapshotBoundValues();
+            return state;
+        }
+
+        private static ServerConfigUiState fromSnapshot() {
+            ServerConfigUiState state = new ServerConfigUiState(SeamlessSleepServerConfigSnapshot.getServerSimulationDistance());
+            state.sleepWeatherClearChancePercent = SeamlessSleepServerConfigSnapshot.getSleepWeatherClearChancePercent();
+            state.sleepAnimationDurationMultiplier = SeamlessSleepServerConfigSnapshot.getSleepAnimationDurationMultiplier();
+            state.mode = SeamlessSleepServerConfigSnapshot.getWorldSleepAccelerationMode();
+            state.automaticMode = SeamlessSleepServerConfigSnapshot.getWorldSleepAutomaticMode();
+            state.playersAffected = SeamlessSleepServerConfigSnapshot.getWorldSleepAccelerationPlayersAffected();
+            state.manualAccelerationRadiusChunks = SeamlessSleepServerConfigSnapshot.getManualAccelerationRadiusChunks();
+            state.manualAccelerationSpeedPercent = SeamlessSleepServerConfigSnapshot.getManualAccelerationSpeedPercent();
+            state.grassAndFoliageAccelerationEnabled = SeamlessSleepServerConfigSnapshot.isGrassAndFoliageAccelerationEnabled();
+            state.cropsAndSaplingsAccelerationEnabled = SeamlessSleepServerConfigSnapshot.isCropsAndSaplingsAccelerationEnabled();
+            state.kelpAccelerationEnabled = SeamlessSleepServerConfigSnapshot.isKelpAccelerationEnabled();
+            state.vanillaOnlyAcceleration = SeamlessSleepServerConfigSnapshot.isVanillaOnlyAcceleration();
+            state.processesAccelerationEnabled = SeamlessSleepServerConfigSnapshot.isProcessesAccelerationEnabled();
+            state.processesSpeedPercent = SeamlessSleepServerConfigSnapshot.getProcessesSpeedPercent();
+            state.snapshotBoundValues();
+            return state;
+        }
+
+        private void snapshotBoundValues() {
+            this.boundSleepWeatherClearChancePercent = this.sleepWeatherClearChancePercent;
+            this.boundSleepAnimationDurationMultiplier = this.sleepAnimationDurationMultiplier;
+            this.boundMode = this.mode == null ? WorldSleepAccelerationMode.AUTOMATIC : this.mode;
+            this.boundDisplayedAccelerationRadius = this.resolveDisplayedAccelerationRadius();
+            this.boundDisplayedAccelerationSpeedPercent = this.resolveDisplayedAccelerationSpeedPercent();
+            this.boundDisplayedPlayersAffected = this.resolveDisplayedPlayersAffected();
+            this.boundAutomaticMode = this.automaticMode == null ? WorldSleepAutomaticMode.AGGRESSIVE : this.automaticMode;
+            this.boundGrassAndFoliageAccelerationEnabled = this.grassAndFoliageAccelerationEnabled;
+            this.boundCropsAndSaplingsAccelerationEnabled = this.cropsAndSaplingsAccelerationEnabled;
+            this.boundKelpAccelerationEnabled = this.kelpAccelerationEnabled;
+            this.boundVanillaOnlyAcceleration = this.vanillaOnlyAcceleration;
+            this.boundProcessesAccelerationEnabled = this.processesAccelerationEnabled;
+            this.boundProcessesSpeedPercent = Mth.clamp(this.processesSpeedPercent, 0, 100);
+        }
+
+        private int resolveManualRadius() {
+            int configured = manualAccelerationRadiusChunks <= 0
+                    ? WorldSleepAccelerationConfig.DEFAULT_MANUAL_RADIUS_CHUNKS
+                    : manualAccelerationRadiusChunks;
+            return Mth.clamp(configured, 1, simulationDistance);
+        }
+
+        private int resolveAutomaticRadius() {
+            WorldSleepAccelerationConfig config = new WorldSleepAccelerationConfig();
+            config.automaticMode = automaticMode;
+            return config.getAutomaticCeiling(simulationDistance).radiusChunks();
+        }
+
+        private WorldSleepAccelerationPlayersAffected resolveAutomaticPlayersAffected() {
+            WorldSleepAccelerationConfig config = new WorldSleepAccelerationConfig();
+            config.automaticMode = automaticMode;
+            return config.resolveAutomaticPlayersAffected();
+        }
+
+        private int resolveAutomaticSpeedPercent() {
+            WorldSleepAccelerationConfig config = new WorldSleepAccelerationConfig();
+            config.automaticMode = automaticMode;
+            return config.getAutomaticCeiling(simulationDistance).speedPercent();
+        }
+
+        private WorldSleepAccelerationPlayersAffected resolveDisplayedPlayersAffected() {
+            return mode == WorldSleepAccelerationMode.AUTOMATIC
+                    ? resolveAutomaticPlayersAffected()
+                    : (playersAffected == null ? WorldSleepAccelerationPlayersAffected.ALL_PLAYERS : playersAffected);
+        }
+
+        private int resolveDisplayedAccelerationRadius() {
+            return mode == WorldSleepAccelerationMode.AUTOMATIC
+                    ? resolveAutomaticRadius()
+                    : resolveManualRadius();
+        }
+
+        private int resolveDisplayedAccelerationSpeedPercent() {
+            return mode == WorldSleepAccelerationMode.AUTOMATIC
+                    ? resolveAutomaticSpeedPercent()
+                    : Mth.clamp(manualAccelerationSpeedPercent, 0, 100);
+        }
+
+        private void applyTo(SeamlessSleepServerConfig serverCfg) {
+            serverCfg.sleepWeatherClearChancePercent = sleepWeatherClearChancePercent;
+            serverCfg.sleepAnimationDurationMultiplier = sleepAnimationDurationMultiplier;
+            serverCfg.worldSleepAcceleration.mode = mode;
+            serverCfg.worldSleepAcceleration.automaticMode = automaticMode;
+            serverCfg.worldSleepAcceleration.playersAffected = playersAffected == null
+                    ? WorldSleepAccelerationPlayersAffected.ALL_PLAYERS
+                    : playersAffected;
+            serverCfg.worldSleepAcceleration.manualAccelerationRadiusChunks = resolveManualRadius();
+            serverCfg.worldSleepAcceleration.manualAccelerationSpeedPercent = manualAccelerationSpeedPercent;
+            serverCfg.worldSleepAcceleration.grassAndFoliageAccelerationEnabled = grassAndFoliageAccelerationEnabled;
+            serverCfg.worldSleepAcceleration.cropsAndSaplingsAccelerationEnabled = cropsAndSaplingsAccelerationEnabled;
+            serverCfg.worldSleepAcceleration.kelpAccelerationEnabled = kelpAccelerationEnabled;
+            serverCfg.worldSleepAcceleration.vanillaOnlyAcceleration = vanillaOnlyAcceleration;
+            serverCfg.worldSleepAcceleration.processesAccelerationEnabled = processesAccelerationEnabled;
+            serverCfg.worldSleepAcceleration.processesSpeedPercent = processesSpeedPercent;
+        }
     }
 }

@@ -1,8 +1,8 @@
 package net.aqualoco.sec.acceleration;
 
 import net.aqualoco.sec.config.WorldSleepAccelerationMode;
-import net.aqualoco.sec.config.WorldSleepAccelerationPreset;
-import net.aqualoco.sec.config.WorldSleepNatureFilterProfile;
+import net.aqualoco.sec.config.WorldSleepAccelerationPlayersAffected;
+import net.aqualoco.sec.config.WorldSleepAutomaticMode;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 
@@ -11,62 +11,70 @@ public final class WorldSleepAccelerationStatus {
             false,
             null,
             0,
+            1,
             1.0D,
             50.0D,
             50.0D,
-            0.0D,
             WorldSleepAccelerationMode.OFF,
-            WorldSleepAccelerationPreset.BALANCED,
-            WorldSleepNatureFilterProfile.ALL,
+            WorldSleepAutomaticMode.AGGRESSIVE,
+            WorldSleepAccelerationPlayersAffected.ALL_PLAYERS,
+            WorldSleepAccelerationFilterPolicy.DISABLED,
             WorldSleepAccelerationGovernorAction.NONE,
             WorldSleepAccelerationGovernorSnapshot.INACTIVE,
             WorldSleepAccelerationModuleStatus.INACTIVE,
-            WorldSleepAccelerationModuleStatus.INACTIVE
+            WorldSleepAccelerationModuleStatus.INACTIVE,
+            false
     );
 
     private final boolean active;
     private final ResourceKey<Level> dimension;
     private final int activePlayerCount;
+    private final int simulationDistance;
     private final double worldSleepRate;
     private final double averageMspt;
     private final double p95Mspt;
-    private final double governorPressure;
     private final WorldSleepAccelerationMode mode;
-    private final WorldSleepAccelerationPreset preset;
-    private final WorldSleepNatureFilterProfile natureFilterProfile;
+    private final WorldSleepAutomaticMode automaticMode;
+    private final WorldSleepAccelerationPlayersAffected playersAffected;
+    private final WorldSleepAccelerationFilterPolicy filterPolicy;
     private final WorldSleepAccelerationGovernorAction governorAction;
     private final WorldSleepAccelerationGovernorSnapshot governorSnapshot;
     private final WorldSleepAccelerationModuleStatus nature;
     private final WorldSleepAccelerationModuleStatus process;
+    private final boolean processesTemporarilySuppressed;
 
     public WorldSleepAccelerationStatus(boolean active,
                                         ResourceKey<Level> dimension,
                                         int activePlayerCount,
+                                        int simulationDistance,
                                         double worldSleepRate,
                                         double averageMspt,
                                         double p95Mspt,
-                                        double governorPressure,
                                         WorldSleepAccelerationMode mode,
-                                        WorldSleepAccelerationPreset preset,
-                                        WorldSleepNatureFilterProfile natureFilterProfile,
+                                        WorldSleepAutomaticMode automaticMode,
+                                        WorldSleepAccelerationPlayersAffected playersAffected,
+                                        WorldSleepAccelerationFilterPolicy filterPolicy,
                                         WorldSleepAccelerationGovernorAction governorAction,
                                         WorldSleepAccelerationGovernorSnapshot governorSnapshot,
                                         WorldSleepAccelerationModuleStatus nature,
-                                        WorldSleepAccelerationModuleStatus process) {
+                                        WorldSleepAccelerationModuleStatus process,
+                                        boolean processesTemporarilySuppressed) {
         this.active = active;
         this.dimension = dimension;
         this.activePlayerCount = activePlayerCount;
+        this.simulationDistance = simulationDistance;
         this.worldSleepRate = worldSleepRate;
         this.averageMspt = averageMspt;
         this.p95Mspt = p95Mspt;
-        this.governorPressure = governorPressure;
         this.mode = mode;
-        this.preset = preset;
-        this.natureFilterProfile = natureFilterProfile;
+        this.automaticMode = automaticMode;
+        this.playersAffected = playersAffected;
+        this.filterPolicy = filterPolicy;
         this.governorAction = governorAction;
         this.governorSnapshot = governorSnapshot;
         this.nature = nature;
         this.process = process;
+        this.processesTemporarilySuppressed = processesTemporarilySuppressed;
     }
 
     public boolean isActive() {
@@ -81,6 +89,10 @@ public final class WorldSleepAccelerationStatus {
         return activePlayerCount;
     }
 
+    public int getSimulationDistance() {
+        return simulationDistance;
+    }
+
     public double getWorldSleepRate() {
         return worldSleepRate;
     }
@@ -93,20 +105,20 @@ public final class WorldSleepAccelerationStatus {
         return p95Mspt;
     }
 
-    public double getGovernorPressure() {
-        return governorPressure;
-    }
-
     public WorldSleepAccelerationMode getMode() {
         return mode;
     }
 
-    public WorldSleepAccelerationPreset getPreset() {
-        return preset;
+    public WorldSleepAutomaticMode getAutomaticMode() {
+        return automaticMode;
     }
 
-    public WorldSleepNatureFilterProfile getNatureFilterProfile() {
-        return natureFilterProfile;
+    public WorldSleepAccelerationPlayersAffected getPlayersAffected() {
+        return playersAffected;
+    }
+
+    public WorldSleepAccelerationFilterPolicy getFilterPolicy() {
+        return filterPolicy;
     }
 
     public WorldSleepAccelerationGovernorAction getGovernorAction() {
@@ -123,5 +135,9 @@ public final class WorldSleepAccelerationStatus {
 
     public WorldSleepAccelerationModuleStatus getProcess() {
         return process;
+    }
+
+    public boolean isProcessesTemporarilySuppressed() {
+        return processesTemporarilySuppressed;
     }
 }

@@ -1,71 +1,109 @@
 package net.aqualoco.sec.config;
 
+import net.aqualoco.sec.acceleration.WorldSleepAccelerationFilterPolicy;
+
 public final class WorldSleepAccelerationConfig {
-    public WorldSleepAccelerationMode mode = WorldSleepAccelerationMode.AUTO;
-    public WorldSleepAccelerationPreset preset = WorldSleepAccelerationPreset.BALANCED;
-    public boolean randomTickAccelerationEnabled = true;
-    public boolean processAccelerationEnabled = true;
-    public WorldSleepAccelerationGovernorAggressiveness governorAggressiveness =
-            WorldSleepAccelerationGovernorAggressiveness.BALANCED;
-    public WorldSleepNatureFilterProfile natureFilterProfile = WorldSleepNatureFilterProfile.ALL;
-    public final WorldSleepAccelerationModuleConfig nature = new WorldSleepAccelerationModuleConfig();
-    public final WorldSleepAccelerationModuleConfig process = new WorldSleepAccelerationModuleConfig();
+    public static final int DEFAULT_MANUAL_RADIUS_CHUNKS = 12;
+    private static final int MAX_CONFIG_RADIUS_CHUNKS = 32;
+    public int manualAccelerationRadiusChunks = DEFAULT_MANUAL_RADIUS_CHUNKS;
 
-    public WorldSleepAccelerationConfig() {
-        applyPreset(WorldSleepAccelerationPreset.BALANCED);
-    }
-
-    public void applyPreset(WorldSleepAccelerationPreset preset) {
-        WorldSleepAccelerationPreset resolvedPreset = preset == null
-                ? WorldSleepAccelerationPreset.BALANCED
-                : preset;
-        if (resolvedPreset == WorldSleepAccelerationPreset.CUSTOM) {
-            this.preset = WorldSleepAccelerationPreset.CUSTOM;
-            return;
-        }
-
-        WorldSleepAccelerationPresetValues values = WorldSleepAccelerationPresetValues.of(resolvedPreset);
-        this.preset = resolvedPreset;
-        this.governorAggressiveness = values.governorAggressiveness;
-        this.natureFilterProfile = values.natureFilterProfile;
-        copyInto(values.nature, this.nature);
-        copyInto(values.process, this.process);
-    }
-
-    public void markPresetCustom() {
-        this.preset = WorldSleepAccelerationPreset.CUSTOM;
-    }
+    public WorldSleepAccelerationMode mode = WorldSleepAccelerationMode.AUTOMATIC;
+    public WorldSleepAutomaticMode automaticMode = WorldSleepAutomaticMode.AGGRESSIVE;
+    public WorldSleepAccelerationPlayersAffected playersAffected = WorldSleepAccelerationPlayersAffected.ALL_PLAYERS;
+    public int manualAccelerationSpeedPercent = 100;
+    public boolean grassAndFoliageAccelerationEnabled = true;
+    public boolean cropsAndSaplingsAccelerationEnabled = true;
+    public boolean kelpAccelerationEnabled = false;
+    public boolean vanillaOnlyAcceleration = true;
+    public boolean processesAccelerationEnabled = true;
+    public int processesSpeedPercent = 100;
 
     public void clamp() {
-        mode = mode == null ? WorldSleepAccelerationMode.AUTO : mode;
-        preset = preset == null ? WorldSleepAccelerationPreset.BALANCED : preset;
-        governorAggressiveness = governorAggressiveness == null
-                ? WorldSleepAccelerationGovernorAggressiveness.BALANCED
-                : governorAggressiveness;
-        natureFilterProfile = natureFilterProfile == null ? WorldSleepNatureFilterProfile.ALL : natureFilterProfile;
-        nature.clamp();
-        process.clamp();
-        if (preset != WorldSleepAccelerationPreset.CUSTOM && !matchesPresetValues(preset)) {
-            preset = WorldSleepAccelerationPreset.CUSTOM;
-        }
+        mode = mode == null ? WorldSleepAccelerationMode.AUTOMATIC : mode;
+        automaticMode = automaticMode == null ? WorldSleepAutomaticMode.AGGRESSIVE : automaticMode;
+        playersAffected = playersAffected == null
+                ? WorldSleepAccelerationPlayersAffected.ALL_PLAYERS
+                : playersAffected;
+        manualAccelerationRadiusChunks = clampConfiguredRadius(manualAccelerationRadiusChunks);
+        manualAccelerationSpeedPercent = SeamlessSleepServerConfig.clampInt(
+                manualAccelerationSpeedPercent,
+                0,
+                100
+        );
+        processesSpeedPercent = SeamlessSleepServerConfig.clampInt(
+                processesSpeedPercent,
+                0,
+                100
+        );
     }
 
-    public boolean matchesPresetValues(WorldSleepAccelerationPreset preset) {
-        if (preset == null || preset == WorldSleepAccelerationPreset.CUSTOM) {
-            return false;
-        }
-        WorldSleepAccelerationPresetValues values = WorldSleepAccelerationPresetValues.of(preset);
-        return governorAggressiveness == values.governorAggressiveness
-                && natureFilterProfile == values.natureFilterProfile
-                && nature.matches(values.nature)
-                && process.matches(values.process);
+    public AutomaticCeiling getAutomaticCeiling(int simulationDistance) {
+        int clampedSimulationDistance = clampSimulationDistance(simulationDistance);
+        return switch (automaticMode) {
+            case PERFORMANCE -> new AutomaticCeiling(
+                    Math.max(1, (int) Math.floor(clampedSimulationDistance * 0.40D)),
+                    40
+            );
+            case BALANCED -> new AutomaticCeiling(
+                    Math.max(1, (int) Math.floor(clampedSimulationDistance * 0.75D)),
+                    75
+            );
+            case AGGRESSIVE -> new AutomaticCeiling(clampedSimulationDistance, 100);
+        };
     }
 
-    private static void copyInto(WorldSleepAccelerationModuleConfig from, WorldSleepAccelerationModuleConfig to) {
-        to.baseRadiusChunks = from.baseRadiusChunks;
-        to.autoMinRadiusChunks = from.autoMinRadiusChunks;
-        to.baseRateFraction = from.baseRateFraction;
-        to.autoMinRateFraction = from.autoMinRateFraction;
-        to.clamp();
+    public WorldSleepAccelerationPlayersAffected resolveAutomaticPlayersAffected() {
+        return automaticMode == WorldSleepAutomaticMode.PERFORMANCE
+                ? WorldSleepAccelerationPlayersAffected.SLEEPERS
+                : WorldSleepAccelerationPlayersAffected.ALL_PLAYERS;
+    }
+
+    public WorldSleepAccelerationPlayersAffected resolveEffectivePlayersAffected() {
+        return mode == WorldSleepAccelerationMode.AUTOMATIC
+                ? resolveAutomaticPlayersAffected()
+                : playersAffected;
+    }
+
+    public int resolveManualRadiusChunks(int simulationDistance) {
+        int clampedSimulationDistance = clampSimulationDistance(simulationDistance);
+        int configuredRadius = clampConfiguredRadius(manualAccelerationRadiusChunks);
+        return SeamlessSleepServerConfig.clampInt(configuredRadius, 1, clampedSimulationDistance);
+    }
+
+    public int resolveManualAccelerationSpeedPercent() {
+        return SeamlessSleepServerConfig.clampInt(manualAccelerationSpeedPercent, 0, 100);
+    }
+
+    public int resolveProcessesSpeedPercent() {
+        return SeamlessSleepServerConfig.clampInt(processesSpeedPercent, 0, 100);
+    }
+
+    public boolean hasAnyNatureAccelerationEnabled() {
+        return grassAndFoliageAccelerationEnabled
+                || cropsAndSaplingsAccelerationEnabled
+                || kelpAccelerationEnabled;
+    }
+
+    public WorldSleepAccelerationFilterPolicy createFilterPolicy() {
+        return new WorldSleepAccelerationFilterPolicy(
+                grassAndFoliageAccelerationEnabled,
+                cropsAndSaplingsAccelerationEnabled,
+                kelpAccelerationEnabled,
+                vanillaOnlyAcceleration
+        );
+    }
+
+    public static int clampSimulationDistance(int simulationDistance) {
+        return Math.max(1, simulationDistance);
+    }
+
+    private static int clampConfiguredRadius(int value) {
+        if (value < 1) {
+            return DEFAULT_MANUAL_RADIUS_CHUNKS;
+        }
+        return Math.min(value, MAX_CONFIG_RADIUS_CHUNKS);
+    }
+
+    public record AutomaticCeiling(int radiusChunks, int speedPercent) {
     }
 }

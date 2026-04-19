@@ -4,21 +4,18 @@ package net.aqualoco.sec.config;
 public final class SeamlessSleepServerConfigSnapshot {
     private static int sleepWeatherClearChancePercent = 100;
     private static double sleepAnimationDurationMultiplier = 1.0D;
-    private static WorldSleepAccelerationMode worldSleepAccelerationMode = WorldSleepAccelerationMode.AUTO;
-    private static WorldSleepAccelerationPreset worldSleepAccelerationPreset = WorldSleepAccelerationPreset.BALANCED;
-    private static boolean randomTickAccelerationEnabled = true;
-    private static boolean processAccelerationEnabled = true;
-    private static WorldSleepAccelerationGovernorAggressiveness governorAggressiveness =
-            WorldSleepAccelerationGovernorAggressiveness.BALANCED;
-    private static WorldSleepNatureFilterProfile natureFilterProfile = WorldSleepNatureFilterProfile.ALL;
-    private static int natureBaseRadiusChunks = 6;
-    private static int natureAutoMinRadiusChunks = 3;
-    private static double natureBaseRateFraction = 0.45D;
-    private static double natureAutoMinRateFraction = 0.20D;
-    private static int processBaseRadiusChunks = 6;
-    private static int processAutoMinRadiusChunks = 3;
-    private static double processBaseRateFraction = 0.75D;
-    private static double processAutoMinRateFraction = 0.40D;
+    private static int serverSimulationDistance = 12;
+    private static WorldSleepAccelerationMode worldSleepAccelerationMode = WorldSleepAccelerationMode.AUTOMATIC;
+    private static WorldSleepAutomaticMode worldSleepAutomaticMode = WorldSleepAutomaticMode.AGGRESSIVE;
+    private static WorldSleepAccelerationPlayersAffected worldSleepAccelerationPlayersAffected = WorldSleepAccelerationPlayersAffected.ALL_PLAYERS;
+    private static int manualAccelerationRadiusChunks = WorldSleepAccelerationConfig.DEFAULT_MANUAL_RADIUS_CHUNKS;
+    private static int manualAccelerationSpeedPercent = 100;
+    private static boolean grassAndFoliageAccelerationEnabled = true;
+    private static boolean cropsAndSaplingsAccelerationEnabled = true;
+    private static boolean kelpAccelerationEnabled = false;
+    private static boolean vanillaOnlyAcceleration = true;
+    private static boolean processesAccelerationEnabled = true;
+    private static int processesSpeedPercent = 100;
     private static boolean initialized;
 
     private SeamlessSleepServerConfigSnapshot() {
@@ -26,36 +23,32 @@ public final class SeamlessSleepServerConfigSnapshot {
 
     public static void update(int weatherClearChancePercent,
                               double durationMultiplier,
+                              int simulationDistance,
                               WorldSleepAccelerationMode accelerationMode,
-                              WorldSleepAccelerationPreset accelerationPreset,
-                              boolean randomTickEnabled,
-                              boolean processEnabled,
-                              WorldSleepAccelerationGovernorAggressiveness accelerationGovernorAggressiveness,
-                              WorldSleepNatureFilterProfile accelerationNatureFilterProfile,
-                              int accelerationNatureBaseRadiusChunks,
-                              int accelerationNatureAutoMinRadiusChunks,
-                              double accelerationNatureBaseRateFraction,
-                              double accelerationNatureAutoMinRateFraction,
-                              int accelerationProcessBaseRadiusChunks,
-                              int accelerationProcessAutoMinRadiusChunks,
-                              double accelerationProcessBaseRateFraction,
-                              double accelerationProcessAutoMinRateFraction) {
+                              WorldSleepAutomaticMode automaticMode,
+                              WorldSleepAccelerationPlayersAffected playersAffected,
+                              int manualRadiusChunks,
+                              int manualSpeedPercent,
+                              boolean grassAndFoliageEnabled,
+                              boolean cropsAndSaplingsEnabled,
+                              boolean kelpEnabled,
+                              boolean vanillaOnly,
+                              boolean processesEnabled,
+                              int processesSpeedPercentValue) {
         sleepWeatherClearChancePercent = weatherClearChancePercent;
         sleepAnimationDurationMultiplier = durationMultiplier;
+        serverSimulationDistance = Math.max(1, simulationDistance);
         worldSleepAccelerationMode = accelerationMode;
-        worldSleepAccelerationPreset = accelerationPreset;
-        randomTickAccelerationEnabled = randomTickEnabled;
-        processAccelerationEnabled = processEnabled;
-        governorAggressiveness = accelerationGovernorAggressiveness;
-        natureFilterProfile = accelerationNatureFilterProfile;
-        natureBaseRadiusChunks = accelerationNatureBaseRadiusChunks;
-        natureAutoMinRadiusChunks = accelerationNatureAutoMinRadiusChunks;
-        natureBaseRateFraction = accelerationNatureBaseRateFraction;
-        natureAutoMinRateFraction = accelerationNatureAutoMinRateFraction;
-        processBaseRadiusChunks = accelerationProcessBaseRadiusChunks;
-        processAutoMinRadiusChunks = accelerationProcessAutoMinRadiusChunks;
-        processBaseRateFraction = accelerationProcessBaseRateFraction;
-        processAutoMinRateFraction = accelerationProcessAutoMinRateFraction;
+        worldSleepAutomaticMode = automaticMode;
+        worldSleepAccelerationPlayersAffected = playersAffected;
+        manualAccelerationRadiusChunks = manualRadiusChunks;
+        manualAccelerationSpeedPercent = manualSpeedPercent;
+        grassAndFoliageAccelerationEnabled = grassAndFoliageEnabled;
+        cropsAndSaplingsAccelerationEnabled = cropsAndSaplingsEnabled;
+        kelpAccelerationEnabled = kelpEnabled;
+        vanillaOnlyAcceleration = vanillaOnly;
+        processesAccelerationEnabled = processesEnabled;
+        processesSpeedPercent = processesSpeedPercentValue;
         initialized = true;
     }
 
@@ -71,59 +64,51 @@ public final class SeamlessSleepServerConfigSnapshot {
         return sleepAnimationDurationMultiplier;
     }
 
+    public static int getServerSimulationDistance() {
+        return serverSimulationDistance;
+    }
+
     public static WorldSleepAccelerationMode getWorldSleepAccelerationMode() {
         return worldSleepAccelerationMode;
     }
 
-    public static WorldSleepAccelerationPreset getWorldSleepAccelerationPreset() {
-        return worldSleepAccelerationPreset;
+    public static WorldSleepAutomaticMode getWorldSleepAutomaticMode() {
+        return worldSleepAutomaticMode;
     }
 
-    public static boolean isRandomTickAccelerationEnabled() {
-        return randomTickAccelerationEnabled;
+    public static WorldSleepAccelerationPlayersAffected getWorldSleepAccelerationPlayersAffected() {
+        return worldSleepAccelerationPlayersAffected;
     }
 
-    public static boolean isProcessAccelerationEnabled() {
-        return processAccelerationEnabled;
+    public static int getManualAccelerationRadiusChunks() {
+        return manualAccelerationRadiusChunks;
     }
 
-    public static WorldSleepAccelerationGovernorAggressiveness getGovernorAggressiveness() {
-        return governorAggressiveness;
+    public static int getManualAccelerationSpeedPercent() {
+        return manualAccelerationSpeedPercent;
     }
 
-    public static WorldSleepNatureFilterProfile getNatureFilterProfile() {
-        return natureFilterProfile;
+    public static boolean isGrassAndFoliageAccelerationEnabled() {
+        return grassAndFoliageAccelerationEnabled;
     }
 
-    public static int getNatureBaseRadiusChunks() {
-        return natureBaseRadiusChunks;
+    public static boolean isCropsAndSaplingsAccelerationEnabled() {
+        return cropsAndSaplingsAccelerationEnabled;
     }
 
-    public static int getNatureAutoMinRadiusChunks() {
-        return natureAutoMinRadiusChunks;
+    public static boolean isKelpAccelerationEnabled() {
+        return kelpAccelerationEnabled;
     }
 
-    public static double getNatureBaseRateFraction() {
-        return natureBaseRateFraction;
+    public static boolean isVanillaOnlyAcceleration() {
+        return vanillaOnlyAcceleration;
     }
 
-    public static double getNatureAutoMinRateFraction() {
-        return natureAutoMinRateFraction;
+    public static boolean isProcessesAccelerationEnabled() {
+        return processesAccelerationEnabled;
     }
 
-    public static int getProcessBaseRadiusChunks() {
-        return processBaseRadiusChunks;
-    }
-
-    public static int getProcessAutoMinRadiusChunks() {
-        return processAutoMinRadiusChunks;
-    }
-
-    public static double getProcessBaseRateFraction() {
-        return processBaseRateFraction;
-    }
-
-    public static double getProcessAutoMinRateFraction() {
-        return processAutoMinRateFraction;
+    public static int getProcessesSpeedPercent() {
+        return processesSpeedPercent;
     }
 }

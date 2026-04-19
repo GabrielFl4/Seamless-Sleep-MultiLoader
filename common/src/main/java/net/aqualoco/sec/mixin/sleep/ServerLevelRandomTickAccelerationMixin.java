@@ -3,8 +3,7 @@ package net.aqualoco.sec.mixin.sleep;
 import net.aqualoco.sec.acceleration.WorldSleepAccelerationManager;
 import net.aqualoco.sec.acceleration.WorldSleepAccelerationModuleStatus;
 import net.aqualoco.sec.acceleration.WorldSleepAccelerationStatus;
-import net.aqualoco.sec.acceleration.WorldSleepRandomTickFilters;
-import net.aqualoco.sec.config.WorldSleepNatureFilterProfile;
+import net.aqualoco.sec.acceleration.WorldSleepAccelerationFilterPolicy;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.server.level.ServerLevel;
@@ -36,7 +35,7 @@ public abstract class ServerLevelRandomTickAccelerationMixin {
             return;
         }
 
-        WorldSleepNatureFilterProfile profile = status.getNatureFilterProfile();
+        WorldSleepAccelerationFilterPolicy filterPolicy = status.getFilterPolicy();
         int minBlockX = chunk.getPos().getMinBlockX();
         int minBlockZ = chunk.getPos().getMinBlockZ();
         LevelChunkSection[] sections = chunk.getSections();
@@ -66,7 +65,7 @@ public abstract class ServerLevelRandomTickAccelerationMixin {
                         pos.getY() - minBlockY,
                         pos.getZ() - minBlockZ
                 );
-                if (!WorldSleepRandomTickFilters.isEligible(profile, state)) {
+                if (!filterPolicy.allows(state)) {
                     continue;
                 }
 

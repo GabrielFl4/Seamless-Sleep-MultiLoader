@@ -74,20 +74,18 @@ final class FabricClientNetworkHandler {
                         () -> SeamlessSleepServerConfigSnapshot.update(
                                 payload.sleepWeatherClearChancePercent(),
                                 payload.sleepAnimationDurationMultiplier(),
+                                payload.serverSimulationDistance(),
                                 payload.worldSleepAccelerationMode(),
-                                payload.worldSleepAccelerationPreset(),
-                                payload.randomTickAccelerationEnabled(),
-                                payload.processAccelerationEnabled(),
-                                payload.governorAggressiveness(),
-                                payload.natureFilterProfile(),
-                                payload.natureBaseRadiusChunks(),
-                                payload.natureAutoMinRadiusChunks(),
-                                payload.natureBaseRateFraction(),
-                                payload.natureAutoMinRateFraction(),
-                                payload.processBaseRadiusChunks(),
-                                payload.processAutoMinRadiusChunks(),
-                                payload.processBaseRateFraction(),
-                                payload.processAutoMinRateFraction()
+                                payload.worldSleepAutomaticMode(),
+                                payload.worldSleepAccelerationPlayersAffected(),
+                                payload.manualAccelerationRadiusChunks(),
+                                payload.manualAccelerationSpeedPercent(),
+                                payload.grassAndFoliageAccelerationEnabled(),
+                                payload.cropsAndSaplingsAccelerationEnabled(),
+                                payload.kelpAccelerationEnabled(),
+                                payload.vanillaOnlyAcceleration(),
+                                payload.processesAccelerationEnabled(),
+                                payload.processesSpeedPercent()
                         )
                 )
         );

@@ -15,20 +15,18 @@ public final class ServerConfigSync {
         ServerConfigSyncPayload payload = new ServerConfigSyncPayload(
                 config.sleepWeatherClearChancePercent,
                 config.sleepAnimationDurationMultiplier,
+                Math.max(1, server.getPlayerList().getSimulationDistance()),
                 config.worldSleepAcceleration.mode,
-                config.worldSleepAcceleration.preset,
-                config.worldSleepAcceleration.randomTickAccelerationEnabled,
-                config.worldSleepAcceleration.processAccelerationEnabled,
-                config.worldSleepAcceleration.governorAggressiveness,
-                config.worldSleepAcceleration.natureFilterProfile,
-                config.worldSleepAcceleration.nature.baseRadiusChunks,
-                config.worldSleepAcceleration.nature.autoMinRadiusChunks,
-                config.worldSleepAcceleration.nature.baseRateFraction,
-                config.worldSleepAcceleration.nature.autoMinRateFraction,
-                config.worldSleepAcceleration.process.baseRadiusChunks,
-                config.worldSleepAcceleration.process.autoMinRadiusChunks,
-                config.worldSleepAcceleration.process.baseRateFraction,
-                config.worldSleepAcceleration.process.autoMinRateFraction
+                config.worldSleepAcceleration.automaticMode,
+                config.worldSleepAcceleration.playersAffected,
+                config.worldSleepAcceleration.manualAccelerationRadiusChunks,
+                config.worldSleepAcceleration.manualAccelerationSpeedPercent,
+                config.worldSleepAcceleration.grassAndFoliageAccelerationEnabled,
+                config.worldSleepAcceleration.cropsAndSaplingsAccelerationEnabled,
+                config.worldSleepAcceleration.kelpAccelerationEnabled,
+                config.worldSleepAcceleration.vanillaOnlyAcceleration,
+                config.worldSleepAcceleration.processesAccelerationEnabled,
+                config.worldSleepAcceleration.processesSpeedPercent
         );
         for (ServerLevel level : server.getAllLevels()) {
             Services.NETWORK.sendToPlayers(level, payload);

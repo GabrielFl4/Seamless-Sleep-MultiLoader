@@ -19,20 +19,18 @@ final class SeamlessSleepServerEvents {
                     new ServerConfigSyncPayload(
                             cfg.sleepWeatherClearChancePercent,
                             cfg.sleepAnimationDurationMultiplier,
+                            Math.max(1, server.getPlayerList().getSimulationDistance()),
                             cfg.worldSleepAcceleration.mode,
-                            cfg.worldSleepAcceleration.preset,
-                            cfg.worldSleepAcceleration.randomTickAccelerationEnabled,
-                            cfg.worldSleepAcceleration.processAccelerationEnabled,
-                            cfg.worldSleepAcceleration.governorAggressiveness,
-                            cfg.worldSleepAcceleration.natureFilterProfile,
-                            cfg.worldSleepAcceleration.nature.baseRadiusChunks,
-                            cfg.worldSleepAcceleration.nature.autoMinRadiusChunks,
-                            cfg.worldSleepAcceleration.nature.baseRateFraction,
-                            cfg.worldSleepAcceleration.nature.autoMinRateFraction,
-                            cfg.worldSleepAcceleration.process.baseRadiusChunks,
-                            cfg.worldSleepAcceleration.process.autoMinRadiusChunks,
-                            cfg.worldSleepAcceleration.process.baseRateFraction,
-                            cfg.worldSleepAcceleration.process.autoMinRateFraction
+                            cfg.worldSleepAcceleration.automaticMode,
+                            cfg.worldSleepAcceleration.playersAffected,
+                            cfg.worldSleepAcceleration.manualAccelerationRadiusChunks,
+                            cfg.worldSleepAcceleration.manualAccelerationSpeedPercent,
+                            cfg.worldSleepAcceleration.grassAndFoliageAccelerationEnabled,
+                            cfg.worldSleepAcceleration.cropsAndSaplingsAccelerationEnabled,
+                            cfg.worldSleepAcceleration.kelpAccelerationEnabled,
+                            cfg.worldSleepAcceleration.vanillaOnlyAcceleration,
+                            cfg.worldSleepAcceleration.processesAccelerationEnabled,
+                            cfg.worldSleepAcceleration.processesSpeedPercent
                     ));
         });
     }

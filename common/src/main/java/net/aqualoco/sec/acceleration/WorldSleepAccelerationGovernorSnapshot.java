@@ -10,10 +10,8 @@ public final class WorldSleepAccelerationGovernorSnapshot {
                     0.0D,
                     0.0D,
                     0.0D,
-                    1.0D,
-                    1.0D,
                     0.0D,
-                    0.0D,
+                    1.0D,
                     0.0D,
                     0.0D
             );
@@ -21,43 +19,37 @@ public final class WorldSleepAccelerationGovernorSnapshot {
     private final boolean active;
     private final double averageMsptPressure;
     private final double p95MsptPressure;
-    private final double performancePressure;
+    private final double healthPressure;
     private final double activePlayerRiskBonus;
     private final double simulationDistanceRiskBonus;
+    private final double candidateAreaRiskBonus;
     private final double worldSleepRateRiskBonus;
     private final double riskFactor;
-    private final double aggressivenessMultiplier;
-    private final double pressure;
-    private final double areaStageOne;
-    private final double intensityStage;
-    private final double areaStageTwo;
+    private final double rawPressure;
+    private final double smoothedPressure;
 
     public WorldSleepAccelerationGovernorSnapshot(boolean active,
                                                   double averageMsptPressure,
                                                   double p95MsptPressure,
-                                                  double performancePressure,
+                                                  double healthPressure,
                                                   double activePlayerRiskBonus,
                                                   double simulationDistanceRiskBonus,
+                                                  double candidateAreaRiskBonus,
                                                   double worldSleepRateRiskBonus,
                                                   double riskFactor,
-                                                  double aggressivenessMultiplier,
-                                                  double pressure,
-                                                  double areaStageOne,
-                                                  double intensityStage,
-                                                  double areaStageTwo) {
+                                                  double rawPressure,
+                                                  double smoothedPressure) {
         this.active = active;
         this.averageMsptPressure = averageMsptPressure;
         this.p95MsptPressure = p95MsptPressure;
-        this.performancePressure = performancePressure;
+        this.healthPressure = healthPressure;
         this.activePlayerRiskBonus = activePlayerRiskBonus;
         this.simulationDistanceRiskBonus = simulationDistanceRiskBonus;
+        this.candidateAreaRiskBonus = candidateAreaRiskBonus;
         this.worldSleepRateRiskBonus = worldSleepRateRiskBonus;
         this.riskFactor = riskFactor;
-        this.aggressivenessMultiplier = aggressivenessMultiplier;
-        this.pressure = pressure;
-        this.areaStageOne = areaStageOne;
-        this.intensityStage = intensityStage;
-        this.areaStageTwo = areaStageTwo;
+        this.rawPressure = rawPressure;
+        this.smoothedPressure = smoothedPressure;
     }
 
     public boolean isActive() {
@@ -72,8 +64,8 @@ public final class WorldSleepAccelerationGovernorSnapshot {
         return p95MsptPressure;
     }
 
-    public double getPerformancePressure() {
-        return performancePressure;
+    public double getHealthPressure() {
+        return healthPressure;
     }
 
     public double getActivePlayerRiskBonus() {
@@ -84,6 +76,10 @@ public final class WorldSleepAccelerationGovernorSnapshot {
         return simulationDistanceRiskBonus;
     }
 
+    public double getCandidateAreaRiskBonus() {
+        return candidateAreaRiskBonus;
+    }
+
     public double getWorldSleepRateRiskBonus() {
         return worldSleepRateRiskBonus;
     }
@@ -92,23 +88,11 @@ public final class WorldSleepAccelerationGovernorSnapshot {
         return riskFactor;
     }
 
-    public double getAggressivenessMultiplier() {
-        return aggressivenessMultiplier;
+    public double getRawPressure() {
+        return rawPressure;
     }
 
-    public double getPressure() {
-        return pressure;
-    }
-
-    public double getAreaStageOne() {
-        return areaStageOne;
-    }
-
-    public double getIntensityStage() {
-        return intensityStage;
-    }
-
-    public double getAreaStageTwo() {
-        return areaStageTwo;
+    public double getSmoothedPressure() {
+        return smoothedPressure;
     }
 }
