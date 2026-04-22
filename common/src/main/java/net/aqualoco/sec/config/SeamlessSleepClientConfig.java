@@ -11,6 +11,8 @@ public final class SeamlessSleepClientConfig {
     private static final int DEFAULT_CHAT_MAX_LINES = 4;
     private static final double DEFAULT_TILT_DEGREES = 10.0D;
     private static final int DEFAULT_MOUSE_SMOOTHNESS_PERCENT = 100;
+    private static final boolean DEFAULT_LEAVE_BED_HINT_ENABLED = true;
+    private static final boolean DEFAULT_SLEEP_CONTEXT_ENABLED = true;
     private static final double MIN_TILT_DEGREES = 0.0D;
     private static final double MIN_NON_ZERO_TILT_DEGREES = 0.1D;
     private static final double MAX_TILT_DEGREES = 90.0D;
@@ -19,6 +21,8 @@ public final class SeamlessSleepClientConfig {
 
     public boolean sleepOverlayEnabled = true;
     public double sleepOverlayDarknessMultiplier = DEFAULT_OVERLAY_DARKNESS;
+    public boolean leaveBedHintEnabled = DEFAULT_LEAVE_BED_HINT_ENABLED;
+    public boolean sleepContextEnabled = DEFAULT_SLEEP_CONTEXT_ENABLED;
 
     public double sleepChatTextOpacityMultiplier = DEFAULT_CHAT_TEXT_BASE;
     public double sleepChatBackgroundOpacityMultiplier = DEFAULT_CHAT_BG_BASE;

@@ -1,6 +1,8 @@
 package net.aqualoco.sec.client;
 
 import net.aqualoco.sec.bed.BedRestingHelper;
+import net.aqualoco.sec.config.SeamlessSleepClientConfig;
+import net.aqualoco.sec.config.SeamlessSleepClientConfigManager;
 import net.aqualoco.sec.mixin.client.ui.GuiOverlayMessageAccessor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
@@ -40,6 +42,12 @@ public final class BedHudMessageManager {
     }
 
     public static void showContextMessage(Component text) {
+        if (!seamlesssleep$isSleepContextEnabled()) {
+            seamlesssleep$clearDirectSleepContextReservation();
+            seamlesssleep$clearContextMessages();
+            seamlesssleep$clearPendingSleepProgress();
+            return;
+        }
         seamlesssleep$clearDirectSleepContextReservation();
         seamlesssleep$clearPendingSleepProgress();
         seamlesssleep$bottomMessage = new TimedMessage(
@@ -53,6 +61,10 @@ public final class BedHudMessageManager {
     }
 
     public static void showHintMessage(Component text) {
+        if (!seamlesssleep$isLeaveBedHintEnabled()) {
+            seamlesssleep$clearHintMessage();
+            return;
+        }
         seamlesssleep$topMessage = new TimedMessage(
                 text,
                 seamlesssleep$getHudTick() + HINT_DURATION_TICKS,
@@ -64,6 +76,7 @@ public final class BedHudMessageManager {
     }
 
     public static void syncManagedBedState(@Nullable LocalPlayer player) {
+        seamlesssleep$pruneDisabledMessages();
         if (player == null) {
             clearAll();
             return;
@@ -100,6 +113,7 @@ public final class BedHudMessageManager {
     }
 
     public static boolean captureOverlayMessage(@Nullable Component message) {
+        seamlesssleep$pruneDisabledMessages();
         if (message == null) {
             return false;
         }
@@ -134,6 +148,12 @@ public final class BedHudMessageManager {
         }
 
         if ("sleep.players_sleeping".equals(key)) {
+            if (!seamlesssleep$isSleepContextEnabled()) {
+                seamlesssleep$clearContextMessages();
+                seamlesssleep$clearPendingSleepProgress();
+                seamlesssleep$clearVanillaOverlayMessage();
+                return true;
+            }
             if (managedBedState || pendingDirectSleepContext) {
                 seamlesssleep$clearVanillaOverlayMessage();
                 return true;
@@ -164,6 +184,7 @@ public final class BedHudMessageManager {
     }
 
     static void pruneExpired() {
+        seamlesssleep$pruneDisabledMessages();
         int hudTick = seamlesssleep$getHudTick();
         if (seamlesssleep$topMessage != null && hudTick >= seamlesssleep$topMessage.expiresAtTick()) {
             seamlesssleep$topMessage = null;
@@ -192,6 +213,7 @@ public final class BedHudMessageManager {
     }
 
     public static void handleSleepProgressPayload(int sleepingPlayers, int sleepersNeeded, boolean active) {
+        seamlesssleep$pruneDisabledMessages();
         LocalPlayer player = Minecraft.getInstance().player;
         if (player == null || !BedRestingHelper.isOverworldWorkflow(player)) {
             clearAll();
@@ -206,6 +228,12 @@ public final class BedHudMessageManager {
 
         boolean pendingDirectSleepContext = seamlesssleep$hasPendingDirectSleepContext();
         if (!active || SeamlessSleepClientState.SLEEP_ANIMATION.isActive()) {
+            seamlesssleep$clearSleepProgressContext();
+            seamlesssleep$clearPendingSleepProgress();
+            return;
+        }
+
+        if (!seamlesssleep$isSleepContextEnabled()) {
             seamlesssleep$clearSleepProgressContext();
             seamlesssleep$clearPendingSleepProgress();
             return;
@@ -271,6 +299,20 @@ public final class BedHudMessageManager {
         }
     }
 
+    private static void seamlesssleep$clearContextMessages() {
+        if (seamlesssleep$bottomMessage != null
+                && (seamlesssleep$bottomMessage.kind() == MessageKind.CONTEXT
+                || seamlesssleep$bottomMessage.kind() == MessageKind.SLEEP_PROGRESS)) {
+            seamlesssleep$bottomMessage = null;
+        }
+    }
+
+    private static void seamlesssleep$clearHintMessage() {
+        if (seamlesssleep$topMessage != null && seamlesssleep$topMessage.kind() == MessageKind.HINT) {
+            seamlesssleep$topMessage = null;
+        }
+    }
+
     private static void seamlesssleep$storePendingSleepProgress(Component text) {
         seamlesssleep$pendingSleepProgressText = text;
         seamlesssleep$pendingSleepProgressExpiresAtTick = seamlesssleep$getHudTick() + VANILLA_OVERLAY_DURATION_TICKS;
@@ -284,6 +326,28 @@ public final class BedHudMessageManager {
     private static boolean seamlesssleep$hasPendingSleepProgress() {
         return seamlesssleep$pendingSleepProgressText != null
                 && seamlesssleep$pendingSleepProgressExpiresAtTick > seamlesssleep$getHudTick();
+    }
+
+    private static SeamlessSleepClientConfig seamlesssleep$getConfig() {
+        return SeamlessSleepClientConfigManager.get();
+    }
+
+    private static boolean seamlesssleep$isLeaveBedHintEnabled() {
+        return seamlesssleep$getConfig().leaveBedHintEnabled;
+    }
+
+    private static boolean seamlesssleep$isSleepContextEnabled() {
+        return seamlesssleep$getConfig().sleepContextEnabled;
+    }
+
+    private static void seamlesssleep$pruneDisabledMessages() {
+        if (!seamlesssleep$isLeaveBedHintEnabled()) {
+            seamlesssleep$clearHintMessage();
+        }
+        if (!seamlesssleep$isSleepContextEnabled()) {
+            seamlesssleep$clearContextMessages();
+            seamlesssleep$clearPendingSleepProgress();
+        }
     }
 
     private static void seamlesssleep$clearVanillaOverlayMessage() {

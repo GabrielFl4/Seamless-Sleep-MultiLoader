@@ -54,17 +54,13 @@ public final class SeamlessSleepCommands {
                                                 .executes(ctx -> setSleepDurationMultiplier(
                                                         ctx,
                                                         DoubleArgumentType.getDouble(ctx, "value")
-                                                ))))
+                                ))))
                                 .then(Commands.literal("worldAccelerationMode")
-                                        .then(Commands.literal("off")
+                                        .then(Commands.literal("OFF")
                                                 .executes(ctx -> setWorldAccelerationMode(ctx, WorldSleepAccelerationMode.OFF)))
-                                        .then(Commands.literal("automatic")
+                                        .then(Commands.literal("AUTO")
                                                 .executes(ctx -> setWorldAccelerationMode(ctx, WorldSleepAccelerationMode.AUTOMATIC)))
-                                        .then(Commands.literal("auto")
-                                                .executes(ctx -> setWorldAccelerationMode(ctx, WorldSleepAccelerationMode.AUTOMATIC)))
-                                        .then(Commands.literal("manual")
-                                                .executes(ctx -> setWorldAccelerationMode(ctx, WorldSleepAccelerationMode.MANUAL)))
-                                        .then(Commands.literal("custom")
+                                        .then(Commands.literal("MANUAL")
                                                 .executes(ctx -> setWorldAccelerationMode(ctx, WorldSleepAccelerationMode.MANUAL))))
                                 .then(Commands.literal("worldAccelerationAutomaticMode")
                                         .then(Commands.literal("performance")
@@ -240,7 +236,7 @@ public final class SeamlessSleepCommands {
         context.getSource().sendSuccess(
                 () -> Component.literal(
                         "World Acceleration -> mode "
-                                + config.worldSleepAcceleration.mode.name()
+                                + formatAccelerationMode(config.worldSleepAcceleration.mode)
                                 + ", automatic mode "
                                 + config.worldSleepAcceleration.automaticMode.name()
                                 + ", players affected "
@@ -291,7 +287,7 @@ public final class SeamlessSleepCommands {
         context.getSource().sendSuccess(
                 () -> Component.literal(
                         "Governor -> mode "
-                                + config.worldSleepAcceleration.mode.name()
+                                + formatAccelerationMode(config.worldSleepAcceleration.mode)
                                 + ", automatic mode "
                                 + config.worldSleepAcceleration.automaticMode.name()
                                 + ", players affected "
@@ -303,7 +299,7 @@ public final class SeamlessSleepCommands {
 
         if (config.worldSleepAcceleration.mode != WorldSleepAccelerationMode.AUTOMATIC) {
             context.getSource().sendSuccess(
-                    () -> Component.literal("Governor bypassed because the current mode is " + config.worldSleepAcceleration.mode.name() + "."),
+                    () -> Component.literal("Governor bypassed because the current mode is " + formatAccelerationMode(config.worldSleepAcceleration.mode) + "."),
                     false
             );
             context.getSource().sendSuccess(() -> formatNatureGovernorLine(status.getNature(), randomTickSpeed), false);
@@ -615,12 +611,12 @@ public final class SeamlessSleepCommands {
             return saveAndSyncAcceleration(
                     context,
                     config,
-                    "World Acceleration Mode updated to AUTOMATIC. Players Affected is now forced to "
+                    "World Acceleration Mode updated to AUTO. Players Affected is now forced to "
                             + config.worldSleepAcceleration.resolveEffectivePlayersAffected().name()
                             + "."
             );
         }
-        return saveAndSyncAcceleration(context, config, "World Acceleration Mode updated to " + mode.name() + ".");
+        return saveAndSyncAcceleration(context, config, "World Acceleration Mode updated to " + formatAccelerationMode(mode) + ".");
     }
 
     private static int setWorldAccelerationAutomaticMode(CommandContext<CommandSourceStack> context, WorldSleepAutomaticMode automaticMode) {
@@ -667,6 +663,15 @@ public final class SeamlessSleepCommands {
 
     private static String formatOnOff(boolean value) {
         return value ? "ON" : "OFF";
+    }
+
+    private static String formatAccelerationMode(WorldSleepAccelerationMode mode) {
+        WorldSleepAccelerationMode resolved = mode == null ? WorldSleepAccelerationMode.AUTOMATIC : mode;
+        return switch (resolved) {
+            case OFF -> "OFF";
+            case AUTOMATIC -> "AUTO";
+            case MANUAL -> "MANUAL";
+        };
     }
 
     private static int resolveCurrentSimulationDistance(CommandContext<CommandSourceStack> context) {

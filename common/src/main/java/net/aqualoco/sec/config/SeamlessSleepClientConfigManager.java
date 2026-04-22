@@ -103,6 +103,8 @@ public final class SeamlessSleepClientConfigManager {
 
         cfg.sleepOverlayEnabled = readBoolean(file, List.of("overlay", "sleepOverlayEnabled"), "sleepOverlayEnabled", cfg.sleepOverlayEnabled);
         cfg.sleepOverlayDarknessMultiplier = readDouble(file, List.of("overlay", "sleepOverlayDarknessMultiplier"), "sleepOverlayDarknessMultiplier", cfg.sleepOverlayDarknessMultiplier);
+        cfg.leaveBedHintEnabled = readBoolean(file, List.of("overlay", "leaveBedHintEnabled"), "leaveBedHintEnabled", cfg.leaveBedHintEnabled);
+        cfg.sleepContextEnabled = readBoolean(file, List.of("overlay", "sleepContextEnabled"), "sleepContextEnabled", cfg.sleepContextEnabled);
         cfg.sleepChatTextOpacityMultiplier = readDouble(file, List.of("chat", "sleepChatTextOpacityMultiplier"), "sleepChatTextOpacityMultiplier", cfg.sleepChatTextOpacityMultiplier);
         cfg.sleepChatBackgroundOpacityMultiplier = readDouble(file, List.of("chat", "sleepChatBackgroundOpacityMultiplier"), "sleepChatBackgroundOpacityMultiplier", cfg.sleepChatBackgroundOpacityMultiplier);
         cfg.sleepChatOpacityMultiplier = readDouble(file, List.of("chat", "sleepChatOpacityMultiplier"), "sleepChatOpacityMultiplier", cfg.sleepChatOpacityMultiplier);
@@ -133,6 +135,14 @@ public final class SeamlessSleepClientConfigManager {
                 "Overlay darkness while resting in bed. Range: 0.0 to 1.0. 0.0=hidden, 1.0=vanilla. Default: 0.35",
                 "sleepOverlayDarknessMultiplier",
                 Double.toString(cfg.sleepOverlayDarknessMultiplier));
+        appendEntry(sb,
+                "Show leave bed hint. Range: true | false. Default: true",
+                "leaveBedHintEnabled",
+                Boolean.toString(cfg.leaveBedHintEnabled));
+        appendEntry(sb,
+                "Show sleep context messages. Includes bed restrictions and sleeping progress. Range: true | false. Default: true",
+                "sleepContextEnabled",
+                Boolean.toString(cfg.sleepContextEnabled));
 
         appendSectionGap(sb, 2);
         appendSectionHeader(sb, "chat");

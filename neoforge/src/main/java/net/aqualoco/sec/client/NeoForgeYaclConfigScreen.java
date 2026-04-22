@@ -19,6 +19,7 @@ import net.aqualoco.sec.config.WorldSleepAccelerationConfig;
 import net.aqualoco.sec.config.WorldSleepAccelerationMode;
 import net.aqualoco.sec.config.WorldSleepAccelerationPlayersAffected;
 import net.aqualoco.sec.config.WorldSleepAutomaticMode;
+import net.aqualoco.sec.network.ServerConfigSync;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
@@ -63,10 +64,17 @@ public final class NeoForgeYaclConfigScreen {
                         serverUiState.applyTo(serverCfg);
                         serverCfg.clamp();
                         SeamlessSleepServerConfigManager.save();
+                        syncLocalServerConfigIfPresent(client, serverCfg);
                     }
                 })
                 .build()
                 .generateScreen(parent);
+    }
+
+    private static void syncLocalServerConfigIfPresent(Minecraft client, SeamlessSleepServerConfig serverCfg) {
+        if (client.getSingleplayerServer() != null) {
+            ServerConfigSync.sendToAll(client.getSingleplayerServer(), serverCfg);
+        }
     }
 
     private static ConfigCategory buildClientConfigCategory(SeamlessSleepClientConfig cfg) {
@@ -409,6 +417,24 @@ public final class NeoForgeYaclConfigScreen {
                         true,
                         NeoForgeYaclConfigScreen::formatVanillaHiddenPercentValue
                 ))
+                .option(buildToggle(
+                        Component.translatable("config.seamlesssleep.overlay.leave_bed_hint"),
+                        Component.translatable("config.seamlesssleep.overlay.leave_bed_hint.desc"),
+                        Component.empty(),
+                        true,
+                        () -> cfg.leaveBedHintEnabled,
+                        value -> cfg.leaveBedHintEnabled = value,
+                        true
+                ))
+                .option(buildToggle(
+                        Component.translatable("config.seamlesssleep.overlay.sleep_context"),
+                        Component.translatable("config.seamlesssleep.overlay.sleep_context.desc"),
+                        Component.empty(),
+                        true,
+                        () -> cfg.sleepContextEnabled,
+                        value -> cfg.sleepContextEnabled = value,
+                        true
+                ))
                 .build();
     }
 
@@ -441,7 +467,7 @@ public final class NeoForgeYaclConfigScreen {
                         () -> cfg.sleepChatMaxLines,
                         value -> cfg.sleepChatMaxLines = value,
                         true,
-                        value -> Component.literal(Integer.toString(value))
+                        NeoForgeYaclConfigScreen::formatVanillaHiddenLinesValue
                 ))
                 .build();
     }
@@ -698,6 +724,16 @@ public final class NeoForgeYaclConfigScreen {
             return Component.translatable("config.seamlesssleep.value.vanilla");
         }
         return Component.literal(value + "%");
+    }
+
+    private static Component formatVanillaHiddenLinesValue(Integer value) {
+        if (value == null || value <= 0) {
+            return Component.translatable("config.seamlesssleep.value.hidden");
+        }
+        if (value >= 12) {
+            return Component.translatable("config.seamlesssleep.value.vanilla");
+        }
+        return Component.literal(Integer.toString(value));
     }
 
     private static Component formatWeatherChanceValue(Integer value) {
