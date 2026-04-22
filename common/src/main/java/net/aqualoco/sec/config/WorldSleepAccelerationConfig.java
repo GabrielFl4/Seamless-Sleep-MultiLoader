@@ -4,17 +4,19 @@ import net.aqualoco.sec.acceleration.WorldSleepAccelerationFilterPolicy;
 
 public final class WorldSleepAccelerationConfig {
     public static final int DEFAULT_MANUAL_RADIUS_CHUNKS = 12;
+    public static final int DEFAULT_MANUAL_SPEED_PERCENT = 100;
+    public static final boolean DEFAULT_VANILLA_ONLY_ACCELERATION = false;
     private static final int MAX_CONFIG_RADIUS_CHUNKS = 32;
     public int manualAccelerationRadiusChunks = DEFAULT_MANUAL_RADIUS_CHUNKS;
 
     public WorldSleepAccelerationMode mode = WorldSleepAccelerationMode.AUTOMATIC;
     public WorldSleepAutomaticMode automaticMode = WorldSleepAutomaticMode.AGGRESSIVE;
     public WorldSleepAccelerationPlayersAffected playersAffected = WorldSleepAccelerationPlayersAffected.ALL_PLAYERS;
-    public int manualAccelerationSpeedPercent = 100;
+    public int manualAccelerationSpeedPercent = DEFAULT_MANUAL_SPEED_PERCENT;
     public boolean grassAndFoliageAccelerationEnabled = true;
     public boolean cropsAndSaplingsAccelerationEnabled = true;
     public boolean kelpAccelerationEnabled = false;
-    public boolean vanillaOnlyAcceleration = true;
+    public boolean vanillaOnlyAcceleration = DEFAULT_VANILLA_ONLY_ACCELERATION;
     public boolean processesAccelerationEnabled = true;
     public int processesSpeedPercent = 100;
 

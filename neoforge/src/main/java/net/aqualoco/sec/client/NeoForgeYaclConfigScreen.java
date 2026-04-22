@@ -160,7 +160,7 @@ public final class NeoForgeYaclConfigScreen {
                         "config.seamlesssleep.world_acceleration.speed.command"
                 ),
                 Component.empty(),
-                uiState.resolveDisplayedAccelerationSpeedPercent(),
+                WorldSleepAccelerationConfig.DEFAULT_MANUAL_SPEED_PERCENT,
                 0,
                 100,
                 1,
@@ -242,7 +242,7 @@ public final class NeoForgeYaclConfigScreen {
                         "config.seamlesssleep.world_acceleration.vanilla_only.command"
                 ),
                 Component.empty(),
-                true,
+                WorldSleepAccelerationConfig.DEFAULT_VANILLA_ONLY_ACCELERATION,
                 () -> uiState.boundVanillaOnlyAcceleration,
                 value -> uiState.boundVanillaOnlyAcceleration = value,
                 canEditServerConfig && uiState.mode != WorldSleepAccelerationMode.OFF

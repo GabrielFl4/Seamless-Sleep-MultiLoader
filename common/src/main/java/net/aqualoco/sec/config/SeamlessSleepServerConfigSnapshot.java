@@ -9,11 +9,11 @@ public final class SeamlessSleepServerConfigSnapshot {
     private static WorldSleepAutomaticMode worldSleepAutomaticMode = WorldSleepAutomaticMode.AGGRESSIVE;
     private static WorldSleepAccelerationPlayersAffected worldSleepAccelerationPlayersAffected = WorldSleepAccelerationPlayersAffected.ALL_PLAYERS;
     private static int manualAccelerationRadiusChunks = WorldSleepAccelerationConfig.DEFAULT_MANUAL_RADIUS_CHUNKS;
-    private static int manualAccelerationSpeedPercent = 100;
+    private static int manualAccelerationSpeedPercent = WorldSleepAccelerationConfig.DEFAULT_MANUAL_SPEED_PERCENT;
     private static boolean grassAndFoliageAccelerationEnabled = true;
     private static boolean cropsAndSaplingsAccelerationEnabled = true;
     private static boolean kelpAccelerationEnabled = false;
-    private static boolean vanillaOnlyAcceleration = true;
+    private static boolean vanillaOnlyAcceleration = WorldSleepAccelerationConfig.DEFAULT_VANILLA_ONLY_ACCELERATION;
     private static boolean processesAccelerationEnabled = true;
     private static int processesSpeedPercent = 100;
     private static boolean initialized;

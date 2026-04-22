@@ -254,7 +254,7 @@ public final class SeamlessSleepServerConfigManager {
         int manualRadiusChunks = legacyNature.baseRadiusChunks > 0
                 ? legacyNature.baseRadiusChunks
                 : legacyProcess.baseRadiusChunks;
-        int manualSpeedPercent = fractionToPercent(legacyNature.baseRateFraction, 100);
+        int manualSpeedPercent = WorldSleepAccelerationConfig.DEFAULT_MANUAL_SPEED_PERCENT;
         int processesSpeedPercent = fractionToPercent(legacyProcess.baseRateFraction, 100);
 
         return new LegacyAccelerationData(
@@ -374,7 +374,7 @@ public final class SeamlessSleepServerConfigManager {
                 "manual_radius_chunks",
                 Integer.toString(cfg.worldSleepAcceleration.manualAccelerationRadiusChunks));
         appendEntry(sb,
-                "Manual random tick acceleration speed percent. Range: 0 to 100. 0=none, 100=max",
+                "Manual random tick acceleration speed percent. Range: 0 to 100. 0=none, 100=max. Default: 100",
                 "manual_speed_percent",
                 Integer.toString(cfg.worldSleepAcceleration.manualAccelerationSpeedPercent));
         appendEntry(sb,
@@ -390,7 +390,7 @@ public final class SeamlessSleepServerConfigManager {
                 "kelp_acceleration_enabled",
                 Boolean.toString(cfg.worldSleepAcceleration.kelpAccelerationEnabled));
         appendEntry(sb,
-                "When true, only vanilla blocks remain eligible for nature acceleration",
+                "When true, only vanilla blocks remain eligible for nature acceleration. Default: false",
                 "vanilla_only_acceleration",
                 Boolean.toString(cfg.worldSleepAcceleration.vanillaOnlyAcceleration));
         appendEntry(sb,
