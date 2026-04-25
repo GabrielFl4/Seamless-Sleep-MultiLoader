@@ -1,5 +1,9 @@
 package net.aqualoco.sec.config;
 
+import net.aqualoco.sec.client.sleepindicator.SleepIndicatorAnchor;
+import net.aqualoco.sec.client.sleepindicator.SleepIndicatorMode;
+import net.aqualoco.sec.client.sleepindicator.SleepIndicatorVisibility;
+
 // Client-side visual settings with validation bounds for safe values.
 public final class SeamlessSleepClientConfig {
     private static final double DEFAULT_CHAT_TEXT_BASE = 0.5D;
@@ -11,6 +15,9 @@ public final class SeamlessSleepClientConfig {
     private static final int DEFAULT_CHAT_MAX_LINES = 4;
     private static final double DEFAULT_TILT_DEGREES = 10.0D;
     private static final int DEFAULT_MOUSE_SMOOTHNESS_PERCENT = 100;
+    private static final double DEFAULT_SLEEP_INDICATOR_SCALE = 1.0D;
+    private static final double MIN_SLEEP_INDICATOR_SCALE = 0.25D;
+    private static final double MAX_SLEEP_INDICATOR_SCALE = 4.0D;
     private static final boolean DEFAULT_LEAVE_BED_HINT_ENABLED = true;
     private static final boolean DEFAULT_SLEEP_CONTEXT_ENABLED = true;
     private static final double MIN_TILT_DEGREES = 0.0D;
@@ -19,10 +26,15 @@ public final class SeamlessSleepClientConfig {
     private static final boolean DEFAULT_REPLAY_COMPATIBILITY_ENABLED = true;
     private static final boolean DEFAULT_DEBUG_LOGS_ENABLED = false;
 
+    // Kept only so older config screens and old TOML files have a migration target.
     public boolean sleepOverlayEnabled = true;
     public double sleepOverlayDarknessMultiplier = DEFAULT_OVERLAY_DARKNESS;
     public boolean leaveBedHintEnabled = DEFAULT_LEAVE_BED_HINT_ENABLED;
     public boolean sleepContextEnabled = DEFAULT_SLEEP_CONTEXT_ENABLED;
+    public SleepIndicatorMode sleepIndicatorMode = SleepIndicatorMode.BIOME_CLOCK;
+    public SleepIndicatorAnchor sleepIndicatorAnchor = SleepIndicatorAnchor.CENTER;
+    public SleepIndicatorVisibility sleepIndicatorVisibility = SleepIndicatorVisibility.ALWAYS;
+    public double sleepIndicatorScale = DEFAULT_SLEEP_INDICATOR_SCALE;
 
     public double sleepChatTextOpacityMultiplier = DEFAULT_CHAT_TEXT_BASE;
     public double sleepChatBackgroundOpacityMultiplier = DEFAULT_CHAT_BG_BASE;
@@ -37,6 +49,15 @@ public final class SeamlessSleepClientConfig {
     public void clamp() {
         sleepChatTextOpacityMultiplier = clamp01(sleepChatTextOpacityMultiplier, DEFAULT_CHAT_TEXT_BASE);
         sleepChatBackgroundOpacityMultiplier = clamp01(sleepChatBackgroundOpacityMultiplier, DEFAULT_CHAT_BG_BASE);
+        if (sleepIndicatorMode == null) {
+            sleepIndicatorMode = SleepIndicatorMode.BIOME_CLOCK;
+        }
+        if (sleepIndicatorAnchor == null) {
+            sleepIndicatorAnchor = SleepIndicatorAnchor.CENTER;
+        }
+        if (sleepIndicatorVisibility == null) {
+            sleepIndicatorVisibility = SleepIndicatorVisibility.ALWAYS;
+        }
 
         sleepOverlayDarknessMultiplier = clampRange(
                 sleepOverlayDarknessMultiplier,
@@ -49,6 +70,12 @@ public final class SeamlessSleepClientConfig {
                 0.0D,
                 1.0D,
                 DEFAULT_CHAT_GROUP_MULTIPLIER
+        );
+        sleepIndicatorScale = clampRange(
+                sleepIndicatorScale,
+                MIN_SLEEP_INDICATOR_SCALE,
+                MAX_SLEEP_INDICATOR_SCALE,
+                DEFAULT_SLEEP_INDICATOR_SCALE
         );
         sleepChatMaxLines = clampInt(sleepChatMaxLines, 0, 12, DEFAULT_CHAT_MAX_LINES);
         sleepCameraTiltDegrees = clampTiltDegrees(sleepCameraTiltDegrees, DEFAULT_TILT_DEGREES);

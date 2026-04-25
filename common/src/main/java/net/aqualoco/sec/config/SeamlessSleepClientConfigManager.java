@@ -3,12 +3,16 @@ package net.aqualoco.sec.config;
 import com.electronwill.nightconfig.core.file.CommentedFileConfig;
 import com.electronwill.nightconfig.toml.TomlFormat;
 import net.aqualoco.sec.Constants;
+import net.aqualoco.sec.client.sleepindicator.SleepIndicatorAnchor;
+import net.aqualoco.sec.client.sleepindicator.SleepIndicatorMode;
+import net.aqualoco.sec.client.sleepindicator.SleepIndicatorVisibility;
 import net.aqualoco.sec.platform.Services;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Locale;
 
 // Handles disk persistence for the client config TOML.
 public final class SeamlessSleepClientConfigManager {
@@ -16,7 +20,7 @@ public final class SeamlessSleepClientConfigManager {
     private static final String FILE_NAME = "seamless_sleep.toml";
     private static final String LEGACY_JSON_FILE_NAME = "seamless_sleep.json";
     private static final String LEGACY_JSONC_FILE_NAME = "seamless_sleep.jsonc";
-    private static final int CONFIG_VERSION = 3;
+    private static final int CONFIG_VERSION = 4;
 
     private static SeamlessSleepClientConfig config = defaultConfig();
     private static Path configPath;
@@ -101,10 +105,26 @@ public final class SeamlessSleepClientConfigManager {
     private static SeamlessSleepClientConfig readClientConfig(CommentedFileConfig file, int fileConfigVersion) {
         SeamlessSleepClientConfig cfg = defaultConfig();
 
-        cfg.sleepOverlayEnabled = readBoolean(file, List.of("overlay", "sleepOverlayEnabled"), "sleepOverlayEnabled", cfg.sleepOverlayEnabled);
+        Boolean legacySleepOverlayEnabled = readOptionalBoolean(file, List.of("overlay", "sleepOverlayEnabled"), "sleepOverlayEnabled");
+        if (legacySleepOverlayEnabled != null) {
+            cfg.sleepOverlayEnabled = legacySleepOverlayEnabled;
+        }
         cfg.sleepOverlayDarknessMultiplier = readDouble(file, List.of("overlay", "sleepOverlayDarknessMultiplier"), "sleepOverlayDarknessMultiplier", cfg.sleepOverlayDarknessMultiplier);
         cfg.leaveBedHintEnabled = readBoolean(file, List.of("overlay", "leaveBedHintEnabled"), "leaveBedHintEnabled", cfg.leaveBedHintEnabled);
         cfg.sleepContextEnabled = readBoolean(file, List.of("overlay", "sleepContextEnabled"), "sleepContextEnabled", cfg.sleepContextEnabled);
+        Object sleepIndicatorModeValue = readRaw(file, List.of("sleep_indicator", "mode"), "sleepIndicatorMode");
+        if (sleepIndicatorModeValue != null) {
+            cfg.sleepIndicatorMode = parseEnum(sleepIndicatorModeValue, SleepIndicatorMode.class, cfg.sleepIndicatorMode);
+        } else if (legacySleepOverlayEnabled != null) {
+            cfg.sleepIndicatorMode = legacySleepOverlayEnabled ? SleepIndicatorMode.OVERLAY : SleepIndicatorMode.OFF;
+            if (legacySleepOverlayEnabled) {
+                cfg.sleepIndicatorAnchor = SleepIndicatorAnchor.TOP_LEFT;
+                cfg.sleepIndicatorVisibility = SleepIndicatorVisibility.SLEEP;
+            }
+        }
+        cfg.sleepIndicatorAnchor = readEnum(file, List.of("sleep_indicator", "anchor"), "sleepIndicatorAnchor", SleepIndicatorAnchor.class, cfg.sleepIndicatorAnchor);
+        cfg.sleepIndicatorVisibility = readEnum(file, List.of("sleep_indicator", "visibility"), "sleepIndicatorVisibility", SleepIndicatorVisibility.class, cfg.sleepIndicatorVisibility);
+        cfg.sleepIndicatorScale = readDouble(file, List.of("sleep_indicator", "scale"), "sleepIndicatorScale", cfg.sleepIndicatorScale);
         cfg.sleepChatTextOpacityMultiplier = readDouble(file, List.of("chat", "sleepChatTextOpacityMultiplier"), "sleepChatTextOpacityMultiplier", cfg.sleepChatTextOpacityMultiplier);
         cfg.sleepChatBackgroundOpacityMultiplier = readDouble(file, List.of("chat", "sleepChatBackgroundOpacityMultiplier"), "sleepChatBackgroundOpacityMultiplier", cfg.sleepChatBackgroundOpacityMultiplier);
         cfg.sleepChatOpacityMultiplier = readDouble(file, List.of("chat", "sleepChatOpacityMultiplier"), "sleepChatOpacityMultiplier", cfg.sleepChatOpacityMultiplier);
@@ -116,6 +136,7 @@ public final class SeamlessSleepClientConfigManager {
         if (fileConfigVersion > 0 && fileConfigVersion < 3) {
             cfg.sleepChatOpacityMultiplier *= 0.5D;
         }
+        cfg.sleepOverlayEnabled = cfg.sleepIndicatorMode != SleepIndicatorMode.OFF;
         return cfg;
     }
 
@@ -128,11 +149,7 @@ public final class SeamlessSleepClientConfigManager {
         appendSectionGap(sb, 2);
         appendSectionHeader(sb, "overlay");
         appendEntry(sb,
-                "Enable sleep overlay. Range: true | false. Default: true",
-                "sleepOverlayEnabled",
-                Boolean.toString(cfg.sleepOverlayEnabled));
-        appendEntry(sb,
-                "Overlay darkness while resting in bed. Range: 0.0 to 1.0. 0.0=hidden, 1.0=vanilla. Default: 0.35",
+                "Sleep vignette darkness while resting in bed. Range: 0.0 to 1.0. 0.0=hidden, 1.0=vanilla. Default: 0.35",
                 "sleepOverlayDarknessMultiplier",
                 Double.toString(cfg.sleepOverlayDarknessMultiplier));
         appendEntry(sb,
@@ -143,6 +160,25 @@ public final class SeamlessSleepClientConfigManager {
                 "Show sleep context messages. Includes bed restrictions and sleeping progress. Range: true | false. Default: true",
                 "sleepContextEnabled",
                 Boolean.toString(cfg.sleepContextEnabled));
+
+        appendSectionGap(sb, 2);
+        appendSectionHeader(sb, "sleep_indicator");
+        appendEntry(sb,
+                "Sleep indicator renderer. Range: OFF | OVERLAY | BIOME_CLOCK. V1 debug default: BIOME_CLOCK",
+                "mode",
+                toTomlString(cfg.sleepIndicatorMode.name()));
+        appendEntry(sb,
+                "Sleep indicator screen anchor. Range: TOP_LEFT | TOP_CENTER | TOP_RIGHT | CENTER | BOTTOM_LEFT | BOTTOM_CENTER | BOTTOM_RIGHT. V1 debug default: CENTER",
+                "anchor",
+                toTomlString(cfg.sleepIndicatorAnchor.name()));
+        appendEntry(sb,
+                "Sleep indicator visibility. Range: BED | SLEEP | ALWAYS. V1 debug default: ALWAYS",
+                "visibility",
+                toTomlString(cfg.sleepIndicatorVisibility.name()));
+        appendEntry(sb,
+                "Sleep indicator visual scale. Range: 0.25 to 4.0. Default: 1.0",
+                "scale",
+                Double.toString(cfg.sleepIndicatorScale));
 
         appendSectionGap(sb, 2);
         appendSectionHeader(sb, "chat");
@@ -242,8 +278,43 @@ public final class SeamlessSleepClientConfigManager {
     }
 
     private static Object readRaw(CommentedFileConfig file, List<String> path, String legacyKey) {
-        Object value = file.getRaw(path);
-        return value != null ? value : file.getRaw(legacyKey);
+        Object value = path == null ? null : file.getRaw(path);
+        if (value != null || legacyKey == null || legacyKey.isBlank()) {
+            return value;
+        }
+        return file.getRaw(legacyKey);
+    }
+
+    private static Boolean readOptionalBoolean(CommentedFileConfig file, List<String> path, String legacyKey) {
+        Object value = readRaw(file, path, legacyKey);
+        return value instanceof Boolean bool ? bool : null;
+    }
+
+    private static <E extends Enum<E>> E readEnum(
+            CommentedFileConfig file,
+            List<String> path,
+            String legacyKey,
+            Class<E> enumClass,
+            E fallback
+    ) {
+        return parseEnum(readRaw(file, path, legacyKey), enumClass, fallback);
+    }
+
+    private static <E extends Enum<E>> E parseEnum(Object value, Class<E> enumClass, E fallback) {
+        if (!(value instanceof String raw)) {
+            return fallback;
+        }
+
+        String normalized = raw.trim().replace('-', '_').toUpperCase(Locale.ROOT);
+        if (normalized.isBlank()) {
+            return fallback;
+        }
+
+        try {
+            return Enum.valueOf(enumClass, normalized);
+        } catch (IllegalArgumentException ignored) {
+            return fallback;
+        }
     }
 
     private static Integer readOptionalInt(CommentedFileConfig file, String key) {

@@ -87,7 +87,7 @@ public final class ClientBedWorkflow {
     public static float getSleepOverlayAlpha(LocalPlayer player) {
         SeamlessSleepClientConfig cfg = SeamlessSleepClientConfigManager.get();
         boolean animationActive = SeamlessSleepClientState.SLEEP_ANIMATION.isActive();
-        if (!cfg.sleepOverlayEnabled || !BedRestingHelper.isOverworldWorkflow(player)) {
+        if (!BedRestingHelper.isOverworldWorkflow(player)) {
             seamlesssleep$overlayAlpha = 0.0F;
             seamlesssleep$overlayFadeOutActive = false;
             seamlesssleep$overlaySuppressedUntilWake = false;
