@@ -18,7 +18,19 @@ final class SeamlessSleepServerEvents {
             ServerPlayNetworking.send(handler.getPlayer(),
                     new ServerConfigSyncPayload(
                             cfg.sleepWeatherClearChancePercent,
-                            cfg.sleepAnimationDurationMultiplier
+                            cfg.sleepAnimationDurationMultiplier,
+                            Math.max(1, server.getPlayerList().getSimulationDistance()),
+                            cfg.worldSleepAcceleration.mode,
+                            cfg.worldSleepAcceleration.automaticMode,
+                            cfg.worldSleepAcceleration.playersAffected,
+                            cfg.worldSleepAcceleration.manualAccelerationRadiusChunks,
+                            cfg.worldSleepAcceleration.manualAccelerationSpeedPercent,
+                            cfg.worldSleepAcceleration.grassAndFoliageAccelerationEnabled,
+                            cfg.worldSleepAcceleration.cropsAndSaplingsAccelerationEnabled,
+                            cfg.worldSleepAcceleration.kelpAccelerationEnabled,
+                            cfg.worldSleepAcceleration.vanillaOnlyAcceleration,
+                            cfg.worldSleepAcceleration.processesAccelerationEnabled,
+                            cfg.worldSleepAcceleration.processesSpeedPercent
                     ));
         });
     }

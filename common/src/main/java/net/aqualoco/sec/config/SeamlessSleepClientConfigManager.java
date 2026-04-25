@@ -16,7 +16,7 @@ public final class SeamlessSleepClientConfigManager {
     private static final String FILE_NAME = "seamless_sleep.toml";
     private static final String LEGACY_JSON_FILE_NAME = "seamless_sleep.json";
     private static final String LEGACY_JSONC_FILE_NAME = "seamless_sleep.jsonc";
-    private static final int CONFIG_VERSION = 1;
+    private static final int CONFIG_VERSION = 3;
 
     private static SeamlessSleepClientConfig config = defaultConfig();
     private static Path configPath;
@@ -48,7 +48,8 @@ public final class SeamlessSleepClientConfigManager {
             file.load();
             logMetadataInfo(path, file);
 
-            SeamlessSleepClientConfig cfg = readClientConfig(file);
+            Integer fileConfigVersion = readOptionalInt(file, "config_version");
+            SeamlessSleepClientConfig cfg = readClientConfig(file, fileConfigVersion == null ? 0 : fileConfigVersion);
             cfg.clamp();
             save(path, cfg); // Canonicalize order/comments and keep metadata fresh.
             return cfg;
@@ -97,18 +98,24 @@ public final class SeamlessSleepClientConfigManager {
                 .build();
     }
 
-    private static SeamlessSleepClientConfig readClientConfig(CommentedFileConfig file) {
+    private static SeamlessSleepClientConfig readClientConfig(CommentedFileConfig file, int fileConfigVersion) {
         SeamlessSleepClientConfig cfg = defaultConfig();
 
         cfg.sleepOverlayEnabled = readBoolean(file, List.of("overlay", "sleepOverlayEnabled"), "sleepOverlayEnabled", cfg.sleepOverlayEnabled);
         cfg.sleepOverlayDarknessMultiplier = readDouble(file, List.of("overlay", "sleepOverlayDarknessMultiplier"), "sleepOverlayDarknessMultiplier", cfg.sleepOverlayDarknessMultiplier);
+        cfg.leaveBedHintEnabled = readBoolean(file, List.of("overlay", "leaveBedHintEnabled"), "leaveBedHintEnabled", cfg.leaveBedHintEnabled);
+        cfg.sleepContextEnabled = readBoolean(file, List.of("overlay", "sleepContextEnabled"), "sleepContextEnabled", cfg.sleepContextEnabled);
         cfg.sleepChatTextOpacityMultiplier = readDouble(file, List.of("chat", "sleepChatTextOpacityMultiplier"), "sleepChatTextOpacityMultiplier", cfg.sleepChatTextOpacityMultiplier);
         cfg.sleepChatBackgroundOpacityMultiplier = readDouble(file, List.of("chat", "sleepChatBackgroundOpacityMultiplier"), "sleepChatBackgroundOpacityMultiplier", cfg.sleepChatBackgroundOpacityMultiplier);
         cfg.sleepChatOpacityMultiplier = readDouble(file, List.of("chat", "sleepChatOpacityMultiplier"), "sleepChatOpacityMultiplier", cfg.sleepChatOpacityMultiplier);
         cfg.sleepChatMaxLines = readInt(file, List.of("chat", "sleepChatMaxLines"), "sleepChatMaxLines", cfg.sleepChatMaxLines);
         cfg.sleepCameraTiltDegrees = readDouble(file, List.of("camera", "sleepCameraTiltDegrees"), "sleepCameraTiltDegrees", cfg.sleepCameraTiltDegrees);
+        cfg.mouseSmoothnessPercent = readInt(file, List.of("camera", "mouseSmoothnessPercent"), "mouseSmoothnessPercent", cfg.mouseSmoothnessPercent);
         cfg.replayCompatibilityEnabled = readBoolean(file, List.of("advanced", "replayCompatibilityEnabled"), "replayCompatibilityEnabled", cfg.replayCompatibilityEnabled);
         cfg.debugLogsEnabled = readBoolean(file, List.of("advanced", "debugLogsEnabled"), "debugLogsEnabled", cfg.debugLogsEnabled);
+        if (fileConfigVersion > 0 && fileConfigVersion < 3) {
+            cfg.sleepChatOpacityMultiplier *= 0.5D;
+        }
         return cfg;
     }
 
@@ -125,40 +132,52 @@ public final class SeamlessSleepClientConfigManager {
                 "sleepOverlayEnabled",
                 Boolean.toString(cfg.sleepOverlayEnabled));
         appendEntry(sb,
-                "Overlay darkness. Range: 0.0 to 1.0. Default: 0.35",
+                "Overlay darkness while resting in bed. Range: 0.0 to 1.0. 0.0=hidden, 1.0=vanilla. Default: 0.35",
                 "sleepOverlayDarknessMultiplier",
                 Double.toString(cfg.sleepOverlayDarknessMultiplier));
+        appendEntry(sb,
+                "Show leave bed hint. Range: true | false. Default: true",
+                "leaveBedHintEnabled",
+                Boolean.toString(cfg.leaveBedHintEnabled));
+        appendEntry(sb,
+                "Show sleep context messages. Includes bed restrictions and sleeping progress. Range: true | false. Default: true",
+                "sleepContextEnabled",
+                Boolean.toString(cfg.sleepContextEnabled));
 
         appendSectionGap(sb, 2);
         appendSectionHeader(sb, "chat");
         appendEntry(sb,
-                "Chat text opacity multiplier. Range: 0.0 to 1.0. Default: 0.5",
-                "sleepChatTextOpacityMultiplier",
-                Double.toString(cfg.sleepChatTextOpacityMultiplier));
-        appendEntry(sb,
-                "Chat background opacity multiplier. Range: 0.0 to 1.0. Default: 0.4",
-                "sleepChatBackgroundOpacityMultiplier",
-                Double.toString(cfg.sleepChatBackgroundOpacityMultiplier));
-        appendEntry(sb,
-                "Global chat opacity multiplier. Range: 0.1 to 2.0. Default: 1.0",
+                "Overall chat opacity while resting in bed. Range: 0.0 to 1.0. 0.0=hidden, 0.5=current Seamless preset, 1.0=vanilla. Default: 0.5",
                 "sleepChatOpacityMultiplier",
                 Double.toString(cfg.sleepChatOpacityMultiplier));
         appendEntry(sb,
-                "Max chat lines in bed chat. Range: integer 0 to 12. Default: 4",
+                "Visible chat lines while resting in bed. Range: integer 0 to 12. Default: 4",
                 "sleepChatMaxLines",
                 Integer.toString(cfg.sleepChatMaxLines));
+        appendEntry(sb,
+                "Legacy text opacity anchor kept for compatibility. It defines the midpoint preset used by the overall chat opacity slider. Range: 0.0 to 1.0. Default: 0.5",
+                "sleepChatTextOpacityMultiplier",
+                Double.toString(cfg.sleepChatTextOpacityMultiplier));
+        appendEntry(sb,
+                "Legacy background opacity anchor kept for compatibility. It defines the midpoint preset used by the overall chat opacity slider. Range: 0.0 to 1.0. Default: 0.4",
+                "sleepChatBackgroundOpacityMultiplier",
+                Double.toString(cfg.sleepChatBackgroundOpacityMultiplier));
 
         appendSectionGap(sb, 2);
         appendSectionHeader(sb, "camera");
         appendEntry(sb,
-                "Initial bed look angle. Range: 0.0 to 90.0. Value 0.0 is canonicalized to 0.1. Default: 10.0",
+                "Lay down camera tilt in degrees. Range: 0.0 to 90.0. Value 0.0 is canonicalized to 0.1. Default: 10.0",
                 "sleepCameraTiltDegrees",
                 Double.toString(cfg.sleepCameraTiltDegrees));
+        appendEntry(sb,
+                "Mouse damping percent while resting and during the sleep skip. It scales both the smoothing and the custom reduced look response. Range: 0 to 100. 0=vanilla, 100=max. Default: 100",
+                "mouseSmoothnessPercent",
+                Integer.toString(cfg.mouseSmoothnessPercent));
 
         appendSectionGap(sb, 2);
         appendSectionHeader(sb, "advanced");
         appendEntry(sb,
-                "Replay compatibility mode. Range: true | false. Default: true",
+                "Replay and Flashback compatibility mode. Range: true | false. Default: true",
                 "replayCompatibilityEnabled",
                 Boolean.toString(cfg.replayCompatibilityEnabled));
         appendEntry(sb,

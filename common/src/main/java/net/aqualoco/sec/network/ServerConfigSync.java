@@ -14,7 +14,19 @@ public final class ServerConfigSync {
     public static void sendToAll(MinecraftServer server, SeamlessSleepServerConfig config) {
         ServerConfigSyncPayload payload = new ServerConfigSyncPayload(
                 config.sleepWeatherClearChancePercent,
-                config.sleepAnimationDurationMultiplier
+                config.sleepAnimationDurationMultiplier,
+                Math.max(1, server.getPlayerList().getSimulationDistance()),
+                config.worldSleepAcceleration.mode,
+                config.worldSleepAcceleration.automaticMode,
+                config.worldSleepAcceleration.playersAffected,
+                config.worldSleepAcceleration.manualAccelerationRadiusChunks,
+                config.worldSleepAcceleration.manualAccelerationSpeedPercent,
+                config.worldSleepAcceleration.grassAndFoliageAccelerationEnabled,
+                config.worldSleepAcceleration.cropsAndSaplingsAccelerationEnabled,
+                config.worldSleepAcceleration.kelpAccelerationEnabled,
+                config.worldSleepAcceleration.vanillaOnlyAcceleration,
+                config.worldSleepAcceleration.processesAccelerationEnabled,
+                config.worldSleepAcceleration.processesSpeedPercent
         );
         for (ServerLevel level : server.getAllLevels()) {
             Services.NETWORK.sendToPlayers(level, payload);

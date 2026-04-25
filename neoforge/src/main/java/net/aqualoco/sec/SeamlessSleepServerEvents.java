@@ -17,13 +17,28 @@ final class SeamlessSleepServerEvents {
         if (!(event.getEntity() instanceof ServerPlayer player)) {
             return;
         }
+        if (player.level().getServer() == null) {
+            return;
+        }
 
         SeamlessSleepServerConfig cfg = SeamlessSleepServerConfigManager.get();
         Services.NETWORK.sendToPlayers(
                 player.level(),
                 new ServerConfigSyncPayload(
                         cfg.sleepWeatherClearChancePercent,
-                        cfg.sleepAnimationDurationMultiplier
+                        cfg.sleepAnimationDurationMultiplier,
+                        Math.max(1, player.level().getServer().getPlayerList().getSimulationDistance()),
+                        cfg.worldSleepAcceleration.mode,
+                        cfg.worldSleepAcceleration.automaticMode,
+                        cfg.worldSleepAcceleration.playersAffected,
+                        cfg.worldSleepAcceleration.manualAccelerationRadiusChunks,
+                        cfg.worldSleepAcceleration.manualAccelerationSpeedPercent,
+                        cfg.worldSleepAcceleration.grassAndFoliageAccelerationEnabled,
+                        cfg.worldSleepAcceleration.cropsAndSaplingsAccelerationEnabled,
+                        cfg.worldSleepAcceleration.kelpAccelerationEnabled,
+                        cfg.worldSleepAcceleration.vanillaOnlyAcceleration,
+                        cfg.worldSleepAcceleration.processesAccelerationEnabled,
+                        cfg.worldSleepAcceleration.processesSpeedPercent
                 )
         );
     }

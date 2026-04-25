@@ -1,5 +1,6 @@
 package net.aqualoco.sec.mixin.sleep;
 
+import net.aqualoco.sec.acceleration.WorldSleepAccelerationManager;
 import net.aqualoco.sec.Constants;
 import net.aqualoco.sec.SeamlessSleepCommon;
 import net.aqualoco.sec.bed.BedRestingHelper;
@@ -37,6 +38,15 @@ public abstract class ServerWorldSleepAnimationMixin {
     @Invoker("resetWeatherCycle")
     abstract void seamlesssleep$invokeResetWeather();
 
+    @Inject(method = "tick", at = @At("HEAD"))
+    private void seamlesssleep$prepareWorldAcceleration(BooleanSupplier shouldKeepTicking, CallbackInfo ci) {
+        ServerLevel self = (ServerLevel) (Object) this;
+        if (!self.dimension().equals(Level.OVERWORLD)) {
+            return;
+        }
+        WorldSleepAccelerationManager.prepareForLevelTick(self);
+    }
+
     @Redirect(
             method = "tick",
             at = @At(
@@ -65,6 +75,7 @@ public abstract class ServerWorldSleepAnimationMixin {
         this.seamlesssleep$sleepAnimationWakePlayers = true;
         int weatherChancePercent = SeamlessSleepServerConfigManager.get().sleepWeatherClearChancePercent;
         this.seamlesssleep$sleepAnimationResetWeather = seamlesssleep$rollWeatherClearChance(world, weatherChancePercent);
+        WorldSleepAccelerationManager.refreshForLevelTick(world);
 
         SleepAnimationNetworking.sendStart(world, state);
 
@@ -120,6 +131,7 @@ public abstract class ServerWorldSleepAnimationMixin {
 
         if (!state.isActive() && this.seamlesssleep$sleepAnimationWakePlayers) {
             this.seamlesssleep$finishSleepAnimation();
+            WorldSleepAccelerationManager.refreshForLevelTick(self);
             return;
         }
 
@@ -132,6 +144,7 @@ public abstract class ServerWorldSleepAnimationMixin {
             state.cancel();
             this.seamlesssleep$sleepAnimationWakePlayers = false;
             this.seamlesssleep$sleepAnimationResetWeather = false;
+            WorldSleepAccelerationManager.refreshForLevelTick(self);
             SleepAnimationNetworking.sendStop(self);
             Constants.debug("Sleep animation canceled: not enough players sleeping.");
         }

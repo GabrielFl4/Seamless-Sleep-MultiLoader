@@ -236,9 +236,16 @@ public final class ClientBedWorkflow {
 
         double lookScale = seamlesssleep$getLookScale(player);
         double smoothing = seamlesssleep$getLookSmoothing(player);
-
-        float yawDelta = (float) seamlesssleep$smoothTurnYaw.getNewDeltaValue(rawYawDelta * 0.15D * lookScale, smoothing);
-        float pitchDelta = (float) seamlesssleep$smoothTurnPitch.getNewDeltaValue(rawPitchDelta * 0.15D * lookScale, smoothing);
+        float yawDelta;
+        float pitchDelta;
+        if (smoothing <= 0.0D) {
+            seamlesssleep$resetLookSmoothing();
+            yawDelta = (float) (rawYawDelta * 0.15D * lookScale);
+            pitchDelta = (float) (rawPitchDelta * 0.15D * lookScale);
+        } else {
+            yawDelta = (float) seamlesssleep$smoothTurnYaw.getNewDeltaValue(rawYawDelta * 0.15D * lookScale, smoothing);
+            pitchDelta = (float) seamlesssleep$smoothTurnPitch.getNewDeltaValue(rawPitchDelta * 0.15D * lookScale, smoothing);
+        }
 
         seamlesssleep$viewYaw = BedRestingHelper.clampYawToBed(seamlesssleep$viewYaw + yawDelta, direction);
         seamlesssleep$viewPitch = BedRestingHelper.clampPitch(seamlesssleep$viewPitch + pitchDelta);
@@ -284,22 +291,44 @@ public final class ClientBedWorkflow {
     }
 
     private static double seamlesssleep$getLookScale(LocalPlayer player) {
-        if (!isAnimationLookDamped(player)) {
-            return BedRestingHelper.REST_LOOK_SCALE;
+        double configuredSmoothness = seamlesssleep$getConfiguredMouseSmoothness();
+        if (configuredSmoothness <= 0.0D) {
+            return 1.0D;
         }
 
-        return BedRestingHelper.getLookScaleForAnimationProgress(
-                SeamlessSleepClientState.SLEEP_ANIMATION.getProgress()
-        );
+        double baseLookScale;
+        if (!isAnimationLookDamped(player)) {
+            baseLookScale = BedRestingHelper.REST_LOOK_SCALE;
+        } else {
+            baseLookScale = BedRestingHelper.getLookScaleForAnimationProgress(
+                    SeamlessSleepClientState.SLEEP_ANIMATION.getProgress()
+            );
+        }
+        return Mth.lerp(configuredSmoothness, 1.0D, baseLookScale);
     }
 
     private static double seamlesssleep$getLookSmoothing(LocalPlayer player) {
-        if (!isAnimationLookDamped(player)) {
-            return BedRestingHelper.REST_LOOK_SMOOTH_FACTOR;
+        double configuredSmoothness = seamlesssleep$getConfiguredMouseSmoothness();
+        if (configuredSmoothness <= 0.0D) {
+            return 0.0D;
         }
 
-        return BedRestingHelper.getLookSmoothingForAnimationProgress(
-                SeamlessSleepClientState.SLEEP_ANIMATION.getProgress()
+        double baseSmoothing;
+        if (!isAnimationLookDamped(player)) {
+            baseSmoothing = BedRestingHelper.REST_LOOK_SMOOTH_FACTOR;
+        } else {
+            baseSmoothing = BedRestingHelper.getLookSmoothingForAnimationProgress(
+                    SeamlessSleepClientState.SLEEP_ANIMATION.getProgress()
+            );
+        }
+        return baseSmoothing * configuredSmoothness;
+    }
+
+    private static double seamlesssleep$getConfiguredMouseSmoothness() {
+        return Mth.clamp(
+                SeamlessSleepClientConfigManager.get().mouseSmoothnessPercent / 100.0D,
+                0.0D,
+                1.0D
         );
     }
 

@@ -73,7 +73,19 @@ final class FabricClientNetworkHandler {
                 (payload, context) -> context.client().execute(
                         () -> SeamlessSleepServerConfigSnapshot.update(
                                 payload.sleepWeatherClearChancePercent(),
-                                payload.sleepAnimationDurationMultiplier()
+                                payload.sleepAnimationDurationMultiplier(),
+                                payload.serverSimulationDistance(),
+                                payload.worldSleepAccelerationMode(),
+                                payload.worldSleepAutomaticMode(),
+                                payload.worldSleepAccelerationPlayersAffected(),
+                                payload.manualAccelerationRadiusChunks(),
+                                payload.manualAccelerationSpeedPercent(),
+                                payload.grassAndFoliageAccelerationEnabled(),
+                                payload.cropsAndSaplingsAccelerationEnabled(),
+                                payload.kelpAccelerationEnabled(),
+                                payload.vanillaOnlyAcceleration(),
+                                payload.processesAccelerationEnabled(),
+                                payload.processesSpeedPercent()
                         )
                 )
         );

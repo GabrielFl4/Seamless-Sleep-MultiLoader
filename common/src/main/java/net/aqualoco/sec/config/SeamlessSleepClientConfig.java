@@ -4,11 +4,15 @@ package net.aqualoco.sec.config;
 public final class SeamlessSleepClientConfig {
     private static final double DEFAULT_CHAT_TEXT_BASE = 0.5D;
     private static final double DEFAULT_CHAT_BG_BASE = 0.4D;
+    private static final double DEFAULT_CHAT_PRESET_POSITION = 0.5D;
 
     private static final double DEFAULT_OVERLAY_DARKNESS = 0.35D;
-    private static final double DEFAULT_CHAT_GROUP_MULTIPLIER = 1.0D;
+    private static final double DEFAULT_CHAT_GROUP_MULTIPLIER = DEFAULT_CHAT_PRESET_POSITION;
     private static final int DEFAULT_CHAT_MAX_LINES = 4;
     private static final double DEFAULT_TILT_DEGREES = 10.0D;
+    private static final int DEFAULT_MOUSE_SMOOTHNESS_PERCENT = 100;
+    private static final boolean DEFAULT_LEAVE_BED_HINT_ENABLED = true;
+    private static final boolean DEFAULT_SLEEP_CONTEXT_ENABLED = true;
     private static final double MIN_TILT_DEGREES = 0.0D;
     private static final double MIN_NON_ZERO_TILT_DEGREES = 0.1D;
     private static final double MAX_TILT_DEGREES = 90.0D;
@@ -17,6 +21,8 @@ public final class SeamlessSleepClientConfig {
 
     public boolean sleepOverlayEnabled = true;
     public double sleepOverlayDarknessMultiplier = DEFAULT_OVERLAY_DARKNESS;
+    public boolean leaveBedHintEnabled = DEFAULT_LEAVE_BED_HINT_ENABLED;
+    public boolean sleepContextEnabled = DEFAULT_SLEEP_CONTEXT_ENABLED;
 
     public double sleepChatTextOpacityMultiplier = DEFAULT_CHAT_TEXT_BASE;
     public double sleepChatBackgroundOpacityMultiplier = DEFAULT_CHAT_BG_BASE;
@@ -24,6 +30,7 @@ public final class SeamlessSleepClientConfig {
     public int sleepChatMaxLines = DEFAULT_CHAT_MAX_LINES;
 
     public double sleepCameraTiltDegrees = DEFAULT_TILT_DEGREES;
+    public int mouseSmoothnessPercent = DEFAULT_MOUSE_SMOOTHNESS_PERCENT;
     public boolean replayCompatibilityEnabled = DEFAULT_REPLAY_COMPATIBILITY_ENABLED;
     public boolean debugLogsEnabled = DEFAULT_DEBUG_LOGS_ENABLED;
 
@@ -39,12 +46,40 @@ public final class SeamlessSleepClientConfig {
         );
         sleepChatOpacityMultiplier = clampRange(
                 sleepChatOpacityMultiplier,
-                0.1D,
-                2.0D,
+                0.0D,
+                1.0D,
                 DEFAULT_CHAT_GROUP_MULTIPLIER
         );
         sleepChatMaxLines = clampInt(sleepChatMaxLines, 0, 12, DEFAULT_CHAT_MAX_LINES);
         sleepCameraTiltDegrees = clampTiltDegrees(sleepCameraTiltDegrees, DEFAULT_TILT_DEGREES);
+        mouseSmoothnessPercent = clampInt(mouseSmoothnessPercent, 0, 100, DEFAULT_MOUSE_SMOOTHNESS_PERCENT);
+    }
+
+    public double resolveSleepChatTextOpacityFactor() {
+        return resolveSleepChatOpacityFactor(sleepChatTextOpacityMultiplier, DEFAULT_CHAT_TEXT_BASE);
+    }
+
+    public double resolveSleepChatBackgroundOpacityFactor() {
+        return resolveSleepChatOpacityFactor(sleepChatBackgroundOpacityMultiplier, DEFAULT_CHAT_BG_BASE);
+    }
+
+    private double resolveSleepChatOpacityFactor(double presetFactor, double presetFallback) {
+        double preset = clamp01(presetFactor, presetFallback);
+        double overall = clampRange(
+                sleepChatOpacityMultiplier,
+                0.0D,
+                1.0D,
+                DEFAULT_CHAT_GROUP_MULTIPLIER
+        );
+
+        if (overall <= DEFAULT_CHAT_PRESET_POSITION) {
+            double t = DEFAULT_CHAT_PRESET_POSITION <= 0.0D ? 0.0D : overall / DEFAULT_CHAT_PRESET_POSITION;
+            return preset * t;
+        }
+
+        double denominator = 1.0D - DEFAULT_CHAT_PRESET_POSITION;
+        double t = denominator <= 0.0D ? 1.0D : (overall - DEFAULT_CHAT_PRESET_POSITION) / denominator;
+        return preset + (1.0D - preset) * t;
     }
 
     private static double clamp01(double value, double fallback) {
