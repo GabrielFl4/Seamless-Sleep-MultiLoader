@@ -184,6 +184,7 @@
 
   "screen.seamlesssleep.forge_config.notice": "Forge não tem um mod de menu de configurações :/",
   "screen.seamlesssleep.forge_config.hint": "Edite o arquivo de config na pasta config para alterações de servidor e cliente.",
+  "screen.seamlesssleep.config.open_folder": "Abrir Pasta",
   "screen.seamlesssleep.missing_yacl.notice": "\u00A7eYACL\u00A7r não encontrado",
   "screen.seamlesssleep.missing_yacl.hint": "Instale o YetAnotherConfigLib v3 para editar configurações."
 }

@@ -32,6 +32,7 @@
     "client.render.compat.BetterCloudsRendererSleepAccelerationMixin",
     "client.render.GameRendererSleepAnimationMixin",
     "client.ui.GuiSleepOverlayMixin",
+    "client.render.LightningBoltRendererBiomeClockMixin",
     "client.body.HumanoidModelBedBodyMixin",
     "client.render.ItemInHandBedWorkflowMixin",
     "client.render.LevelRendererSleepZzzMixin",

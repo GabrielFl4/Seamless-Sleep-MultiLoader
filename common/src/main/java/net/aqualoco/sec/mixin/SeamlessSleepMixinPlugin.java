@@ -14,6 +14,8 @@ public final class SeamlessSleepMixinPlugin implements IMixinConfigPlugin {
     private static final String BETTER_CLOUDS_MOD_ID = "betterclouds";
     private static final String BETTER_CLOUDS_MIXIN = "net.aqualoco.sec.mixin.client.render.compat.BetterCloudsRendererSleepAccelerationMixin";
     private static final String BETTER_CLOUDS_RENDERER_RESOURCE = "com/qendolin/betterclouds/clouds/Renderer.class";
+    private static final String ABSTRACT_FURNACE_ACCELERATION_MIXIN = "net.aqualoco.sec.mixin.sleep.AbstractFurnaceBlockEntityAccelerationMixin";
+    private static final String FORGE_LOADER_RESOURCE = "net/minecraftforge/fml/loading/FMLLoader.class";
 
     private boolean betterCloudsAvailable;
 
@@ -31,6 +33,9 @@ public final class SeamlessSleepMixinPlugin implements IMixinConfigPlugin {
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
         if (BETTER_CLOUDS_MIXIN.equals(mixinClassName)) {
             return betterCloudsAvailable && !isNeoForgePlatform();
+        }
+        if (ABSTRACT_FURNACE_ACCELERATION_MIXIN.equals(mixinClassName)) {
+            return !isForgePlatform();
         }
         return true;
     }
@@ -70,6 +75,16 @@ public final class SeamlessSleepMixinPlugin implements IMixinConfigPlugin {
         } catch (Throwable ignored) {
             return false;
         }
+    }
+
+    private boolean isForgePlatform() {
+        try {
+            return "Forge".equalsIgnoreCase(Services.PLATFORM.getPlatformName());
+        } catch (Throwable ignored) {
+        }
+
+        return hasClassResource(FORGE_LOADER_RESOURCE, Thread.currentThread().getContextClassLoader())
+                || hasClassResource(FORGE_LOADER_RESOURCE, SeamlessSleepMixinPlugin.class.getClassLoader());
     }
 
     private static boolean hasClassResource(String classResourcePath, ClassLoader classLoader) {

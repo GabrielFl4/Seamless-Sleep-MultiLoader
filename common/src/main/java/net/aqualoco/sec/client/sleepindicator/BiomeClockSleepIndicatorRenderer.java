@@ -2,7 +2,12 @@ package net.aqualoco.sec.client.sleepindicator;
 
 import net.aqualoco.sec.Constants;
 import net.aqualoco.sec.client.sleepindicator.biomeclock.BiomeClockCategory;
+import net.aqualoco.sec.client.sleepindicator.biomeclock.BiomeClockLightningSignal;
+import net.aqualoco.sec.client.sleepindicator.biomeclock.BiomeClockLightningState;
 import net.aqualoco.sec.client.sleepindicator.biomeclock.BiomeClockTransitionState;
+import net.aqualoco.sec.client.sleepindicator.biomeclock.BiomeClockWeatherKind;
+import net.aqualoco.sec.client.sleepindicator.biomeclock.BiomeClockWeatherResolver;
+import net.aqualoco.sec.client.sleepindicator.biomeclock.BiomeClockWeatherVisualState;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.Identifier;
@@ -20,9 +25,17 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
     private static final int CLOUD_LOOP_DISTANCE = CLOUD_TEXTURE_WIDTH - CLOCK_SIZE;
     private static final int SUN_SIZE = 28;
     private static final int MOON_SIZE = 20;
+    private static final int CELESTIAL_TEXTURE_SIZE = 36;
     private static final int GLOW_WIDTH = 132;
     private static final int GLOW_HEIGHT = 66;
     private static final int CELESTIAL_HORIZON_CUTOFF_Y = 46;
+    private static final int WEATHER_CLOUD_WIDTH = 132;
+    private static final int WEATHER_CLOUD_HEIGHT = 66;
+    private static final int LEFT_WEATHER_CLOUD_OUT_X = -100;
+    private static final int LEFT_WEATHER_CLOUD_IN_X = -68;
+    private static final int RIGHT_WEATHER_CLOUD_OUT_X = 34;
+    private static final int RIGHT_WEATHER_CLOUD_IN_X = 2;
+    private static final int WEATHER_CLOUD_BASE_Y = 0;
 
     private static final double CLIP_CENTER_X = 33.0D;
     private static final double CLIP_CENTER_Y = 33.0D;
@@ -35,7 +48,20 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
 
     private static final float CLOUD_BASE_SPEED_PX_PER_TICK = 0.015F;
     private static final float CLOUD_SLEEP_SPEED_FACTOR = 0.025F;
+    private static final float CLOUD_ABOVE_BASE_SPEED_PX_PER_TICK = 0.024F;
+    private static final float CLOUD_ABOVE_SLEEP_SPEED_FACTOR = 0.018F;
+    private static final float CLOUD_ABOVE_ALPHA = 0.55F;
     private static final float CLOUD_SPEED_LIMIT = 8.0F;
+
+    private static final double STAR_ANIMATION_FPS = 6.0D;
+    private static final float STAR_RAIN_VISIBILITY = 0.35F;
+    private static final float STAR_THUNDER_VISIBILITY = 0.08F;
+    private static final double RAIN_ANIMATION_FPS = 9.0D;
+    private static final double THUNDER_RAIN_ANIMATION_FPS = 11.0D;
+    private static final double SNOW_ANIMATION_FPS = 6.0D;
+    private static final double ZZZ_ANIMATION_FPS = 4.0D;
+    private static final long ZZZ_FADE_NANOS = 120_000_000L;
+    private static final float ZZZ_SKIP_SPEED_THRESHOLD = 1.0F;
 
     private static final float SKY_TOP_DARKEN = 0.82F;
     private static final float SKY_HORIZON_LIGHTEN = 0.12F;
@@ -49,11 +75,8 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
     private static final float BIOME_DARKEN_THUNDER_ALPHA = 0.24F;
     private static final float BIOME_DARKEN_NIGHT_ALPHA = 0.36F;
     private static final int BIOME_DARKEN_TINT_RGB = 0x1B2230;
-    private static final float CELESTIAL_THUNDER_MIN_BRIGHTNESS = 0.76F; // remember 0.76 is 76% dumbass
-    private static final float LIGHTNING_FLASH_LUMINANCE_THRESHOLD = 0.10F;
-    private static final float LIGHTNING_FLASH_RESPONSE = 4.0F;
-    private static final float LIGHTNING_FLASH_DECAY_PER_SECOND = 5.0F;
-    private static final float LIGHTNING_FLASH_DARKENING_RELIEF = 0.85F;
+    private static final float CELESTIAL_THUNDER_MIN_BRIGHTNESS = 0.76F;
+    private static final float LIGHTNING_FLASH_DARKENING_RELIEF = 0.10F;
 
     private static final int HORIZON_LEFT_X = 6;
     private static final int HORIZON_RIGHT_X = 60;
@@ -62,9 +85,46 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
     private static final float GLOW_WEATHER_ATTENUATION = 0.85F;
 
     private static final Identifier CLOUDS = texture("clouds.png");
+    private static final Identifier CLOUDS_ABOVE = texture("clouds_above.png");
     private static final Identifier SUN = texture("sun.png");
     private static final Identifier SUN_GLOW = texture("sun_glow.png");
     private static final Identifier FRAME_CIRCLE = texture("frame/circle.png");
+    private static final Identifier WEATHER_CLOUDS_RAIN = texture("weather/clouds_rain.png");
+    private static final Identifier WEATHER_CLOUDS_THUNDERSTORM = texture("weather/clouds_thunderstorm.png");
+    private static final Identifier[] STARS = new Identifier[] {
+            texture("stars/stars_1.png"),
+            texture("stars/stars_2.png"),
+            texture("stars/stars_3.png"),
+            texture("stars/stars_4.png"),
+            texture("stars/stars_5.png"),
+            texture("stars/stars_6.png"),
+            texture("stars/stars_7.png"),
+            texture("stars/stars_8.png")
+    };
+    private static final Identifier[] ZZZ = new Identifier[] {
+            texture("zzz/zzz_1.png"),
+            texture("zzz/zzz_2.png"),
+            texture("zzz/zzz_3.png")
+    };
+    private static final Identifier[] RAIN = new Identifier[] {
+            texture("weather/rain/rain_1.png"),
+            texture("weather/rain/rain_2.png"),
+            texture("weather/rain/rain_3.png")
+    };
+    private static final Identifier[] THUNDERSTORM_RAIN = new Identifier[] {
+            texture("weather/thunderstorm/thunderstorm_1.png"),
+            texture("weather/thunderstorm/thunderstorm_2.png"),
+            texture("weather/thunderstorm/thunderstorm_3.png")
+    };
+    private static final Identifier[] SNOW = new Identifier[] {
+            texture("weather/snow/snow_1.png"),
+            texture("weather/snow/snow_2.png"),
+            texture("weather/snow/snow_3.png")
+    };
+    private static final Identifier[] LIGHTNING = new Identifier[] {
+            texture("weather/lightning/lightning_1.png"),
+            texture("weather/lightning/lightning_2.png")
+    };
     private static final Map<BiomeClockCategory, Identifier> BIOME_TEXTURES = createBiomeTextures();
     private static final Identifier[] MOONS = new Identifier[] {
             texture("moons/moon_0.png"),
@@ -79,10 +139,13 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
 
     private float cloudPhasePx;
     private long lastCloudUpdateNanos = -1L;
-    private float lastSkyLuminance = -1.0F;
-    private float lightningFlashFactor;
-    private long lastLightningFlashUpdateNanos = -1L;
+    private float cloudAbovePhasePx;
+    private long lastCloudAboveUpdateNanos = -1L;
+    private float zzzPresence;
+    private long lastZzzPresenceUpdateNanos = -1L;
     private final BiomeClockTransitionState biomeTransition = new BiomeClockTransitionState();
+    private final BiomeClockWeatherVisualState weatherVisualState = new BiomeClockWeatherVisualState();
+    private final BiomeClockLightningState lightningState = new BiomeClockLightningState();
 
     @Override
     public String id() {
@@ -101,10 +164,29 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
 
     @Override
     public void render(GuiGraphics graphics, SleepIndicatorContext context, float tickDelta) {
-        renderSkyFromClient(graphics, context);
-        updateLightningFlashFactor(context);
+        long nowNanos = System.nanoTime();
+        BiomeClockWeatherKind weatherKind = BiomeClockWeatherResolver.resolve(context);
+        this.weatherVisualState.update(weatherKind, nowNanos);
 
-        int cloudOffset = updateCloudPhase(context);
+        BiomeClockWeatherKind visualWeatherKind = this.weatherVisualState.currentKind();
+        boolean lightningWeatherAllowed = visualWeatherKind.allowsLightning()
+                || (visualWeatherKind.hasVisualWeather()
+                && context.rainLevel() > BiomeClockWeatherResolver.WEATHER_KIND_THRESHOLD);
+        BiomeClockLightningSignal.Signal lightningSignal = BiomeClockLightningSignal.latest();
+        this.lightningState.onBiomeReliefSignal(lightningSignal, nowNanos);
+        this.lightningState.onGameLightningSignal(
+                lightningSignal,
+                lightningWeatherAllowed,
+                this.weatherVisualState.readyForLightning(),
+                nowNanos
+        );
+        int lightningFrame = this.lightningState.updateAndGetFrame(nowNanos);
+        float lightningFlashFactor = this.lightningState.flashFactor(nowNanos);
+
+        renderSkyFromClient(graphics, context);
+        renderStars(graphics, context, nowNanos);
+
+        int cloudOffset = updateCloudPhase(context, nowNanos);
         int cloudColor = ARGB.multiplyAlpha(context.cloudColor(), context.alpha());
         drawCircularTexture(
                 graphics,
@@ -149,8 +231,8 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
                 sunOrbit.y(),
                 SUN_SIZE,
                 SUN_SIZE,
-                SUN_SIZE,
-                SUN_SIZE,
+                CELESTIAL_TEXTURE_SIZE,
+                CELESTIAL_TEXTURE_SIZE,
                 CELESTIAL_HORIZON_CUTOFF_Y,
                 celestialColor
         );
@@ -161,15 +243,38 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
                 moonOrbit.y(),
                 MOON_SIZE,
                 MOON_SIZE,
-                SUN_SIZE,
-                SUN_SIZE,
+                CELESTIAL_TEXTURE_SIZE,
+                CELESTIAL_TEXTURE_SIZE,
                 CELESTIAL_HORIZON_CUTOFF_Y,
                 celestialColor
         );
 
+        int cloudAboveOffset = updateCloudAbovePhase(context, nowNanos);
+        int cloudAboveColor = ARGB.multiplyAlpha(
+                context.cloudColor(),
+                context.alpha() * computeCloudAboveAlpha(context)
+        );
+        drawCircularTexture(
+                graphics,
+                CLOUDS_ABOVE,
+                0,
+                0,
+                cloudAboveOffset,
+                0,
+                CLOCK_SIZE,
+                CLOCK_SIZE,
+                CLOUD_TEXTURE_WIDTH,
+                CLOUD_TEXTURE_HEIGHT,
+                cloudAboveColor
+        );
+
         this.biomeTransition.update(context.biomeClockCategory(), transitionTimeMs());
-        renderBiomeLayer(graphics, context);
+        renderBiomeLayer(graphics, context, lightningFlashFactor);
+        renderPrecipitation(graphics, context, visualWeatherKind, nowNanos);
+        renderWeatherClouds(graphics, context, visualWeatherKind);
+        renderLightning(graphics, context, lightningFrame);
         drawFullTexture(graphics, FRAME_CIRCLE, textureAlphaColor);
+        renderZzzLayer(graphics, context, nowNanos);
     }
 
     private void renderSkyFromClient(GuiGraphics graphics, SleepIndicatorContext context) {
@@ -191,7 +296,140 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
         }, 0, 0, 0, 0, CLOCK_SIZE, CLOCK_SIZE);
     }
 
-    private void renderBiomeLayer(GuiGraphics graphics, SleepIndicatorContext context) {
+    private void renderStars(GuiGraphics graphics, SleepIndicatorContext context, long nowNanos) {
+        float nightAlpha = smoothstepRange(0.02F, 0.55F, context.starBrightness());
+        float rainDim = Mth.lerp(Mth.clamp(context.rainLevel(), 0.0F, 1.0F), 1.0F, STAR_RAIN_VISIBILITY);
+        float thunderDim = Mth.lerp(Mth.clamp(context.thunderLevel(), 0.0F, 1.0F), 1.0F, STAR_THUNDER_VISIBILITY);
+        float finalAlpha = nightAlpha * Math.min(rainDim, thunderDim) * context.alpha();
+        if (finalAlpha <= 0.001F) {
+            return;
+        }
+
+        int frameIndex = animationFrame(nowNanos, STAR_ANIMATION_FPS, STARS.length);
+        drawCircularFullTexture(graphics, STARS[frameIndex], whiteWithAlpha(finalAlpha));
+    }
+
+    private static float computeCloudAboveAlpha(SleepIndicatorContext context) {
+        float weatherLift = Mth.clamp(Math.max(context.rainLevel(), context.thunderLevel()) * 0.10F, 0.0F, 0.10F);
+        return Mth.clamp(CLOUD_ABOVE_ALPHA + weatherLift, 0.0F, 0.65F);
+    }
+
+    private void renderPrecipitation(
+            GuiGraphics graphics,
+            SleepIndicatorContext context,
+            BiomeClockWeatherKind weatherKind,
+            long nowNanos
+    ) {
+        if (!weatherKind.hasVisualWeather() || context.biomeClockCategory() == BiomeClockCategory.DESERT) {
+            return;
+        }
+
+        Identifier[] frames;
+        double fps;
+        if (weatherKind.usesSnowPrecipitation()) {
+            frames = SNOW;
+            fps = SNOW_ANIMATION_FPS;
+        } else if (weatherKind.usesThunderPrecipitation()) {
+            frames = THUNDERSTORM_RAIN;
+            fps = THUNDER_RAIN_ANIMATION_FPS;
+        } else {
+            frames = RAIN;
+            fps = RAIN_ANIMATION_FPS;
+        }
+
+        float alpha = weatherIntensity(context, weatherKind) * this.weatherVisualState.presenceAlpha() * context.alpha();
+        if (alpha <= 0.001F) {
+            return;
+        }
+
+        int frameIndex = animationFrame(nowNanos, fps, frames.length);
+        drawCircularFullTexture(graphics, frames[frameIndex], whiteWithAlpha(alpha));
+    }
+
+    private void renderWeatherClouds(
+            GuiGraphics graphics,
+            SleepIndicatorContext context,
+            BiomeClockWeatherKind weatherKind
+    ) {
+        if (!weatherKind.hasVisualWeather()) {
+            return;
+        }
+
+        float alpha = weatherIntensity(context, weatherKind) * this.weatherVisualState.presenceAlpha() * context.alpha();
+        if (alpha <= 0.001F) {
+            return;
+        }
+
+        Identifier texture = weatherKind.usesThunderClouds() ? WEATHER_CLOUDS_THUNDERSTORM : WEATHER_CLOUDS_RAIN;
+        int color = weatherCloudTint(context, weatherKind, alpha);
+        float slide = this.weatherVisualState.slideProgress();
+        int leftX = Math.round(Mth.lerp(slide, LEFT_WEATHER_CLOUD_OUT_X, LEFT_WEATHER_CLOUD_IN_X)
+                + this.weatherVisualState.leftDriftX());
+        int rightX = Math.round(Mth.lerp(slide, RIGHT_WEATHER_CLOUD_OUT_X, RIGHT_WEATHER_CLOUD_IN_X)
+                + this.weatherVisualState.rightDriftX());
+        int leftY = Math.round(WEATHER_CLOUD_BASE_Y + this.weatherVisualState.leftDriftY());
+        int rightY = Math.round(WEATHER_CLOUD_BASE_Y + this.weatherVisualState.rightDriftY());
+
+        drawCircularTexture(
+                graphics,
+                texture,
+                leftX,
+                leftY,
+                0,
+                0,
+                WEATHER_CLOUD_WIDTH,
+                WEATHER_CLOUD_HEIGHT,
+                WEATHER_CLOUD_WIDTH,
+                WEATHER_CLOUD_HEIGHT,
+                color
+        );
+        drawCircularTexture(
+                graphics,
+                texture,
+                rightX,
+                rightY,
+                0,
+                0,
+                WEATHER_CLOUD_WIDTH,
+                WEATHER_CLOUD_HEIGHT,
+                WEATHER_CLOUD_WIDTH,
+                WEATHER_CLOUD_HEIGHT,
+                color
+        );
+    }
+
+    private void renderLightning(GuiGraphics graphics, SleepIndicatorContext context, int lightningFrame) {
+        if (lightningFrame < 0 || lightningFrame >= LIGHTNING.length) {
+            return;
+        }
+
+        drawCircularTexture(
+                graphics,
+                LIGHTNING[lightningFrame],
+                this.lightningState.offsetX(),
+                this.lightningState.offsetY(),
+                0,
+                0,
+                CLOCK_SIZE,
+                CLOCK_SIZE,
+                CLOCK_SIZE,
+                CLOCK_SIZE,
+                whiteWithAlpha(context.alpha())
+        );
+    }
+
+    private void renderZzzLayer(GuiGraphics graphics, SleepIndicatorContext context, long nowNanos) {
+        float presence = updateZzzPresence(context, nowNanos);
+        float alpha = presence * context.alpha();
+        if (alpha <= 0.001F) {
+            return;
+        }
+
+        int frameIndex = animationFrame(nowNanos, ZZZ_ANIMATION_FPS, ZZZ.length);
+        drawFullTexture(graphics, ZZZ[frameIndex], whiteWithAlpha(alpha));
+    }
+
+    private void renderBiomeLayer(GuiGraphics graphics, SleepIndicatorContext context, float lightningFlashFactor) {
         BiomeClockCategory fromCategory = this.biomeTransition.fromCategory();
         BiomeClockCategory toCategory = this.biomeTransition.toCategory();
         float fromAlpha = this.biomeTransition.fromAlpha();
@@ -202,7 +440,7 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
             drawBiomeTexture(graphics, toCategory, context.alpha() * toAlpha);
         }
 
-        float darkeningAlpha = computeBiomeDarkeningAlpha(context, this.lightningFlashFactor);
+        float darkeningAlpha = computeBiomeDarkeningAlpha(context, lightningFlashFactor);
         if (darkeningAlpha <= 0.001F) {
             return;
         }
@@ -214,28 +452,47 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
     }
 
     private static void drawBiomeTexture(GuiGraphics graphics, BiomeClockCategory category, float alpha) {
-        drawFullTexture(graphics, biomeTexture(category), whiteWithAlpha(alpha));
+        drawCircularFullTexture(graphics, biomeTexture(category), whiteWithAlpha(alpha));
     }
 
     private static void drawBiomeDarkening(GuiGraphics graphics, BiomeClockCategory category, float alpha) {
-        drawFullTexture(graphics, biomeTexture(category), colorWithAlpha(alpha, BIOME_DARKEN_TINT_RGB));
+        drawCircularFullTexture(graphics, biomeTexture(category), colorWithAlpha(alpha, BIOME_DARKEN_TINT_RGB));
     }
 
-    private int updateCloudPhase(SleepIndicatorContext context) {
-        long now = System.nanoTime();
+    private int updateCloudPhase(SleepIndicatorContext context, long nowNanos) {
         if (this.lastCloudUpdateNanos < 0L) {
-            this.lastCloudUpdateNanos = now;
+            this.lastCloudUpdateNanos = nowNanos;
             this.cloudPhasePx = wrapCloudPhase(this.cloudPhasePx);
             return Mth.floor(this.cloudPhasePx);
         }
 
-        float deltaTicks = Mth.clamp((now - this.lastCloudUpdateNanos) / 50_000_000.0F, 0.0F, 8.0F);
-        this.lastCloudUpdateNanos = now;
+        float deltaTicks = Mth.clamp((nowNanos - this.lastCloudUpdateNanos) / 50_000_000.0F, 0.0F, 8.0F);
+        this.lastCloudUpdateNanos = nowNanos;
 
         float sleepBoost = Mth.clamp(context.sleepDayTimeSpeedPerTick(), 0.0F, 240.0F) * CLOUD_SLEEP_SPEED_FACTOR;
         float speed = Mth.clamp(CLOUD_BASE_SPEED_PX_PER_TICK + sleepBoost, CLOUD_BASE_SPEED_PX_PER_TICK, CLOUD_SPEED_LIMIT);
         this.cloudPhasePx = wrapCloudPhase(this.cloudPhasePx + deltaTicks * speed);
         return Mth.floor(this.cloudPhasePx);
+    }
+
+    private int updateCloudAbovePhase(SleepIndicatorContext context, long nowNanos) {
+        if (this.lastCloudAboveUpdateNanos < 0L) {
+            this.lastCloudAboveUpdateNanos = nowNanos;
+            this.cloudAbovePhasePx = wrapCloudPhase(this.cloudAbovePhasePx);
+            return Mth.floor(this.cloudAbovePhasePx);
+        }
+
+        float deltaTicks = Mth.clamp((nowNanos - this.lastCloudAboveUpdateNanos) / 50_000_000.0F, 0.0F, 8.0F);
+        this.lastCloudAboveUpdateNanos = nowNanos;
+
+        float sleepBoost = Mth.clamp(context.sleepDayTimeSpeedPerTick(), 0.0F, 240.0F) * CLOUD_ABOVE_SLEEP_SPEED_FACTOR;
+        float speed = Mth.clamp(
+                CLOUD_ABOVE_BASE_SPEED_PX_PER_TICK + sleepBoost,
+                CLOUD_ABOVE_BASE_SPEED_PX_PER_TICK,
+                CLOUD_SPEED_LIMIT
+        );
+        this.cloudAbovePhasePx = wrapCloudPhase(this.cloudAbovePhasePx + deltaTicks * speed);
+        return Mth.floor(this.cloudAbovePhasePx);
     }
 
     private static float wrapCloudPhase(float phase) {
@@ -284,39 +541,35 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
         return sunriseColor;
     }
 
-    private void updateLightningFlashFactor(SleepIndicatorContext context) {
-        long now = System.nanoTime();
-        float currentLuminance = luminance(context.skyColor());
-        if (this.lastLightningFlashUpdateNanos < 0L || this.lastSkyLuminance < 0.0F) {
-            this.lastLightningFlashUpdateNanos = now;
-            this.lastSkyLuminance = currentLuminance;
-            return;
+    private float updateZzzPresence(SleepIndicatorContext context, long nowNanos) {
+        boolean targetVisible = context.sleepAnimationActive()
+                && context.sleepDayTimeSpeedPerTick() > ZZZ_SKIP_SPEED_THRESHOLD;
+        if (this.lastZzzPresenceUpdateNanos < 0L) {
+            this.lastZzzPresenceUpdateNanos = nowNanos;
         }
 
-        float deltaSeconds = Mth.clamp((now - this.lastLightningFlashUpdateNanos) / 1_000_000_000.0F, 0.0F, 0.25F);
-        this.lastLightningFlashUpdateNanos = now;
-        this.lightningFlashFactor = Math.max(
-                0.0F,
-                this.lightningFlashFactor - LIGHTNING_FLASH_DECAY_PER_SECOND * deltaSeconds
-        );
-
-        if (context.thunderLevel() <= 0.001F) {
-            this.lightningFlashFactor = 0.0F;
-            this.lastSkyLuminance = currentLuminance;
-            return;
+        float delta = Mth.clamp((nowNanos - this.lastZzzPresenceUpdateNanos) / (float) ZZZ_FADE_NANOS, 0.0F, 1.0F);
+        this.lastZzzPresenceUpdateNanos = nowNanos;
+        if (targetVisible) {
+            this.zzzPresence = Mth.clamp(this.zzzPresence + delta, 0.0F, 1.0F);
+        } else {
+            this.zzzPresence = Mth.clamp(this.zzzPresence - delta, 0.0F, 1.0F);
         }
+        return this.zzzPresence;
+    }
 
-        float brightening = currentLuminance - this.lastSkyLuminance;
-        if (brightening > LIGHTNING_FLASH_LUMINANCE_THRESHOLD) {
-            float flash = Mth.clamp(
-                    (brightening - LIGHTNING_FLASH_LUMINANCE_THRESHOLD) * LIGHTNING_FLASH_RESPONSE,
-                    0.0F,
-                    1.0F
-            );
-            this.lightningFlashFactor = Math.max(this.lightningFlashFactor, flash * context.thunderLevel());
+    private static float weatherIntensity(SleepIndicatorContext context, BiomeClockWeatherKind weatherKind) {
+        float rain = Mth.clamp(context.rainLevel(), 0.0F, 1.0F);
+        float thunder = Mth.clamp(context.thunderLevel(), 0.0F, 1.0F);
+        return weatherKind.usesThunderClouds() ? Math.max(rain, thunder) : rain;
+    }
+
+    private static int weatherCloudTint(SleepIndicatorContext context, BiomeClockWeatherKind weatherKind, float alpha) {
+        int baseColor = ARGB.opaque(context.cloudColor());
+        if (weatherKind.usesThunderClouds()) {
+            baseColor = ARGB.scaleRGB(baseColor, 0.72F);
         }
-
-        this.lastSkyLuminance = currentLuminance;
+        return ARGB.multiplyAlpha(baseColor, alpha);
     }
 
     private static float computeBiomeDarkeningAlpha(SleepIndicatorContext context, float lightningFlashFactor) {
@@ -354,6 +607,21 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
         return t * t * (3.0F - 2.0F * t);
     }
 
+    private static float smoothstepRange(float start, float end, float value) {
+        if (end <= start) {
+            return value >= end ? 1.0F : 0.0F;
+        }
+        return smoothstep((value - start) / (end - start));
+    }
+
+    private static int animationFrame(long nowNanos, double fps, int frameCount) {
+        if (frameCount <= 1 || fps <= 0.0D) {
+            return 0;
+        }
+        long frame = (long) Math.floor(nowNanos / 1_000_000_000.0D * fps);
+        return Math.floorMod(frame, frameCount);
+    }
+
     private static int whiteWithAlpha(float alpha) {
         return colorWithAlpha(alpha, 0xFFFFFF);
     }
@@ -362,13 +630,6 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
         float brightness = 1.0F - context.thunderLevel() * (1.0F - CELESTIAL_THUNDER_MIN_BRIGHTNESS);
         int channel = Mth.clamp((int) (Mth.clamp(brightness, 0.0F, 1.0F) * 255.0F), 0, 255);
         return colorWithAlpha(context.alpha(), (channel << 16) | (channel << 8) | channel);
-    }
-
-    private static float luminance(int color) {
-        int red = (color >> 16) & 255;
-        int green = (color >> 8) & 255;
-        int blue = color & 255;
-        return (red * 0.2126F + green * 0.7152F + blue * 0.0722F) / 255.0F;
     }
 
     private static int colorWithAlpha(float alpha, int rgb) {
@@ -392,6 +653,22 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
     private static float sunBottomY(float angleRadians, int size) {
         float centerY = ORBIT_CENTER_Y - Mth.cos(angleRadians) * ORBIT_RADIUS_Y;
         return centerY + size * 0.5F;
+    }
+
+    private static void drawCircularFullTexture(GuiGraphics graphics, Identifier texture, int color) {
+        drawCircularTexture(
+                graphics,
+                texture,
+                0,
+                0,
+                0,
+                0,
+                CLOCK_SIZE,
+                CLOCK_SIZE,
+                CLOCK_SIZE,
+                CLOCK_SIZE,
+                color
+        );
     }
 
     private static void drawFullTexture(GuiGraphics graphics, Identifier texture, int color) {

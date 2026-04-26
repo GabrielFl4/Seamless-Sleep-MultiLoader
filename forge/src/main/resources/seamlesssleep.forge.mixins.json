@@ -3,7 +3,9 @@
   "minVersion": "0.8",
   "package": "net.aqualoco.sec.mixin",
   "compatibilityLevel": "JAVA_21",
-  "mixins": [],
+  "mixins": [
+    "forge.sleep.ForgeAbstractFurnaceBlockEntityAccelerationMixin"
+  ],
   "client": [
     "client.render.GameRendererSleepAnimationMixin"
   ],
