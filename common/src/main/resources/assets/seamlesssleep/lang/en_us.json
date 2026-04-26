@@ -27,6 +27,8 @@
   "config.seamlesssleep.client.group.chat.desc": "Tweaks for the in-bed chat overlay.",
   "config.seamlesssleep.client.group.camera": "Camera Features",
   "config.seamlesssleep.client.group.camera.desc": "Camera tilt and mouse feel while resting and during the sleep skip.",
+  "config.seamlesssleep.client.group.sleep_zzz": "Sleep Zzz",
+  "config.seamlesssleep.client.group.sleep_zzz.desc": "World-space Zs shown around players who are counted for sleep.",
 
   "config.seamlesssleep.overlay.enabled": "Sleep Text Overlay",
   "config.seamlesssleep.overlay.enabled.desc": "Toggles the sleep animation indicator.",
@@ -46,6 +48,13 @@
   "config.seamlesssleep.camera.tilt_degrees.desc": "Camera tilt angle while lying down.",
   "config.seamlesssleep.camera.mouse_smoothness": "Mouse Smoothness",
   "config.seamlesssleep.camera.mouse_smoothness.desc": "How smooth the mouse movement will be when lying in bed.",
+
+  "config.seamlesssleep.sleep_zzz.chance": "Sleep Zzz Chance",
+  "config.seamlesssleep.sleep_zzz.chance.desc": "Chance to show Zs for each counted sleep session.",
+  "config.seamlesssleep.sleep_zzz.style": "Sleep Zzz Style",
+  "config.seamlesssleep.sleep_zzz.style.desc": "Changes the movement style of the sleeping Zs.",
+  "config.seamlesssleep.sleep_zzz.style.sequential_trail": "Sequential",
+  "config.seamlesssleep.sleep_zzz.style.cartoon_drift": "Cartoony",
 
   "config.seamlesssleep.misc.debug_logs": "Debug Logs",
   "config.seamlesssleep.misc.debug_logs.desc": "Shows Seamless Sleep technical logs in the \u00A7elatest.log\u00A7r.",

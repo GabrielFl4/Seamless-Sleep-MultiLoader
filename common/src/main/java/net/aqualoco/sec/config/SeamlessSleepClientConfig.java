@@ -3,6 +3,7 @@ package net.aqualoco.sec.config;
 import net.aqualoco.sec.client.sleepindicator.SleepIndicatorAnchor;
 import net.aqualoco.sec.client.sleepindicator.SleepIndicatorMode;
 import net.aqualoco.sec.client.sleepindicator.SleepIndicatorVisibility;
+import net.aqualoco.sec.client.sleepvisual.SleepZzzConfigBridge;
 
 // Client-side visual settings with validation bounds for safe values.
 public final class SeamlessSleepClientConfig {
@@ -18,6 +19,8 @@ public final class SeamlessSleepClientConfig {
     private static final double DEFAULT_SLEEP_INDICATOR_SCALE = 1.0D;
     private static final double MIN_SLEEP_INDICATOR_SCALE = 0.25D;
     private static final double MAX_SLEEP_INDICATOR_SCALE = 4.0D;
+    private static final int MIN_SLEEP_ZZZ_CHANCE = 0;
+    private static final int MAX_SLEEP_ZZZ_CHANCE = 100;
     private static final boolean DEFAULT_LEAVE_BED_HINT_ENABLED = true;
     private static final boolean DEFAULT_SLEEP_CONTEXT_ENABLED = true;
     private static final double MIN_TILT_DEGREES = 0.0D;
@@ -35,6 +38,8 @@ public final class SeamlessSleepClientConfig {
     public SleepIndicatorAnchor sleepIndicatorAnchor = SleepIndicatorAnchor.CENTER;
     public SleepIndicatorVisibility sleepIndicatorVisibility = SleepIndicatorVisibility.ALWAYS;
     public double sleepIndicatorScale = DEFAULT_SLEEP_INDICATOR_SCALE;
+    public int sleepZzzChance = SleepZzzConfigBridge.DEFAULT_CHANCE;
+    public String sleepZzzStyle = SleepZzzConfigBridge.DEFAULT_STYLE.name();
 
     public double sleepChatTextOpacityMultiplier = DEFAULT_CHAT_TEXT_BASE;
     public double sleepChatBackgroundOpacityMultiplier = DEFAULT_CHAT_BG_BASE;
@@ -77,6 +82,8 @@ public final class SeamlessSleepClientConfig {
                 MAX_SLEEP_INDICATOR_SCALE,
                 DEFAULT_SLEEP_INDICATOR_SCALE
         );
+        sleepZzzChance = clampInt(sleepZzzChance, MIN_SLEEP_ZZZ_CHANCE, MAX_SLEEP_ZZZ_CHANCE, SleepZzzConfigBridge.DEFAULT_CHANCE);
+        sleepZzzStyle = SleepZzzConfigBridge.parseStyle(sleepZzzStyle).name();
         sleepChatMaxLines = clampInt(sleepChatMaxLines, 0, 12, DEFAULT_CHAT_MAX_LINES);
         sleepCameraTiltDegrees = clampTiltDegrees(sleepCameraTiltDegrees, DEFAULT_TILT_DEGREES);
         mouseSmoothnessPercent = clampInt(mouseSmoothnessPercent, 0, 100, DEFAULT_MOUSE_SMOOTHNESS_PERCENT);

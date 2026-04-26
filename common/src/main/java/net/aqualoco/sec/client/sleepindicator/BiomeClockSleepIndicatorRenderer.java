@@ -43,10 +43,17 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
     private static final float SUNRISE_EXTENSION_RANGE_PX = 14.0F;
     private static final float SUNRISE_EXTENSION_MAX_ALPHA = 0.22F;
     private static final int SUNRISE_FALLBACK_TINT = 0xFFFFB068;
-    private static final float BIOME_DARKEN_NIGHT_MAX_ALPHA = 0.22F;
-    private static final float BIOME_DARKEN_WEATHER_BONUS = 0.08F;
-    private static final float BIOME_DARKEN_CAP_ALPHA = 0.30F;
+
+    // Presentation values when the biome layer needs stronger or softer weather/time shading.
+    private static final float BIOME_DARKEN_RAIN_ALPHA = 0.08F;
+    private static final float BIOME_DARKEN_THUNDER_ALPHA = 0.24F;
+    private static final float BIOME_DARKEN_NIGHT_ALPHA = 0.36F;
     private static final int BIOME_DARKEN_TINT_RGB = 0x1B2230;
+    private static final float CELESTIAL_THUNDER_MIN_BRIGHTNESS = 0.76F; // remember 0.76 is 76% dumbass
+    private static final float LIGHTNING_FLASH_LUMINANCE_THRESHOLD = 0.10F;
+    private static final float LIGHTNING_FLASH_RESPONSE = 4.0F;
+    private static final float LIGHTNING_FLASH_DECAY_PER_SECOND = 5.0F;
+    private static final float LIGHTNING_FLASH_DARKENING_RELIEF = 0.85F;
 
     private static final int HORIZON_LEFT_X = 6;
     private static final int HORIZON_RIGHT_X = 60;
@@ -72,6 +79,9 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
 
     private float cloudPhasePx;
     private long lastCloudUpdateNanos = -1L;
+    private float lastSkyLuminance = -1.0F;
+    private float lightningFlashFactor;
+    private long lastLightningFlashUpdateNanos = -1L;
     private final BiomeClockTransitionState biomeTransition = new BiomeClockTransitionState();
 
     @Override
@@ -92,6 +102,7 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
     @Override
     public void render(GuiGraphics graphics, SleepIndicatorContext context, float tickDelta) {
         renderSkyFromClient(graphics, context);
+        updateLightningFlashFactor(context);
 
         int cloudOffset = updateCloudPhase(context);
         int cloudColor = ARGB.multiplyAlpha(context.cloudColor(), context.alpha());
@@ -130,6 +141,7 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
         OrbitPosition sunOrbit = orbitPosition(context.sunAngleRadians(), SUN_SIZE);
         OrbitPosition moonOrbit = orbitPosition(context.moonAngleRadians(), MOON_SIZE);
         int textureAlphaColor = whiteWithAlpha(context.alpha());
+        int celestialColor = celestialTintColor(context);
         drawCircularTextureScaled(
                 graphics,
                 SUN,
@@ -140,7 +152,7 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
                 SUN_SIZE,
                 SUN_SIZE,
                 CELESTIAL_HORIZON_CUTOFF_Y,
-                textureAlphaColor
+                celestialColor
         );
         drawCircularTextureScaled(
                 graphics,
@@ -152,7 +164,7 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
                 SUN_SIZE,
                 SUN_SIZE,
                 CELESTIAL_HORIZON_CUTOFF_Y,
-                textureAlphaColor
+                celestialColor
         );
 
         this.biomeTransition.update(context.biomeClockCategory(), transitionTimeMs());
@@ -190,7 +202,7 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
             drawBiomeTexture(graphics, toCategory, context.alpha() * toAlpha);
         }
 
-        float darkeningAlpha = computeBiomeDarkeningAlpha(context);
+        float darkeningAlpha = computeBiomeDarkeningAlpha(context, this.lightningFlashFactor);
         if (darkeningAlpha <= 0.001F) {
             return;
         }
@@ -272,22 +284,52 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
         return sunriseColor;
     }
 
-    private static float computeBiomeDarkeningAlpha(SleepIndicatorContext context) {
-        float nightFactor = computeNightFactor(context.normalizedDayTime());
-        if (nightFactor <= 0.001F) {
-            return 0.0F;
+    private void updateLightningFlashFactor(SleepIndicatorContext context) {
+        long now = System.nanoTime();
+        float currentLuminance = luminance(context.skyColor());
+        if (this.lastLightningFlashUpdateNanos < 0L || this.lastSkyLuminance < 0.0F) {
+            this.lastLightningFlashUpdateNanos = now;
+            this.lastSkyLuminance = currentLuminance;
+            return;
         }
 
-        float weatherBonus = Mth.clamp(
-                context.rainLevel() * 0.04F + context.thunderLevel() * 0.06F,
+        float deltaSeconds = Mth.clamp((now - this.lastLightningFlashUpdateNanos) / 1_000_000_000.0F, 0.0F, 0.25F);
+        this.lastLightningFlashUpdateNanos = now;
+        this.lightningFlashFactor = Math.max(
                 0.0F,
-                BIOME_DARKEN_WEATHER_BONUS
+                this.lightningFlashFactor - LIGHTNING_FLASH_DECAY_PER_SECOND * deltaSeconds
         );
-        return Mth.clamp(
-                nightFactor * (BIOME_DARKEN_NIGHT_MAX_ALPHA + weatherBonus),
+
+        if (context.thunderLevel() <= 0.001F) {
+            this.lightningFlashFactor = 0.0F;
+            this.lastSkyLuminance = currentLuminance;
+            return;
+        }
+
+        float brightening = currentLuminance - this.lastSkyLuminance;
+        if (brightening > LIGHTNING_FLASH_LUMINANCE_THRESHOLD) {
+            float flash = Mth.clamp(
+                    (brightening - LIGHTNING_FLASH_LUMINANCE_THRESHOLD) * LIGHTNING_FLASH_RESPONSE,
+                    0.0F,
+                    1.0F
+            );
+            this.lightningFlashFactor = Math.max(this.lightningFlashFactor, flash * context.thunderLevel());
+        }
+
+        this.lastSkyLuminance = currentLuminance;
+    }
+
+    private static float computeBiomeDarkeningAlpha(SleepIndicatorContext context, float lightningFlashFactor) {
+        float nightFactor = computeNightFactor(context.normalizedDayTime());
+        float rainDarkening = context.rainLevel() * BIOME_DARKEN_RAIN_ALPHA;
+        float thunderDarkening = context.thunderLevel() * BIOME_DARKEN_THUNDER_ALPHA;
+        float nightDarkening = nightFactor * BIOME_DARKEN_NIGHT_ALPHA;
+        float baseDarkening = Mth.clamp(
+                Math.max(nightDarkening, Math.max(thunderDarkening, rainDarkening)),
                 0.0F,
-                BIOME_DARKEN_CAP_ALPHA
+                BIOME_DARKEN_NIGHT_ALPHA
         );
+        return baseDarkening * (1.0F - Mth.clamp(lightningFlashFactor, 0.0F, 1.0F) * LIGHTNING_FLASH_DARKENING_RELIEF);
     }
 
     private static float computeNightFactor(float normalizedDayTime) {
@@ -314,6 +356,19 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
 
     private static int whiteWithAlpha(float alpha) {
         return colorWithAlpha(alpha, 0xFFFFFF);
+    }
+
+    private static int celestialTintColor(SleepIndicatorContext context) {
+        float brightness = 1.0F - context.thunderLevel() * (1.0F - CELESTIAL_THUNDER_MIN_BRIGHTNESS);
+        int channel = Mth.clamp((int) (Mth.clamp(brightness, 0.0F, 1.0F) * 255.0F), 0, 255);
+        return colorWithAlpha(context.alpha(), (channel << 16) | (channel << 8) | channel);
+    }
+
+    private static float luminance(int color) {
+        int red = (color >> 16) & 255;
+        int green = (color >> 8) & 255;
+        int blue = color & 255;
+        return (red * 0.2126F + green * 0.7152F + blue * 0.0722F) / 255.0F;
     }
 
     private static int colorWithAlpha(float alpha, int rgb) {

@@ -1,6 +1,8 @@
 package net.aqualoco.sec.mixin.client.input;
 
 import net.aqualoco.sec.client.ClientBedWorkflow;
+import net.aqualoco.sec.client.sleepvisual.SleepZzzVisualSystem;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.ClientInput;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.player.Input;
@@ -28,6 +30,7 @@ public abstract class LocalPlayerBedWorkflowMixin {
     private void seamlesssleep$zeroMovementInputsWhileBedBound(CallbackInfo ci) {
         LocalPlayer self = (LocalPlayer) (Object) this;
         ClientBedWorkflow.tick(self);
+        SleepZzzVisualSystem.tick(Minecraft.getInstance());
 
         if (!ClientBedWorkflow.shouldBlockGameplayInteractions(self)) {
             return;

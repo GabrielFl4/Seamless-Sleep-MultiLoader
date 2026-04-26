@@ -34,6 +34,7 @@
     "client.ui.GuiSleepOverlayMixin",
     "client.body.HumanoidModelBedBodyMixin",
     "client.render.ItemInHandBedWorkflowMixin",
+    "client.render.LevelRendererSleepZzzMixin",
     "client.input.KeyboardHandlerBedWorkflowMixin",
     "client.body.LevelRendererBedBodyMixin",
     "client.render.LevelRendererBedOutlineMixin",

@@ -13,6 +13,8 @@ import dev.isxander.yacl3.api.controller.IntegerSliderControllerBuilder;
 import net.aqualoco.sec.client.sleepindicator.SleepIndicatorAnchor;
 import net.aqualoco.sec.client.sleepindicator.SleepIndicatorMode;
 import net.aqualoco.sec.client.sleepindicator.SleepIndicatorVisibility;
+import net.aqualoco.sec.client.sleepvisual.SleepZzzConfigBridge;
+import net.aqualoco.sec.client.sleepvisual.SleepZzzStyle;
 import net.aqualoco.sec.config.SeamlessSleepClientConfig;
 import net.aqualoco.sec.config.SeamlessSleepClientConfigManager;
 import net.aqualoco.sec.config.SeamlessSleepServerConfig;
@@ -84,6 +86,7 @@ public final class NeoForgeYaclConfigScreen {
         return ConfigCategory.createBuilder()
                 .name(Component.translatable("config.seamlesssleep.category.client"))
                 .group(buildOverlayGroup(cfg))
+                .group(buildSleepZzzGroup(cfg))
                 .group(buildChatGroup(cfg))
                 .group(buildCameraGroup(cfg))
                 .group(buildSleepIndicatorTestingGroup(cfg))
@@ -502,6 +505,38 @@ public final class NeoForgeYaclConfigScreen {
                         value -> cfg.sleepIndicatorScale = value,
                         true,
                         NeoForgeYaclConfigScreen::formatMultiplierValue
+                ))
+                .build();
+    }
+
+    private static OptionGroup buildSleepZzzGroup(SeamlessSleepClientConfig cfg) {
+        return OptionGroup.createBuilder()
+                .name(Component.translatable("config.seamlesssleep.client.group.sleep_zzz"))
+                .description(OptionDescription.of(Component.translatable("config.seamlesssleep.client.group.sleep_zzz.desc")))
+                .collapsed(false)
+                .option(buildIntSlider(
+                        Component.translatable("config.seamlesssleep.sleep_zzz.chance"),
+                        Component.translatable("config.seamlesssleep.sleep_zzz.chance.desc"),
+                        Component.empty(),
+                        SleepZzzConfigBridge.DEFAULT_CHANCE,
+                        0,
+                        100,
+                        1,
+                        () -> cfg.sleepZzzChance,
+                        value -> cfg.sleepZzzChance = value,
+                        true,
+                        NeoForgeYaclConfigScreen::formatWeatherChanceValue
+                ))
+                .option(buildEnumOption(
+                        Component.translatable("config.seamlesssleep.sleep_zzz.style"),
+                        Component.translatable("config.seamlesssleep.sleep_zzz.style.desc"),
+                        Component.empty(),
+                        SleepZzzConfigBridge.DEFAULT_STYLE,
+                        SleepZzzStyle.class,
+                        () -> SleepZzzConfigBridge.parseStyle(cfg.sleepZzzStyle),
+                        value -> cfg.sleepZzzStyle = (value == null ? SleepZzzConfigBridge.DEFAULT_STYLE : value).name(),
+                        true,
+                        value -> enumText("config.seamlesssleep.sleep_zzz.style", value)
                 ))
                 .build();
     }

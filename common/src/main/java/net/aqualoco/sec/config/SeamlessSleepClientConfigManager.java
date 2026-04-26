@@ -6,6 +6,8 @@ import net.aqualoco.sec.Constants;
 import net.aqualoco.sec.client.sleepindicator.SleepIndicatorAnchor;
 import net.aqualoco.sec.client.sleepindicator.SleepIndicatorMode;
 import net.aqualoco.sec.client.sleepindicator.SleepIndicatorVisibility;
+import net.aqualoco.sec.client.sleepvisual.SleepZzzConfigBridge;
+import net.aqualoco.sec.client.sleepvisual.SleepZzzStyle;
 import net.aqualoco.sec.platform.Services;
 
 import java.io.IOException;
@@ -20,7 +22,7 @@ public final class SeamlessSleepClientConfigManager {
     private static final String FILE_NAME = "seamless_sleep.toml";
     private static final String LEGACY_JSON_FILE_NAME = "seamless_sleep.json";
     private static final String LEGACY_JSONC_FILE_NAME = "seamless_sleep.jsonc";
-    private static final int CONFIG_VERSION = 4;
+    private static final int CONFIG_VERSION = 5;
 
     private static SeamlessSleepClientConfig config = defaultConfig();
     private static Path configPath;
@@ -125,6 +127,8 @@ public final class SeamlessSleepClientConfigManager {
         cfg.sleepIndicatorAnchor = readEnum(file, List.of("sleep_indicator", "anchor"), "sleepIndicatorAnchor", SleepIndicatorAnchor.class, cfg.sleepIndicatorAnchor);
         cfg.sleepIndicatorVisibility = readEnum(file, List.of("sleep_indicator", "visibility"), "sleepIndicatorVisibility", SleepIndicatorVisibility.class, cfg.sleepIndicatorVisibility);
         cfg.sleepIndicatorScale = readDouble(file, List.of("sleep_indicator", "scale"), "sleepIndicatorScale", cfg.sleepIndicatorScale);
+        cfg.sleepZzzChance = readInt(file, List.of("sleep_zzz", "chance"), "sleepZzzChance", cfg.sleepZzzChance);
+        cfg.sleepZzzStyle = readEnum(file, List.of("sleep_zzz", "style"), "sleepZzzStyle", SleepZzzStyle.class, SleepZzzConfigBridge.DEFAULT_STYLE).name();
         cfg.sleepChatTextOpacityMultiplier = readDouble(file, List.of("chat", "sleepChatTextOpacityMultiplier"), "sleepChatTextOpacityMultiplier", cfg.sleepChatTextOpacityMultiplier);
         cfg.sleepChatBackgroundOpacityMultiplier = readDouble(file, List.of("chat", "sleepChatBackgroundOpacityMultiplier"), "sleepChatBackgroundOpacityMultiplier", cfg.sleepChatBackgroundOpacityMultiplier);
         cfg.sleepChatOpacityMultiplier = readDouble(file, List.of("chat", "sleepChatOpacityMultiplier"), "sleepChatOpacityMultiplier", cfg.sleepChatOpacityMultiplier);
@@ -179,6 +183,17 @@ public final class SeamlessSleepClientConfigManager {
                 "Sleep indicator visual scale. Range: 0.25 to 4.0. Default: 1.0",
                 "scale",
                 Double.toString(cfg.sleepIndicatorScale));
+
+        appendSectionGap(sb, 2);
+        appendSectionHeader(sb, "sleep_zzz");
+        appendEntry(sb,
+                "Chance to show world-space Zs for each counted sleep session. Range: 0 to 100. 0=never, 100=always. Default: 35",
+                "chance",
+                Integer.toString(cfg.sleepZzzChance));
+        appendEntry(sb,
+                "Visual style for sleeping Zs. Range: SEQUENTIAL_TRAIL | CARTOON_DRIFT. Default: CARTOON_DRIFT",
+                "style",
+                toTomlString(cfg.sleepZzzStyle));
 
         appendSectionGap(sb, 2);
         appendSectionHeader(sb, "chat");
