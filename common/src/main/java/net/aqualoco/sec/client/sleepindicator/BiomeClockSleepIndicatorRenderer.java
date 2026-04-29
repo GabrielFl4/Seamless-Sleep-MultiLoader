@@ -36,6 +36,7 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
     private static final int RIGHT_WEATHER_CLOUD_OUT_X = 34;
     private static final int RIGHT_WEATHER_CLOUD_IN_X = 2;
     private static final int WEATHER_CLOUD_BASE_Y = 0;
+    private static final int SKY_LIGHT_Y_OFFSET = -2;
 
     private static final double CLIP_CENTER_X = 33.0D;
     private static final double CLIP_CENTER_Y = 33.0D;
@@ -59,13 +60,24 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
     private static final double RAIN_ANIMATION_FPS = 9.0D;
     private static final double THUNDER_RAIN_ANIMATION_FPS = 11.0D;
     private static final double SNOW_ANIMATION_FPS = 6.0D;
+    private static final double SANDSTORM_ANIMATION_FPS = RAIN_ANIMATION_FPS;
     private static final double ZZZ_ANIMATION_FPS = 4.0D;
     private static final long ZZZ_FADE_NANOS = 120_000_000L;
     private static final float ZZZ_SKIP_SPEED_THRESHOLD = 1.0F;
+    private static final float SANDSTORM_RAIN_ALPHA_MULTIPLIER = 0.60F;
+    private static final float SANDSTORM_THUNDER_ALPHA_MULTIPLIER = 1.0F;
+    private static final float SANDSTORM_NIGHT_ALPHA_REDUCTION = 0.25F;
+    private static final float PRECIPITATION_DARKEN_TINT_STRENGTH = 0.55F;
+    private static final float PRECIPITATION_THUNDER_DARKEN_BOOST = 0.45F;
+    private static final float PRECIPITATION_SANDSTORM_NIGHT_DARKEN_BOOST = 0.35F;
+    private static final float PRECIPITATION_DARKEN_OVERLAY_MULTIPLIER = 0.55F;
+    private static final float PRECIPITATION_DARKEN_MAX_FACTOR = 0.82F;
 
     private static final float SKY_TOP_DARKEN = 0.82F;
     private static final float SKY_HORIZON_LIGHTEN = 0.12F;
     private static final float SKY_SUNRISE_TINT = 0.28F;
+    private static final float SKY_LIGHT_DAY_ALPHA = 0.90F;
+    private static final float SKY_LIGHT_NIGHT_ALPHA_MULTIPLIER = 0.30F;
     private static final float SUNRISE_EXTENSION_RANGE_PX = 14.0F;
     private static final float SUNRISE_EXTENSION_MAX_ALPHA = 0.22F;
     private static final int SUNRISE_FALLBACK_TINT = 0xFFFFB068;
@@ -74,9 +86,10 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
     private static final float BIOME_DARKEN_RAIN_ALPHA = 0.08F;
     private static final float BIOME_DARKEN_THUNDER_ALPHA = 0.24F;
     private static final float BIOME_DARKEN_NIGHT_ALPHA = 0.36F;
+    private static final float BIOME_DARKEN_MAX_ALPHA = BIOME_DARKEN_NIGHT_ALPHA + BIOME_DARKEN_THUNDER_ALPHA;
     private static final int BIOME_DARKEN_TINT_RGB = 0x1B2230;
     private static final float CELESTIAL_THUNDER_MIN_BRIGHTNESS = 0.76F;
-    private static final float LIGHTNING_FLASH_DARKENING_RELIEF = 0.10F;
+    private static final float LIGHTNING_FLASH_DARKENING_RELIEF = 0.87F;
 
     private static final int HORIZON_LEFT_X = 6;
     private static final int HORIZON_RIGHT_X = 60;
@@ -85,6 +98,7 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
     private static final float GLOW_WEATHER_ATTENUATION = 0.85F;
 
     private static final Identifier CLOUDS = texture("clouds.png");
+    private static final Identifier SKY_LIGHT = texture("sky_light.png");
     private static final Identifier CLOUDS_ABOVE = texture("clouds_above.png");
     private static final Identifier SUN = texture("sun.png");
     private static final Identifier SUN_GLOW = texture("sun_glow.png");
@@ -116,10 +130,29 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
             texture("weather/thunderstorm/thunderstorm_2.png"),
             texture("weather/thunderstorm/thunderstorm_3.png")
     };
+    private static final Identifier[] SANDSTORM = new Identifier[] {
+            texture("weather/sandstorm/sand_1.png"),
+            texture("weather/sandstorm/sand_2.png"),
+            texture("weather/sandstorm/sand_3.png"),
+            texture("weather/sandstorm/sand_4.png"),
+            texture("weather/sandstorm/sand_5.png"),
+            texture("weather/sandstorm/sand_6.png"),
+            texture("weather/sandstorm/sand_7.png"),
+            texture("weather/sandstorm/sand_8.png"),
+            texture("weather/sandstorm/sand_9.png"),
+            texture("weather/sandstorm/sand_10.png")
+    };
     private static final Identifier[] SNOW = new Identifier[] {
             texture("weather/snow/snow_1.png"),
             texture("weather/snow/snow_2.png"),
-            texture("weather/snow/snow_3.png")
+            texture("weather/snow/snow_3.png"),
+            texture("weather/snow/snow_4.png"),
+            texture("weather/snow/snow_5.png"),
+            texture("weather/snow/snow_6.png"),
+            texture("weather/snow/snow_7.png"),
+            texture("weather/snow/snow_8.png"),
+            texture("weather/snow/snow_9.png"),
+            texture("weather/snow/snow_10.png")
     };
     private static final Identifier[] LIGHTNING = new Identifier[] {
             texture("weather/lightning/lightning_1.png"),
@@ -184,6 +217,7 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
         float lightningFlashFactor = this.lightningState.flashFactor(nowNanos);
 
         renderSkyFromClient(graphics, context);
+        renderSkyLight(graphics, context);
         renderStars(graphics, context, nowNanos);
 
         int cloudOffset = updateCloudPhase(context, nowNanos);
@@ -269,8 +303,9 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
         );
 
         this.biomeTransition.update(context.biomeClockCategory(), transitionTimeMs());
-        renderBiomeLayer(graphics, context, lightningFlashFactor);
-        renderPrecipitation(graphics, context, visualWeatherKind, nowNanos);
+        float biomeDarkeningAlpha = computeBiomeDarkeningAlpha(context, lightningFlashFactor);
+        renderBiomeLayer(graphics, context, biomeDarkeningAlpha);
+        renderPrecipitation(graphics, context, visualWeatherKind, nowNanos, biomeDarkeningAlpha);
         renderWeatherClouds(graphics, context, visualWeatherKind);
         renderLightning(graphics, context, lightningFrame);
         drawFullTexture(graphics, FRAME_CIRCLE, textureAlphaColor);
@@ -296,6 +331,24 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
         }, 0, 0, 0, 0, CLOCK_SIZE, CLOCK_SIZE);
     }
 
+    private void renderSkyLight(GuiGraphics graphics, SleepIndicatorContext context) {
+        float nightFactor = computeNightFactor(context.normalizedDayTime());
+        float alphaMultiplier = Mth.lerp(nightFactor, SKY_LIGHT_DAY_ALPHA, SKY_LIGHT_NIGHT_ALPHA_MULTIPLIER);
+        drawCircularTexture(
+                graphics,
+                SKY_LIGHT,
+                0,
+                SKY_LIGHT_Y_OFFSET,
+                0,
+                0,
+                CLOCK_SIZE,
+                CLOCK_SIZE,
+                CLOCK_SIZE,
+                CLOCK_SIZE,
+                whiteWithAlpha(context.alpha() * alphaMultiplier)
+        );
+    }
+
     private void renderStars(GuiGraphics graphics, SleepIndicatorContext context, long nowNanos) {
         float nightAlpha = smoothstepRange(0.02F, 0.55F, context.starBrightness());
         float rainDim = Mth.lerp(Mth.clamp(context.rainLevel(), 0.0F, 1.0F), 1.0F, STAR_RAIN_VISIBILITY);
@@ -318,15 +371,28 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
             GuiGraphics graphics,
             SleepIndicatorContext context,
             BiomeClockWeatherKind weatherKind,
-            long nowNanos
+            long nowNanos,
+            float biomeDarkeningAlpha
     ) {
-        if (!weatherKind.hasVisualWeather() || context.biomeClockCategory() == BiomeClockCategory.DESERT) {
+        if (!weatherKind.hasVisualWeather()) {
             return;
         }
 
         Identifier[] frames;
         double fps;
-        if (weatherKind.usesSnowPrecipitation()) {
+        float alphaMultiplier = 1.0F;
+        BiomeClockCategory category = context.biomeClockCategory();
+        if (category == BiomeClockCategory.SAVANNA) {
+            return;
+        }
+        if (category == BiomeClockCategory.DESERT) {
+            frames = SANDSTORM;
+            fps = SANDSTORM_ANIMATION_FPS;
+            alphaMultiplier = weatherKind.usesThunderClouds()
+                    ? SANDSTORM_THUNDER_ALPHA_MULTIPLIER
+                    : SANDSTORM_RAIN_ALPHA_MULTIPLIER;
+            alphaMultiplier *= sandstormNightAlphaMultiplier(context, biomeDarkeningAlpha);
+        } else if (weatherKind.usesSnowPrecipitation()) {
             frames = SNOW;
             fps = SNOW_ANIMATION_FPS;
         } else if (weatherKind.usesThunderPrecipitation()) {
@@ -337,13 +403,31 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
             fps = RAIN_ANIMATION_FPS;
         }
 
-        float alpha = weatherIntensity(context, weatherKind) * this.weatherVisualState.presenceAlpha() * context.alpha();
+        float alpha = weatherIntensity(context, weatherKind)
+                * this.weatherVisualState.presenceAlpha()
+                * context.alpha()
+                * alphaMultiplier;
         if (alpha <= 0.001F) {
             return;
         }
 
         int frameIndex = animationFrame(nowNanos, fps, frames.length);
-        drawCircularFullTexture(graphics, frames[frameIndex], whiteWithAlpha(alpha));
+        float precipitationDarkening = precipitationDarkeningFactor(context, weatherKind, category, biomeDarkeningAlpha);
+        drawCircularFullTexture(
+                graphics,
+                frames[frameIndex],
+                precipitationTintColor(alpha, precipitationDarkening)
+        );
+        if (precipitationDarkening > 0.001F) {
+            drawCircularFullTexture(
+                    graphics,
+                    frames[frameIndex],
+                    colorWithAlpha(
+                            alpha * precipitationDarkening * PRECIPITATION_DARKEN_OVERLAY_MULTIPLIER,
+                            BIOME_DARKEN_TINT_RGB
+                    )
+            );
+        }
     }
 
     private void renderWeatherClouds(
@@ -429,7 +513,7 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
         drawFullTexture(graphics, ZZZ[frameIndex], whiteWithAlpha(alpha));
     }
 
-    private void renderBiomeLayer(GuiGraphics graphics, SleepIndicatorContext context, float lightningFlashFactor) {
+    private void renderBiomeLayer(GuiGraphics graphics, SleepIndicatorContext context, float darkeningAlpha) {
         BiomeClockCategory fromCategory = this.biomeTransition.fromCategory();
         BiomeClockCategory toCategory = this.biomeTransition.toCategory();
         float fromAlpha = this.biomeTransition.fromAlpha();
@@ -440,7 +524,6 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
             drawBiomeTexture(graphics, toCategory, context.alpha() * toAlpha);
         }
 
-        float darkeningAlpha = computeBiomeDarkeningAlpha(context, lightningFlashFactor);
         if (darkeningAlpha <= 0.001F) {
             return;
         }
@@ -564,6 +647,40 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
         return weatherKind.usesThunderClouds() ? Math.max(rain, thunder) : rain;
     }
 
+    private static float sandstormNightAlphaMultiplier(SleepIndicatorContext context, float biomeDarkeningAlpha) {
+        float nightFactor = computeNightFactor(context.normalizedDayTime());
+        float darkeningFactor = Mth.clamp(biomeDarkeningAlpha / BIOME_DARKEN_MAX_ALPHA, 0.0F, 1.0F);
+        float reductionFactor = nightFactor * darkeningFactor;
+        return Mth.lerp(reductionFactor, 1.0F, 1.0F - SANDSTORM_NIGHT_ALPHA_REDUCTION);
+    }
+
+    private static int precipitationTintColor(float alpha, float darkeningFactor) {
+        int tintColor = ARGB.srgbLerp(
+                darkeningFactor,
+                ARGB.opaque(0xFFFFFF),
+                ARGB.opaque(BIOME_DARKEN_TINT_RGB)
+        );
+        return ARGB.multiplyAlpha(tintColor, alpha);
+    }
+
+    private static float precipitationDarkeningFactor(
+            SleepIndicatorContext context,
+            BiomeClockWeatherKind weatherKind,
+            BiomeClockCategory category,
+            float biomeDarkeningAlpha
+    ) {
+        float thunderFactor = weatherKind.usesThunderClouds()
+                ? Mth.clamp(context.thunderLevel(), 0.0F, 1.0F)
+                : 0.0F;
+        float nightFactor = computeNightFactor(context.normalizedDayTime());
+        float darkeningFactor = biomeDarkeningAlpha * PRECIPITATION_DARKEN_TINT_STRENGTH;
+        darkeningFactor += biomeDarkeningAlpha * thunderFactor * PRECIPITATION_THUNDER_DARKEN_BOOST;
+        if (category == BiomeClockCategory.DESERT) {
+            darkeningFactor += biomeDarkeningAlpha * nightFactor * PRECIPITATION_SANDSTORM_NIGHT_DARKEN_BOOST;
+        }
+        return Mth.clamp(darkeningFactor, 0.0F, PRECIPITATION_DARKEN_MAX_FACTOR);
+    }
+
     private static int weatherCloudTint(SleepIndicatorContext context, BiomeClockWeatherKind weatherKind, float alpha) {
         int baseColor = ARGB.opaque(context.cloudColor());
         if (weatherKind.usesThunderClouds()) {
@@ -577,10 +694,11 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
         float rainDarkening = context.rainLevel() * BIOME_DARKEN_RAIN_ALPHA;
         float thunderDarkening = context.thunderLevel() * BIOME_DARKEN_THUNDER_ALPHA;
         float nightDarkening = nightFactor * BIOME_DARKEN_NIGHT_ALPHA;
+        float weatherDarkening = Math.max(thunderDarkening, rainDarkening);
         float baseDarkening = Mth.clamp(
-                Math.max(nightDarkening, Math.max(thunderDarkening, rainDarkening)),
+                nightDarkening + weatherDarkening,
                 0.0F,
-                BIOME_DARKEN_NIGHT_ALPHA
+                BIOME_DARKEN_MAX_ALPHA
         );
         return baseDarkening * (1.0F - Mth.clamp(lightningFlashFactor, 0.0F, 1.0F) * LIGHTNING_FLASH_DARKENING_RELIEF);
     }

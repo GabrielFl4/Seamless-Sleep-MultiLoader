@@ -6,6 +6,12 @@ public enum BiomeClockCategory {
     FOREST("forest"),
     DESERT("desert"),
     SNOW("snow"),
+    SAVANNA("savanna"),
+    OCEAN("ocean"),
+    JUNGLE("jungle"),
+    CHERRY("cherry"),
+    MANGROVE("mangrove"),
+    SWAMP("swamp"),
     DEFAULT("default");
 
     private final String textureId;
