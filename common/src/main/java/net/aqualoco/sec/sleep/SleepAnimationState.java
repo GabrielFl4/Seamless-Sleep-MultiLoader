@@ -166,14 +166,6 @@ public final class SleepAnimationState {
         return this.phase == SleepAnimationPhase.FINISHED;
     }
 
-    /**
-     * Legacy debug key retained for callers that only need a per-session marker.
-     * This is now server gameTime, not wall-clock milliseconds.
-     */
-    public long getStartMillis() {
-        return this.getServerStartGameTime();
-    }
-
     public double getLogicalWorldRate() {
         return getCurrentLogicalWorldRate();
     }

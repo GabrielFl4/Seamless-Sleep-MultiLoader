@@ -96,7 +96,7 @@ public final class WorldSleepAccelerationManager {
         private int processSuppressionHighTicks;
         private int processSuppressionRecoveryTicks;
 
-        private long scheduledGovernorDebugStartMillis = Long.MIN_VALUE;
+        private long scheduledGovernorDebugStartGameTime = Long.MIN_VALUE;
         private int scheduledGovernorDebugTick = Integer.MIN_VALUE;
         private boolean governorDebugLoggedForCurrentSleep;
 
@@ -692,12 +692,12 @@ public final class WorldSleepAccelerationManager {
                 return;
             }
 
-            long sleepStartMillis = sleepState.getStartMillis();
-            if (sleepStartMillis <= 0L || sleepStartMillis == scheduledGovernorDebugStartMillis) {
+            long sleepStartGameTime = sleepState.getServerStartGameTime();
+            if (sleepStartGameTime <= 0L || sleepStartGameTime == scheduledGovernorDebugStartGameTime) {
                 return;
             }
 
-            scheduledGovernorDebugStartMillis = sleepStartMillis;
+            scheduledGovernorDebugStartGameTime = sleepStartGameTime;
             scheduledGovernorDebugTick = currentTick + GOVERNOR_DEBUG_DELAY_TICKS;
             governorDebugLoggedForCurrentSleep = false;
         }
@@ -764,7 +764,7 @@ public final class WorldSleepAccelerationManager {
         }
 
         private void clearGovernorDebugSchedule() {
-            scheduledGovernorDebugStartMillis = Long.MIN_VALUE;
+            scheduledGovernorDebugStartGameTime = Long.MIN_VALUE;
             scheduledGovernorDebugTick = Integer.MIN_VALUE;
             governorDebugLoggedForCurrentSleep = false;
         }
