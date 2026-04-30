@@ -9,6 +9,7 @@ public final class SleepAnimationState {
     private static final long FULL_NIGHT_TICKS = 12000L;
     private static final int MIN_DURATION_TICKS = 40;   // ~2s
     private static final int MAX_DURATION_TICKS = 180;  // ~9s
+    private static final long VISUAL_FINISH_DAY_TIME_THRESHOLD = 2L;
     private static final long UNSET_START_GAME_TIME = Long.MIN_VALUE;
 
     private boolean active;
@@ -111,6 +112,10 @@ public final class SleepAnimationState {
         long interpolated = this.startTimeOfDay + (long) (delta * eased);
         if (this.endTimeOfDay >= this.startTimeOfDay) {
             interpolated = Math.max(interpolated, this.lastAppliedDayTime);
+            if (this.endTimeOfDay - interpolated <= VISUAL_FINISH_DAY_TIME_THRESHOLD) {
+                this.finish(world);
+                return;
+            }
         }
 
         world.setDayTime(interpolated);

@@ -7,6 +7,7 @@ import net.aqualoco.sec.config.SeamlessSleepServerConfigSnapshot;
 import net.aqualoco.sec.network.ServerConfigSyncPayload;
 import net.aqualoco.sec.network.SleepAnimationStartPayload;
 import net.aqualoco.sec.network.SleepAnimationStopPayload;
+import net.aqualoco.sec.sleep.SleepAnimationStopReason;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
@@ -112,6 +113,9 @@ final class FabricClientNetworkHandler {
             return;
         }
 
+        if (payload.reason() == SleepAnimationStopReason.FINISHED) {
+            BedHudMessageManager.suppressSleepProgressMessagesForFinish();
+        }
         SeamlessSleepClientState.SLEEP_ANIMATION.finish(
                 world,
                 payload.sessionId(),

@@ -2,6 +2,7 @@ package net.aqualoco.sec.bed;
 
 import net.aqualoco.sec.SeamlessSleepCommon;
 import net.aqualoco.sec.network.BedHudNetworking;
+import net.aqualoco.sec.sleep.SleepStatusUpdateSuppression;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.ChatFormatting;
@@ -121,7 +122,9 @@ public final class BedRestingHelper {
 
         ServerLevel level = (ServerLevel) player.level();
         level.updateSleepingPlayerList();
-        BedHudNetworking.syncSleepProgress(level);
+        if (!SleepStatusUpdateSuppression.isNaturalFinishWakeSuppressed()) {
+            BedHudNetworking.syncSleepProgress(level);
+        }
     }
 
     @Nullable

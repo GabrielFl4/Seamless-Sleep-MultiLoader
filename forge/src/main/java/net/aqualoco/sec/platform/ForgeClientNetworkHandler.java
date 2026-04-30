@@ -7,6 +7,7 @@ import net.aqualoco.sec.config.SeamlessSleepServerConfigSnapshot;
 import net.aqualoco.sec.network.ServerConfigSyncPayload;
 import net.aqualoco.sec.network.SleepAnimationStartPayload;
 import net.aqualoco.sec.network.SleepAnimationStopPayload;
+import net.aqualoco.sec.sleep.SleepAnimationStopReason;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.resources.Identifier;
@@ -70,6 +71,9 @@ final class ForgeClientNetworkHandler implements ForgeNetworkHelper.ClientHandle
             return;
         }
 
+        if (payload.reason() == SleepAnimationStopReason.FINISHED) {
+            BedHudMessageManager.suppressSleepProgressMessagesForFinish();
+        }
         SeamlessSleepClientState.SLEEP_ANIMATION.finish(
                 world,
                 payload.sessionId(),

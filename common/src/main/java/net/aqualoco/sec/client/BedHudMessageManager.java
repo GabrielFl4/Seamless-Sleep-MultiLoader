@@ -15,6 +15,7 @@ import org.jspecify.annotations.Nullable;
 public final class BedHudMessageManager {
 
     private static final int DIRECT_SLEEP_ENTRY_GRACE_TICKS = 10;
+    private static final int FINISH_SLEEP_PROGRESS_SUPPRESSION_TICKS = 40;
     private static final int VANILLA_OVERLAY_DURATION_TICKS = 80;
     private static final int CONTEXT_DURATION_TICKS = 120;
     private static final int HINT_DURATION_TICKS = 80;
@@ -37,6 +38,8 @@ public final class BedHudMessageManager {
     private static Component seamlesssleep$pendingSleepProgressText;
 
     private static int seamlesssleep$pendingSleepProgressExpiresAtTick;
+
+    private static int seamlesssleep$suppressSleepProgressUntilTick;
 
     private BedHudMessageManager() {
     }
@@ -112,6 +115,17 @@ public final class BedHudMessageManager {
         seamlesssleep$clearPendingSleepProgress();
     }
 
+    public static void suppressSleepProgressMessagesForFinish() {
+        int untilTick = seamlesssleep$getHudTick() + FINISH_SLEEP_PROGRESS_SUPPRESSION_TICKS;
+        seamlesssleep$suppressSleepProgressUntilTick = Math.max(
+                seamlesssleep$suppressSleepProgressUntilTick,
+                untilTick
+        );
+        seamlesssleep$clearSleepProgressContext();
+        seamlesssleep$clearPendingSleepProgress();
+        seamlesssleep$clearVanillaOverlayMessage();
+    }
+
     public static boolean captureOverlayMessage(@Nullable Component message) {
         seamlesssleep$pruneDisabledMessages();
         if (message == null) {
@@ -148,6 +162,12 @@ public final class BedHudMessageManager {
         }
 
         if ("sleep.players_sleeping".equals(key)) {
+            if (seamlesssleep$isSleepProgressSuppressed()) {
+                seamlesssleep$clearSleepProgressContext();
+                seamlesssleep$clearPendingSleepProgress();
+                seamlesssleep$clearVanillaOverlayMessage();
+                return true;
+            }
             if (!seamlesssleep$isSleepContextEnabled()) {
                 seamlesssleep$clearContextMessages();
                 seamlesssleep$clearPendingSleepProgress();
@@ -227,6 +247,13 @@ public final class BedHudMessageManager {
         }
 
         boolean pendingDirectSleepContext = seamlesssleep$hasPendingDirectSleepContext();
+        if (seamlesssleep$isSleepProgressSuppressed()) {
+            seamlesssleep$clearSleepProgressContext();
+            seamlesssleep$clearPendingSleepProgress();
+            seamlesssleep$clearVanillaOverlayMessage();
+            return;
+        }
+
         if (!active || SeamlessSleepClientState.SLEEP_ANIMATION.isActive()) {
             seamlesssleep$clearSleepProgressContext();
             seamlesssleep$clearPendingSleepProgress();
@@ -326,6 +353,10 @@ public final class BedHudMessageManager {
     private static boolean seamlesssleep$hasPendingSleepProgress() {
         return seamlesssleep$pendingSleepProgressText != null
                 && seamlesssleep$pendingSleepProgressExpiresAtTick > seamlesssleep$getHudTick();
+    }
+
+    private static boolean seamlesssleep$isSleepProgressSuppressed() {
+        return seamlesssleep$suppressSleepProgressUntilTick > seamlesssleep$getHudTick();
     }
 
     private static SeamlessSleepClientConfig seamlesssleep$getConfig() {

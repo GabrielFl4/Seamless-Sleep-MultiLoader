@@ -10,6 +10,7 @@ import net.aqualoco.sec.network.SleepAnimationNetworking;
 import net.aqualoco.sec.sleep.SleepAnimationMode;
 import net.aqualoco.sec.sleep.SleepAnimationState;
 import net.aqualoco.sec.sleep.SleepAnimationStopReason;
+import net.aqualoco.sec.sleep.SleepStatusUpdateSuppression;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
@@ -157,7 +158,12 @@ public abstract class ServerWorldSleepAnimationMixin {
 
     @Unique
     private void seamlesssleep$finishSleepAnimation() {
-        this.seamlesssleep$invokeWakeSleepingPlayers();
+        SleepStatusUpdateSuppression.beginNaturalFinishWake();
+        try {
+            this.seamlesssleep$invokeWakeSleepingPlayers();
+        } finally {
+            SleepStatusUpdateSuppression.endNaturalFinishWake();
+        }
         if (this.seamlesssleep$sleepAnimationResetWeather) {
             this.seamlesssleep$invokeResetWeather();
         }
@@ -212,6 +218,9 @@ public abstract class ServerWorldSleepAnimationMixin {
     private void seamlesssleep$syncBedHudSleepProgress(CallbackInfo ci) {
         ServerLevel self = (ServerLevel) (Object) this;
         if (!self.dimension().equals(Level.OVERWORLD)) {
+            return;
+        }
+        if (SleepStatusUpdateSuppression.isNaturalFinishWakeSuppressed()) {
             return;
         }
         BedHudNetworking.syncSleepProgress(self);

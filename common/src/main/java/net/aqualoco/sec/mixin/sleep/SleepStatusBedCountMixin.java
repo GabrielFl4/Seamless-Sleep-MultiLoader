@@ -1,6 +1,7 @@
 package net.aqualoco.sec.mixin.sleep;
 
 import net.aqualoco.sec.bed.BedRestingHelper;
+import net.aqualoco.sec.sleep.SleepStatusUpdateSuppression;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.players.SleepStatus;
 import net.minecraft.util.Mth;
@@ -40,10 +41,14 @@ public abstract class SleepStatusBedCountMixin {
             }
         }
 
-        cir.setReturnValue(
-                (previousSleepingPlayers > 0 || this.sleepingPlayers > 0)
-                        && (previousActivePlayers != this.activePlayers || previousSleepingPlayers != this.sleepingPlayers)
-        );
+        boolean changed = (previousSleepingPlayers > 0 || this.sleepingPlayers > 0)
+                && (previousActivePlayers != this.activePlayers || previousSleepingPlayers != this.sleepingPlayers);
+        if (SleepStatusUpdateSuppression.isNaturalFinishWakeSuppressed()) {
+            cir.setReturnValue(false);
+            return;
+        }
+
+        cir.setReturnValue(changed);
     }
 
     @Inject(method = "areEnoughDeepSleeping", at = @At("HEAD"), cancellable = true)
