@@ -94,6 +94,15 @@ public class ForgeNetworkHelper implements INetworkHelper {
     }
 
     @Override
+    public void sendToPlayer(ServerPlayer player, CustomPacketPayload payload) {
+        if (channel == null) {
+            return;
+        }
+
+        channel.send(payload, PacketDistributor.PLAYER.with(player));
+    }
+
+    @Override
     public void sendToServer(CustomPacketPayload payload) {
         if (channel == null) {
             return;

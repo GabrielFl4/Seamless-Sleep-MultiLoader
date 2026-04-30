@@ -42,24 +42,22 @@ final class ForgeClientNetworkHandler implements ForgeNetworkHelper.ClientHandle
     public void handleStart(SleepAnimationStartPayload payload) {
         Minecraft client = Minecraft.getInstance();
         ClientLevel world = client.level;
-        if (world == null) {
-            return;
-        }
-
-        Identifier worldId = world.dimension().identifier();
-        if (!worldId.equals(payload.worldId())) {
-            return;
-        }
-
-        if (!world.dimension().equals(Level.OVERWORLD)) {
+        if (!isMatchingOverworld(world, payload.worldId())) {
+            SeamlessSleepClientState.SLEEP_ANIMATION.resetForWorldExit("start_payload_world_mismatch");
             return;
         }
 
         SeamlessSleepClientState.SLEEP_ANIMATION.start(
+                world,
+                payload.sessionId(),
+                payload.sequenceId(),
+                payload.mode(),
                 payload.startTimeOfDay(),
                 payload.endTimeOfDay(),
                 payload.durationTicks(),
-                payload.startMillis()
+                payload.serverStartGameTime(),
+                payload.serverGameTimeAtSend(),
+                payload.currentDayTime()
         );
     }
 
@@ -67,16 +65,17 @@ final class ForgeClientNetworkHandler implements ForgeNetworkHelper.ClientHandle
     public void handleStop(SleepAnimationStopPayload payload) {
         Minecraft client = Minecraft.getInstance();
         ClientLevel world = client.level;
-        if (world == null) {
+        if (!isMatchingOverworld(world, payload.worldId())) {
+            SeamlessSleepClientState.SLEEP_ANIMATION.resetForWorldExit("stop_payload_world_mismatch");
             return;
         }
 
-        Identifier worldId = world.dimension().identifier();
-        if (!worldId.equals(payload.worldId())) {
-            return;
-        }
-
-        SeamlessSleepClientState.SLEEP_ANIMATION.reset();
+        SeamlessSleepClientState.SLEEP_ANIMATION.finish(
+                world,
+                payload.sessionId(),
+                payload.finalDayTime(),
+                payload.reason()
+        );
     }
 
     @Override
@@ -97,5 +96,14 @@ final class ForgeClientNetworkHandler implements ForgeNetworkHelper.ClientHandle
                 payload.processesAccelerationEnabled(),
                 payload.processesSpeedPercent()
         );
+    }
+
+    private static boolean isMatchingOverworld(ClientLevel world, Identifier payloadWorldId) {
+        if (world == null) {
+            return false;
+        }
+
+        Identifier worldId = world.dimension().identifier();
+        return worldId.equals(payloadWorldId) && world.dimension().equals(Level.OVERWORLD);
     }
 }

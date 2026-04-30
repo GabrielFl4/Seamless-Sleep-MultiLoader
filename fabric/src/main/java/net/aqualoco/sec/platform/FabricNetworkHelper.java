@@ -65,6 +65,11 @@ public class FabricNetworkHelper implements INetworkHelper {
     }
 
     @Override
+    public void sendToPlayer(ServerPlayer player, CustomPacketPayload payload) {
+        ServerPlayNetworking.send(player, payload);
+    }
+
+    @Override
     public void sendToServer(CustomPacketPayload payload) {
         Method sendMethod = seamlesssleep$resolveClientSendMethod();
         if (sendMethod == null) {

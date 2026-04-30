@@ -3,6 +3,9 @@ package net.aqualoco.sec;
 import net.aqualoco.sec.config.SeamlessSleepServerConfig;
 import net.aqualoco.sec.config.SeamlessSleepServerConfigManager;
 import net.aqualoco.sec.network.ServerConfigSyncPayload;
+import net.aqualoco.sec.network.SleepAnimationNetworking;
+import net.fabricmc.fabric.api.entity.event.v1.ServerEntityWorldChangeEvents;
+import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 
@@ -32,6 +35,15 @@ final class SeamlessSleepServerEvents {
                             cfg.worldSleepAcceleration.processesAccelerationEnabled,
                             cfg.worldSleepAcceleration.processesSpeedPercent
                     ));
+            SleepAnimationNetworking.sendActiveSnapshotToPlayer(handler.getPlayer());
         });
+
+        ServerEntityWorldChangeEvents.AFTER_PLAYER_CHANGE_WORLD.register(
+                (player, origin, destination) -> SleepAnimationNetworking.sendActiveSnapshotToPlayer(player)
+        );
+
+        ServerPlayerEvents.AFTER_RESPAWN.register(
+                (oldPlayer, newPlayer, alive) -> SleepAnimationNetworking.sendActiveSnapshotToPlayer(newPlayer)
+        );
     }
 }

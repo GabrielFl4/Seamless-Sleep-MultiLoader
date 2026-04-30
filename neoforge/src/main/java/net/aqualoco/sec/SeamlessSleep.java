@@ -34,6 +34,8 @@ public class SeamlessSleep {
 
         NeoForge.EVENT_BUS.addListener(SeamlessSleepCommandRegistration::register);
         NeoForge.EVENT_BUS.addListener(SeamlessSleepServerEvents::onPlayerLoggedIn);
+        NeoForge.EVENT_BUS.addListener(SeamlessSleepServerEvents::onPlayerChangedDimension);
+        NeoForge.EVENT_BUS.addListener(SeamlessSleepServerEvents::onPlayerRespawn);
 
         if (FMLLoader.getCurrent().getDist().isClient()) {
             NeoForgeConfigScreens.register(modContainer);

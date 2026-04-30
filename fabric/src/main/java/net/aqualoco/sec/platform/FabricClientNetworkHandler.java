@@ -27,26 +27,7 @@ final class FabricClientNetworkHandler {
                 SleepAnimationStartPayload.ID,
                 (payload, context) -> {
                     Minecraft client = context.client();
-                    ClientLevel world = client.level;
-                    if (world == null) {
-                        return;
-                    }
-
-                    Identifier worldId = world.dimension().identifier();
-                    if (!worldId.equals(payload.worldId())) {
-                        return;
-                    }
-
-                    if (!world.dimension().equals(Level.OVERWORLD)) {
-                        return;
-                    }
-
-                    client.execute(() -> SeamlessSleepClientState.SLEEP_ANIMATION.start(
-                            payload.startTimeOfDay(),
-                            payload.endTimeOfDay(),
-                            payload.durationTicks(),
-                            payload.startMillis()
-                    ));
+                    client.execute(() -> handleStartPayload(client, payload));
                 }
         );
 
@@ -54,17 +35,7 @@ final class FabricClientNetworkHandler {
                 SleepAnimationStopPayload.ID,
                 (payload, context) -> {
                     Minecraft client = context.client();
-                    ClientLevel world = client.level;
-                    if (world == null) {
-                        return;
-                    }
-
-                    Identifier worldId = world.dimension().identifier();
-                    if (!worldId.equals(payload.worldId())) {
-                        return;
-                    }
-
-                    client.execute(() -> SeamlessSleepClientState.SLEEP_ANIMATION.reset());
+                    client.execute(() -> handleStopPayload(client, payload));
                 }
         );
 
@@ -111,5 +82,50 @@ final class FabricClientNetworkHandler {
                     ));
                 }
         );
+    }
+
+    private static void handleStartPayload(Minecraft client, SleepAnimationStartPayload payload) {
+        ClientLevel world = client.level;
+        if (!isMatchingOverworld(world, payload.worldId())) {
+            SeamlessSleepClientState.SLEEP_ANIMATION.resetForWorldExit("start_payload_world_mismatch");
+            return;
+        }
+
+        SeamlessSleepClientState.SLEEP_ANIMATION.start(
+                world,
+                payload.sessionId(),
+                payload.sequenceId(),
+                payload.mode(),
+                payload.startTimeOfDay(),
+                payload.endTimeOfDay(),
+                payload.durationTicks(),
+                payload.serverStartGameTime(),
+                payload.serverGameTimeAtSend(),
+                payload.currentDayTime()
+        );
+    }
+
+    private static void handleStopPayload(Minecraft client, SleepAnimationStopPayload payload) {
+        ClientLevel world = client.level;
+        if (!isMatchingOverworld(world, payload.worldId())) {
+            SeamlessSleepClientState.SLEEP_ANIMATION.resetForWorldExit("stop_payload_world_mismatch");
+            return;
+        }
+
+        SeamlessSleepClientState.SLEEP_ANIMATION.finish(
+                world,
+                payload.sessionId(),
+                payload.finalDayTime(),
+                payload.reason()
+        );
+    }
+
+    private static boolean isMatchingOverworld(ClientLevel world, Identifier payloadWorldId) {
+        if (world == null) {
+            return false;
+        }
+
+        Identifier worldId = world.dimension().identifier();
+        return worldId.equals(payloadWorldId) && world.dimension().equals(Level.OVERWORLD);
     }
 }

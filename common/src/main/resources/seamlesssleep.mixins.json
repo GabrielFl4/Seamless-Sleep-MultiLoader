@@ -3,7 +3,6 @@
   "minVersion": "0.8",
   "package": "net.aqualoco.sec.mixin",
   "plugin": "net.aqualoco.sec.mixin.SeamlessSleepMixinPlugin",
-  "refmap": "${mod_id}.refmap.json",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
     "bed.BedBlockRestingMixin",
@@ -43,6 +42,7 @@
     "client.input.LocalPlayerBedWorkflowMixin",
     "client.input.MouseHandlerBedWorkflowMixin",
     "client.ui.MinecraftBedWorkflowMixin",
+    "client.ui.MinecraftSleepAnimationCleanupMixin",
     "client.ui.MinecraftSleepPauseDeferralMixin",
     "client.input.MultiPlayerGameModeBedWorkflowMixin",
     "client.ui.SleepOverlayOpacityMixin",

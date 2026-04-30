@@ -37,6 +37,8 @@ public class SeamlessSleep {
 
         RegisterCommandsEvent.BUS.addListener(SeamlessSleepCommandRegistration::register);
         PlayerEvent.PlayerLoggedInEvent.BUS.addListener(SeamlessSleepServerEvents::onPlayerLoggedIn);
+        PlayerEvent.PlayerChangedDimensionEvent.BUS.addListener(SeamlessSleepServerEvents::onPlayerChangedDimension);
+        PlayerEvent.PlayerRespawnEvent.BUS.addListener(SeamlessSleepServerEvents::onPlayerRespawn);
 
         if (FMLEnvironment.dist == Dist.CLIENT) {
             ForgeConfigScreens.register(context);

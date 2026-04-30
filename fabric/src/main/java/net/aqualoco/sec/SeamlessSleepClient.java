@@ -19,10 +19,12 @@ public class SeamlessSleepClient implements ClientModInitializer {
         HudRenderCallback.EVENT.register(
                 (graphics, tickDelta) -> {
                     ClientLevel world = Minecraft.getInstance().level;
-                    if (world != null
-                            && world.dimension().equals(Level.OVERWORLD)
-                            && SeamlessSleepClientState.SLEEP_ANIMATION.isActive()) {
-                        SeamlessSleepClientState.SLEEP_ANIMATION.tick(world);
+                    if (world == null) {
+                        SeamlessSleepClientState.SLEEP_ANIMATION.resetForWorldExit("fabric_hud_world_null");
+                    } else if (!world.dimension().equals(Level.OVERWORLD)) {
+                        SeamlessSleepClientState.SLEEP_ANIMATION.resetForWorldExit("fabric_hud_non_overworld");
+                    } else {
+                        SeamlessSleepClientState.SLEEP_ANIMATION.resetIfWorldMismatch(world, "fabric_hud_world_changed");
                     }
 
                     SleepStatusOverlay.render(

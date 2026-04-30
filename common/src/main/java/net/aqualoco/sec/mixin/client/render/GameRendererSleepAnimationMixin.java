@@ -33,13 +33,16 @@ public abstract class GameRendererSleepAnimationMixin {
         Minecraft client = Minecraft.getInstance();
         ClientLevel world = client.level;
         if (world == null) {
+            SeamlessSleepClientState.SLEEP_ANIMATION.resetForWorldExit("render_world_null");
             return;
         }
 
         if (!world.dimension().equals(Level.OVERWORLD)) {
+            SeamlessSleepClientState.SLEEP_ANIMATION.resetForWorldExit("render_non_overworld");
             return;
         }
 
+        SeamlessSleepClientState.SLEEP_ANIMATION.resetIfWorldMismatch(world, "render_world_changed");
         if (SeamlessSleepClientState.SLEEP_ANIMATION.isActive()) {
             SeamlessSleepClientState.SLEEP_ANIMATION.tick(world, deltaTracker);
         }

@@ -7,7 +7,9 @@ import net.aqualoco.sec.bed.BedRestingHelper;
 import net.aqualoco.sec.config.SeamlessSleepServerConfigManager;
 import net.aqualoco.sec.network.BedHudNetworking;
 import net.aqualoco.sec.network.SleepAnimationNetworking;
+import net.aqualoco.sec.sleep.SleepAnimationMode;
 import net.aqualoco.sec.sleep.SleepAnimationState;
+import net.aqualoco.sec.sleep.SleepAnimationStopReason;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
@@ -71,7 +73,9 @@ public abstract class ServerWorldSleepAnimationMixin {
             return;
         }
 
-        state.start(currentTime, newTime);
+        if (!state.start(world, currentTime, newTime, SleepAnimationMode.NORMAL_SLEEP)) {
+            return;
+        }
         this.seamlesssleep$sleepAnimationWakePlayers = true;
         int weatherChancePercent = SeamlessSleepServerConfigManager.get().sleepWeatherClearChancePercent;
         this.seamlesssleep$sleepAnimationResetWeather = seamlesssleep$rollWeatherClearChance(world, weatherChancePercent);
@@ -132,6 +136,7 @@ public abstract class ServerWorldSleepAnimationMixin {
         if (!state.isActive() && this.seamlesssleep$sleepAnimationWakePlayers) {
             this.seamlesssleep$finishSleepAnimation();
             WorldSleepAccelerationManager.refreshForLevelTick(self);
+            SleepAnimationNetworking.sendFinish(self, state);
             return;
         }
 
@@ -145,7 +150,7 @@ public abstract class ServerWorldSleepAnimationMixin {
             this.seamlesssleep$sleepAnimationWakePlayers = false;
             this.seamlesssleep$sleepAnimationResetWeather = false;
             WorldSleepAccelerationManager.refreshForLevelTick(self);
-            SleepAnimationNetworking.sendStop(self);
+            SleepAnimationNetworking.sendStop(self, state, SleepAnimationStopReason.CANCELLED_NOT_ENOUGH_SLEEPERS);
             Constants.debug("Sleep animation canceled: not enough players sleeping.");
         }
     }

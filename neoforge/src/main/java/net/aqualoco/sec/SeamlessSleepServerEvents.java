@@ -3,6 +3,7 @@ package net.aqualoco.sec;
 import net.aqualoco.sec.config.SeamlessSleepServerConfig;
 import net.aqualoco.sec.config.SeamlessSleepServerConfigManager;
 import net.aqualoco.sec.network.ServerConfigSyncPayload;
+import net.aqualoco.sec.network.SleepAnimationNetworking;
 import net.aqualoco.sec.platform.Services;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
@@ -41,5 +42,18 @@ final class SeamlessSleepServerEvents {
                         cfg.worldSleepAcceleration.processesSpeedPercent
                 )
         );
+        SleepAnimationNetworking.sendActiveSnapshotToPlayer(player);
+    }
+
+    static void onPlayerChangedDimension(PlayerEvent.PlayerChangedDimensionEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            SleepAnimationNetworking.sendActiveSnapshotToPlayer(player);
+        }
+    }
+
+    static void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            SleepAnimationNetworking.sendActiveSnapshotToPlayer(player);
+        }
     }
 }
