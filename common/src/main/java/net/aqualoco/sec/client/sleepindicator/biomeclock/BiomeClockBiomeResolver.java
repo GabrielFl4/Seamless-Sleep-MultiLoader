@@ -56,10 +56,10 @@ public final class BiomeClockBiomeResolver {
                  "minecraft:grove",
                  "minecraft:jagged_peaks",
                  "minecraft:frozen_peaks" -> BiomeClockCategory.SNOW;
-            case "minecraft:desert",
-                 "minecraft:badlands",
+            case "minecraft:desert" -> BiomeClockCategory.DESERT;
+            case "minecraft:badlands",
                  "minecraft:wooded_badlands",
-                 "minecraft:eroded_badlands" -> BiomeClockCategory.DESERT;
+                 "minecraft:eroded_badlands" -> BiomeClockCategory.BADLANDS;
             case "minecraft:savanna",
                  "minecraft:savanna_plateau",
                  "minecraft:windswept_savanna" -> BiomeClockCategory.SAVANNA;
@@ -67,6 +67,7 @@ public final class BiomeClockBiomeResolver {
                  "minecraft:sparse_jungle",
                  "minecraft:bamboo_jungle" -> BiomeClockCategory.JUNGLE;
             case "minecraft:cherry_grove" -> BiomeClockCategory.CHERRY;
+            case "minecraft:pale_garden" -> BiomeClockCategory.PALE_GARDEN;
             case "minecraft:mangrove_swamp" -> BiomeClockCategory.MANGROVE;
             case "minecraft:swamp",
                  "minecraft:swamp_hills" -> BiomeClockCategory.SWAMP;
@@ -89,8 +90,9 @@ public final class BiomeClockBiomeResolver {
                  "minecraft:old_growth_spruce_taiga" -> BiomeClockCategory.FOREST;
             case "minecraft:plains",
                  "minecraft:sunflower_plains",
-                 "minecraft:meadow",
-                 "minecraft:beach" -> BiomeClockCategory.PLAINS;
+                 "minecraft:meadow" -> BiomeClockCategory.PLAINS;
+            case "minecraft:beach",
+                 "minecraft:stony_shore" -> BiomeClockCategory.BEACH;
             default -> BiomeClockCategory.DEFAULT;
         };
     }
@@ -109,6 +111,9 @@ public final class BiomeClockBiomeResolver {
         if (containsAny(normalizedPath, "cherry")) {
             return BiomeClockCategory.CHERRY;
         }
+        if (containsAny(normalizedPath, "pale_garden", "palegarden")) {
+            return BiomeClockCategory.PALE_GARDEN;
+        }
         if (containsAny(normalizedPath, "mangrove")) {
             return BiomeClockCategory.MANGROVE;
         }
@@ -118,13 +123,19 @@ public final class BiomeClockBiomeResolver {
         if (containsAny(normalizedPath, "snow", "frozen", "ice", "cold", "peak", "grove")) {
             return BiomeClockCategory.SNOW;
         }
-        if (containsAny(normalizedPath, "desert", "badlands", "mesa", "dunes")) {
+        if (containsAny(normalizedPath, "badlands", "mesa")) {
+            return BiomeClockCategory.BADLANDS;
+        }
+        if (containsAny(normalizedPath, "beach", "shore")) {
+            return BiomeClockCategory.BEACH;
+        }
+        if (containsAny(normalizedPath, "desert", "dunes")) {
             return BiomeClockCategory.DESERT;
         }
         if (containsAny(normalizedPath, "forest", "wood", "birch", "taiga")) {
             return BiomeClockCategory.FOREST;
         }
-        if (containsAny(normalizedPath, "plains", "meadow", "field", "grassland", "beach")) {
+        if (containsAny(normalizedPath, "plains", "meadow", "field", "grassland")) {
             return BiomeClockCategory.PLAINS;
         }
         return BiomeClockCategory.DEFAULT;

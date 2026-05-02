@@ -385,7 +385,7 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
         if (category == BiomeClockCategory.SAVANNA) {
             return;
         }
-        if (category == BiomeClockCategory.DESERT) {
+        if (usesSandstormPrecipitation(category)) {
             frames = SANDSTORM;
             fps = SANDSTORM_ANIMATION_FPS;
             alphaMultiplier = weatherKind.usesThunderClouds()
@@ -675,10 +675,14 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
         float nightFactor = computeNightFactor(context.normalizedDayTime());
         float darkeningFactor = biomeDarkeningAlpha * PRECIPITATION_DARKEN_TINT_STRENGTH;
         darkeningFactor += biomeDarkeningAlpha * thunderFactor * PRECIPITATION_THUNDER_DARKEN_BOOST;
-        if (category == BiomeClockCategory.DESERT) {
+        if (usesSandstormPrecipitation(category)) {
             darkeningFactor += biomeDarkeningAlpha * nightFactor * PRECIPITATION_SANDSTORM_NIGHT_DARKEN_BOOST;
         }
         return Mth.clamp(darkeningFactor, 0.0F, PRECIPITATION_DARKEN_MAX_FACTOR);
+    }
+
+    private static boolean usesSandstormPrecipitation(BiomeClockCategory category) {
+        return category == BiomeClockCategory.DESERT || category == BiomeClockCategory.BADLANDS;
     }
 
     private static int weatherCloudTint(SleepIndicatorContext context, BiomeClockWeatherKind weatherKind, float alpha) {
