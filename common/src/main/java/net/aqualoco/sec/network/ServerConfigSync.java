@@ -12,9 +12,15 @@ public final class ServerConfigSync {
     }
 
     public static void sendToAll(MinecraftServer server, SeamlessSleepServerConfig config) {
+        config.clamp();
         ServerConfigSyncPayload payload = new ServerConfigSyncPayload(
                 config.sleepWeatherClearChancePercent,
                 config.sleepAnimationDurationMultiplier,
+                config.fallAsleepDelayTicks,
+                config.overrideOverlayText,
+                config.overlayCustomText,
+                config.sleepEligibility,
+                config.madeInHeavenChancePercent,
                 Math.max(1, server.getPlayerList().getSimulationDistance()),
                 config.worldSleepAcceleration.mode,
                 config.worldSleepAcceleration.automaticMode,

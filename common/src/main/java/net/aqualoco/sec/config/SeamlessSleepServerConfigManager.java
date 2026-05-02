@@ -15,7 +15,7 @@ public final class SeamlessSleepServerConfigManager {
     private static final String FILE_NAME = "seamless_sleep-server.toml";
     private static final String LEGACY_JSON_FILE_NAME = "seamless_sleep-server.json";
     private static final String LEGACY_JSONC_FILE_NAME = "seamless_sleep-server.jsonc";
-    private static final int CONFIG_VERSION = 5;
+    private static final int CONFIG_VERSION = 6;
 
     public enum ReloadResult {
         SUCCESS,
@@ -125,6 +125,37 @@ public final class SeamlessSleepServerConfigManager {
                 List.of("sleep", "sleepAnimationDurationMultiplier"),
                 "sleepAnimationDurationMultiplier",
                 cfg.sleepAnimationDurationMultiplier
+        );
+        cfg.fallAsleepDelayTicks = readInt(
+                file,
+                List.of("sleep", "fall_asleep_delay_ticks"),
+                "fallAsleepDelayTicks",
+                cfg.fallAsleepDelayTicks
+        );
+        cfg.overrideOverlayText = readBoolean(
+                file,
+                List.of("sleep", "override_overlay_text"),
+                "overrideOverlayText",
+                cfg.overrideOverlayText
+        );
+        cfg.overlayCustomText = readString(
+                file,
+                List.of("sleep", "overlay_custom_text"),
+                "overlayCustomText",
+                cfg.overlayCustomText
+        );
+        cfg.sleepEligibility = readEnum(
+                file,
+                List.of("sleep", "sleep_eligibility"),
+                "sleepEligibility",
+                SleepEligibilityMode.class,
+                cfg.sleepEligibility
+        );
+        cfg.madeInHeavenChancePercent = readInt(
+                file,
+                List.of("easter_eggs", "made_in_heaven_chance_percent"),
+                "madeInHeavenChancePercent",
+                cfg.madeInHeavenChancePercent
         );
         readWorldSleepAcceleration(file, cfg.worldSleepAcceleration);
         cfg.clamp();
@@ -354,6 +385,29 @@ public final class SeamlessSleepServerConfigManager {
                 "Sleep animation duration multiplier. Range: 0.25 to 8.0. Default: 1.0",
                 "sleepAnimationDurationMultiplier",
                 Double.toString(cfg.sleepAnimationDurationMultiplier));
+        appendEntry(sb,
+                "Ticks a counted player must stay in bed before counting as deep asleep. Range: 0 to 200. 100=vanilla",
+                "fall_asleep_delay_ticks",
+                Integer.toString(cfg.fallAsleepDelayTicks));
+        appendEntry(sb,
+                "When true, Overlay indicator text uses overlay_custom_text for normal Night/Day/Storm skips",
+                "override_overlay_text",
+                Boolean.toString(cfg.overrideOverlayText));
+        appendEntry(sb,
+                "Plain global Overlay indicator text. Max 128 characters. Formatting codes are stripped",
+                "overlay_custom_text",
+                toTomlString(cfg.overlayCustomText));
+        appendEntry(sb,
+                "Sleep eligibility policy. Values: VANILLA, DAY_INCLUDED, ALWAYS. Default: VANILLA",
+                "sleep_eligibility",
+                toTomlString(cfg.sleepEligibility.name()));
+
+        appendSectionGap(sb, 1);
+        appendSectionHeader(sb, "easter_eggs");
+        appendEntry(sb,
+                "Chance for bed sleep to use Made In Heaven. Range: 0 to 100. 0=off",
+                "made_in_heaven_chance_percent",
+                Integer.toString(cfg.madeInHeavenChancePercent));
 
         appendSectionGap(sb, 1);
         appendSectionHeader(sb, "world_sleep_acceleration");
@@ -539,6 +593,11 @@ public final class SeamlessSleepServerConfigManager {
     private static int readInt(CommentedFileConfig file, List<String> path, String legacyKey, int fallback) {
         Object value = readRaw(file, path, legacyKey);
         return value instanceof Number number ? number.intValue() : fallback;
+    }
+
+    private static String readString(CommentedFileConfig file, List<String> path, String legacyKey, String fallback) {
+        Object value = readRaw(file, path, legacyKey);
+        return value instanceof String string ? string : fallback;
     }
 
     private static boolean readBoolean(CommentedFileConfig file, List<String> path, String legacyKey, boolean fallback) {

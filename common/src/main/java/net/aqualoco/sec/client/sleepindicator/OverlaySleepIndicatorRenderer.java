@@ -1,5 +1,7 @@
 package net.aqualoco.sec.client.sleepindicator;
 
+import net.aqualoco.sec.config.SeamlessSleepServerConfigSnapshot;
+import net.aqualoco.sec.sleep.SleepAnimationVisualContext;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
@@ -27,11 +29,7 @@ public final class OverlaySleepIndicatorRenderer implements SleepIndicatorRender
     @Override
     public void render(GuiGraphics graphics, SleepIndicatorContext context, float tickDelta) {
         Minecraft client = context.client();
-        Component text = Component.translatable(
-                context.startedDuringDay()
-                        ? "seamlesssleep.text.sleeping_storm"
-                        : "seamlesssleep.text.sleeping"
-        );
+        Component text = resolveText(context.visualContext());
 
         long now = System.currentTimeMillis();
         double pulse = 0.6D + 0.4D * Math.sin(now / 400.0D);
@@ -42,5 +40,22 @@ public final class OverlaySleepIndicatorRenderer implements SleepIndicatorRender
         }
         int color = (alpha << 24) | 0x00FFFFFF;
         graphics.drawString(client.font, text, 0, 0, color, true);
+    }
+
+    private static Component resolveText(SleepAnimationVisualContext visualContext) {
+        SleepAnimationVisualContext resolved = visualContext == null
+                ? SleepAnimationVisualContext.NIGHT
+                : visualContext;
+        if (SeamlessSleepServerConfigSnapshot.isOverrideOverlayText()
+                && resolved != SleepAnimationVisualContext.MADE_IN_HEAVEN) {
+            return Component.literal(SeamlessSleepServerConfigSnapshot.getOverlayCustomText());
+        }
+
+        return switch (resolved) {
+            case DAY -> Component.translatable("seamlesssleep.text.sleeping_day");
+            case STORM -> Component.translatable("seamlesssleep.text.sleeping_storm");
+            case MADE_IN_HEAVEN -> Component.translatable("seamlesssleep.text.made_in_heaven");
+            case NIGHT -> Component.translatable("seamlesssleep.text.sleeping");
+        };
     }
 }

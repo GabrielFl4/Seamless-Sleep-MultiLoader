@@ -81,6 +81,8 @@ public final class SleepAnimationNetworking {
                 state.getSequenceId(),
                 state.getMode(),
                 state.getPhase(),
+                state.getVisualContext(),
+                state.getSoundMode(),
                 state.getStartTimeOfDay(),
                 state.getEndTimeOfDay(),
                 state.getDurationTicks(),

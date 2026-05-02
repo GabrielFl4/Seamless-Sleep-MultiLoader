@@ -46,9 +46,12 @@ public abstract class BedBlockRestingMixin {
 
         serverPlayer.startSleeping(bedPos);
         BedRestingHelper.initializeAuthoritativeBedLook(serverPlayer, bedPos);
-        BedRestingHelper.syncManagedSleepState(serverPlayer, false);
+        boolean countedForSleep = BedRestingHelper.canCountForSleep(serverPlayer, bedPos);
+        BedRestingHelper.syncManagedSleepState(serverPlayer, countedForSleep);
         BedRestingHelper.showLeaveBedHint(serverPlayer);
-        BedRestingHelper.showBedHudMessage(serverPlayer, problem.message());
+        if (!countedForSleep) {
+            BedRestingHelper.showBedHudMessage(serverPlayer, problem.message());
+        }
         return Either.right(Unit.INSTANCE);
     }
 }

@@ -9,6 +9,8 @@ import net.aqualoco.sec.config.SeamlessSleepServerConfigManager;
 import net.aqualoco.sec.config.WorldSleepAccelerationConfig;
 import net.aqualoco.sec.config.WorldSleepAccelerationMode;
 import net.aqualoco.sec.config.WorldSleepAccelerationPlayersAffected;
+import net.aqualoco.sec.config.WorldSleepAutomaticMode;
+import net.aqualoco.sec.sleep.SleepAnimationMode;
 import net.aqualoco.sec.sleep.SleepAnimationState;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -163,8 +165,11 @@ public final class WorldSleepAccelerationManager {
                                                          double smoothedAverageMspt,
                                                          double smoothedP95Mspt,
                                                          boolean includeDiagnostics) {
-            WorldSleepAccelerationConfig accelerationConfig = SeamlessSleepServerConfigManager.get().worldSleepAcceleration;
             SleepAnimationState sleepState = SeamlessSleepCommon.OVERWORLD_SLEEP_ANIMATION;
+            WorldSleepAccelerationConfig accelerationConfig = resolveRuntimeAccelerationConfig(
+                    SeamlessSleepServerConfigManager.get().worldSleepAcceleration,
+                    sleepState
+            );
             // Nature follows the instantaneous sleep curve, while processes stay on the
             // original average-per-night rate so all furnaces remain stable together.
             double natureWorldSleepRate = sleepState.getCurrentLogicalWorldRate();
@@ -172,6 +177,7 @@ public final class WorldSleepAccelerationManager {
             double worldSleepRate = natureWorldSleepRate;
 
             if (!sleepState.isActive()
+                    || !sleepState.getMode().allowsWorldAcceleration()
                     || accelerationConfig.mode == WorldSleepAccelerationMode.OFF
                     || (natureWorldSleepRate <= 1.0D && processWorldSleepRate <= 1.0D)) {
                 resetAutomaticRuntimeState();
@@ -300,6 +306,28 @@ public final class WorldSleepAccelerationManager {
                 players.add(player);
             }
             return players;
+        }
+
+        private WorldSleepAccelerationConfig resolveRuntimeAccelerationConfig(WorldSleepAccelerationConfig baseConfig,
+                                                                              SleepAnimationState sleepState) {
+            if (sleepState.getMode() != SleepAnimationMode.MADE_IN_HEAVEN_BED) {
+                return baseConfig;
+            }
+
+            WorldSleepAccelerationConfig runtimeConfig = new WorldSleepAccelerationConfig();
+            runtimeConfig.mode = WorldSleepAccelerationMode.AUTOMATIC;
+            runtimeConfig.automaticMode = WorldSleepAutomaticMode.BALANCED;
+            runtimeConfig.playersAffected = WorldSleepAccelerationPlayersAffected.ALL_PLAYERS;
+            runtimeConfig.manualAccelerationRadiusChunks = baseConfig.manualAccelerationRadiusChunks;
+            runtimeConfig.manualAccelerationSpeedPercent = baseConfig.manualAccelerationSpeedPercent;
+            runtimeConfig.grassAndFoliageAccelerationEnabled = baseConfig.grassAndFoliageAccelerationEnabled;
+            runtimeConfig.cropsAndSaplingsAccelerationEnabled = baseConfig.cropsAndSaplingsAccelerationEnabled;
+            runtimeConfig.kelpAccelerationEnabled = baseConfig.kelpAccelerationEnabled;
+            runtimeConfig.vanillaOnlyAcceleration = baseConfig.vanillaOnlyAcceleration;
+            runtimeConfig.processesAccelerationEnabled = baseConfig.processesAccelerationEnabled;
+            runtimeConfig.processesSpeedPercent = baseConfig.processesSpeedPercent;
+            runtimeConfig.clamp();
+            return runtimeConfig;
         }
 
         private WorldSleepAccelerationModuleStatus buildNatureStatus(WorldSleepAccelerationFilterPolicy filterPolicy,

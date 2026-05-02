@@ -1,6 +1,7 @@
 package net.aqualoco.sec.mixin.sleep;
 
 import net.aqualoco.sec.bed.BedRestingHelper;
+import net.aqualoco.sec.config.SeamlessSleepServerConfigManager;
 import net.aqualoco.sec.sleep.SleepStatusUpdateSuppression;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.players.SleepStatus;
@@ -56,7 +57,10 @@ public abstract class SleepStatusBedCountMixin {
                                                             List<ServerPlayer> players,
                                                             CallbackInfoReturnable<Boolean> cir) {
         int deepSleepers = (int) players.stream()
-                .filter(player -> BedRestingHelper.isCountedForSleep(player) && player.isSleepingLongEnough())
+                .filter(player -> BedRestingHelper.hasSleptLongEnough(
+                        player,
+                        SeamlessSleepServerConfigManager.get().fallAsleepDelayTicks
+                ))
                 .count();
         int sleepersNeeded = Math.max(1, Mth.ceil(this.activePlayers * requiredSleepPercentage / 100.0F));
         cir.setReturnValue(deepSleepers >= sleepersNeeded);

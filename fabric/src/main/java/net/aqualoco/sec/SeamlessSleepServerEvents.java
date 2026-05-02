@@ -22,6 +22,11 @@ final class SeamlessSleepServerEvents {
                     new ServerConfigSyncPayload(
                             cfg.sleepWeatherClearChancePercent,
                             cfg.sleepAnimationDurationMultiplier,
+                            cfg.fallAsleepDelayTicks,
+                            cfg.overrideOverlayText,
+                            cfg.overlayCustomText,
+                            cfg.sleepEligibility,
+                            cfg.madeInHeavenChancePercent,
                             Math.max(1, server.getPlayerList().getSimulationDistance()),
                             cfg.worldSleepAcceleration.mode,
                             cfg.worldSleepAcceleration.automaticMode,

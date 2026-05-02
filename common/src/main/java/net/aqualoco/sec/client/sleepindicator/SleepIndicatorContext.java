@@ -3,6 +3,7 @@ package net.aqualoco.sec.client.sleepindicator;
 import net.aqualoco.sec.client.sleepindicator.biomeclock.BiomeClockBiomeResolver;
 import net.aqualoco.sec.client.sleepindicator.biomeclock.BiomeClockCategory;
 import net.aqualoco.sec.sleep.ClientSleepAnimationState;
+import net.aqualoco.sec.sleep.SleepAnimationVisualContext;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -36,7 +37,8 @@ public record SleepIndicatorContext(
         float sleepDayTimeSpeedPerTick,
         float alpha,
         boolean sleepAnimationActive,
-        boolean startedDuringDay
+        boolean startedDuringDay,
+        SleepAnimationVisualContext visualContext
 ) {
     private static final long DAY_TICKS = 24000L;
     private static final float DEG_TO_RAD = (float) (Math.PI / 180.0D);
@@ -89,7 +91,8 @@ public record SleepIndicatorContext(
                 animationActive ? (float) sleepAnimation.getCurrentDayTimeSpeedPerTick() : 0.0F,
                 1.0F,
                 animationActive,
-                sleepAnimation != null && sleepAnimation.startedDuringDay()
+                sleepAnimation != null && sleepAnimation.startedDuringDay(),
+                sleepAnimation != null ? sleepAnimation.getVisualContext() : SleepAnimationVisualContext.NIGHT
         );
     }
 
@@ -119,7 +122,8 @@ public record SleepIndicatorContext(
                 this.sleepDayTimeSpeedPerTick,
                 multipliedAlpha,
                 this.sleepAnimationActive,
-                this.startedDuringDay
+                this.startedDuringDay,
+                this.visualContext
         );
     }
 

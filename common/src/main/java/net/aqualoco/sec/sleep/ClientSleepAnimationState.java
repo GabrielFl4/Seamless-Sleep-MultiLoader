@@ -21,6 +21,9 @@ public final class ClientSleepAnimationState {
     private long sequenceId = -1L;
     private long closedSessionId = CLOSED_SESSION_NONE;
     private SleepAnimationMode mode = SleepAnimationMode.NORMAL_SLEEP;
+    private SleepAnimationPhase phase = SleepAnimationPhase.IDLE;
+    private SleepAnimationVisualContext visualContext = SleepAnimationVisualContext.NIGHT;
+    private SleepAnimationSoundMode soundMode = SleepAnimationSoundMode.NONE;
     private long startTimeOfDay;
     private long endTimeOfDay;
     private int durationTicks;
@@ -47,6 +50,14 @@ public final class ClientSleepAnimationState {
 
     public boolean startedDuringDay() {
         return !isNightStart(this.startTimeOfDay);
+    }
+
+    public SleepAnimationVisualContext getVisualContext() {
+        return this.visualContext;
+    }
+
+    public SleepAnimationSoundMode getSoundMode() {
+        return this.soundMode;
     }
 
     public OptionalLong getReplayTimelineMillisSnapshot() {
@@ -82,14 +93,18 @@ public final class ClientSleepAnimationState {
             return 0.0D;
         }
 
-        double easedFrom = SleepAnimationState.integralEase(from);
-        double easedTo = SleepAnimationState.integralEase(to);
+        double easedFrom = easeForPhase(from);
+        double easedTo = easeForPhase(to);
         return Math.max(0.0D, (easedTo - easedFrom) / (to - from));
     }
 
     public double getCurrentDayTimeSpeedPerTick() {
         if ((!this.active && !this.awaitingFinish) || this.durationTicks <= 0) {
             return 0.0D;
+        }
+
+        if (this.mode == SleepAnimationMode.MADE_IN_HEAVEN_BED && this.phase == SleepAnimationPhase.RUNNING) {
+            return SleepAnimationState.madeInHeavenVelocityForElapsed(this.estimateMadeInHeavenElapsedTicks());
         }
 
         long deltaTime = Math.max(0L, this.endTimeOfDay - this.startTimeOfDay);
@@ -130,6 +145,9 @@ public final class ClientSleepAnimationState {
                       long sessionId,
                       long sequenceId,
                       SleepAnimationMode mode,
+                      SleepAnimationPhase phase,
+                      SleepAnimationVisualContext visualContext,
+                      SleepAnimationSoundMode soundMode,
                       long startTimeOfDay,
                       long endTimeOfDay,
                       int durationTicks,
@@ -161,6 +179,9 @@ public final class ClientSleepAnimationState {
         this.sequenceId = sequenceId;
         this.closedSessionId = CLOSED_SESSION_NONE;
         this.mode = mode == null ? SleepAnimationMode.NORMAL_SLEEP : mode;
+        this.phase = phase == null ? SleepAnimationPhase.RUNNING : phase;
+        this.visualContext = visualContext == null ? SleepAnimationVisualContext.NIGHT : visualContext;
+        this.soundMode = soundMode == null ? SleepAnimationSoundMode.NONE : soundMode;
         this.startTimeOfDay = startTimeOfDay;
         this.endTimeOfDay = endTimeOfDay;
         this.durationTicks = Math.max(1, durationTicks);
@@ -225,6 +246,9 @@ public final class ClientSleepAnimationState {
         this.cachedProgress = reason == SleepAnimationStopReason.FINISHED
                 ? 1.0D
                 : computeProgressFromDayTime(finalDayTime);
+        this.phase = reason == SleepAnimationStopReason.FINISHED
+                ? SleepAnimationPhase.FINISHED
+                : SleepAnimationPhase.CANCELLED;
         this.clearPlaybackState(false);
 
         Constants.debug("Client sleep animation finished/stopped: {} (session {})", reason, sessionId);
@@ -237,6 +261,11 @@ public final class ClientSleepAnimationState {
 
         this.resetIfWorldMismatch(world, "world_changed");
         if (!this.active) {
+            return;
+        }
+
+        if (this.mode == SleepAnimationMode.MADE_IN_HEAVEN_BED && this.phase == SleepAnimationPhase.RUNNING) {
+            this.tickMadeInHeavenRunning(world, deltaTracker);
             return;
         }
 
@@ -294,6 +323,83 @@ public final class ClientSleepAnimationState {
         double visualGameTime = world.getGameTime() + partialTick;
         double elapsedTicks = visualGameTime - this.serverStartGameTime;
         return this.durationTicks <= 0 ? 1.0D : elapsedTicks / this.durationTicks;
+    }
+
+    private void tickMadeInHeavenRunning(ClientLevel world, DeltaTracker deltaTracker) {
+        double elapsedTicks = this.computeMadeInHeavenElapsedTicks(world, deltaTracker);
+        double distance = SleepAnimationState.madeInHeavenDistanceForElapsed(elapsedTicks);
+        long newTimeOfDay = this.startTimeOfDay + Math.max(0L, (long) distance);
+        if (newTimeOfDay >= this.endTimeOfDay) {
+            newTimeOfDay = this.endTimeOfDay;
+            this.awaitingFinish = true;
+            this.finishGraceFrames++;
+            if (this.finishGraceFrames >= FINISH_GRACE_FRAMES) {
+                this.active = false;
+                this.replayCompatMode = false;
+            }
+        } else {
+            this.awaitingFinish = false;
+            this.finishGraceFrames = 0;
+        }
+
+        newTimeOfDay = Math.max(newTimeOfDay, this.currentVisualDayTime);
+        world.getLevelData().setDayTime(newTimeOfDay);
+        this.currentVisualDayTime = newTimeOfDay;
+
+        long delta = this.endTimeOfDay - this.startTimeOfDay;
+        this.cachedProgress = delta <= 0L ? 0.0D : clamp01((newTimeOfDay - this.startTimeOfDay) / (double) delta);
+    }
+
+    private double computeMadeInHeavenElapsedTicks(ClientLevel world, DeltaTracker deltaTracker) {
+        if (this.replayCompatMode) {
+            return this.computeReplayCompatElapsedTicks(deltaTracker);
+        }
+        if (!this.isLiveClockUsable(world)) {
+            return estimateMadeInHeavenElapsedTicks();
+        }
+
+        float partialTick = 0.0F;
+        if (deltaTracker != null) {
+            partialTick = Math.max(0.0F, deltaTracker.getGameTimeDeltaPartialTick(false));
+        }
+        return Math.max(0.0D, world.getGameTime() + partialTick - this.serverStartGameTime);
+    }
+
+    private double computeReplayCompatElapsedTicks(DeltaTracker deltaTracker) {
+        OptionalLong replayTimeline = ReplayPlaybackCompat.getReplayTimelineMillis();
+        if (replayTimeline.isPresent()) {
+            long replayNowMs = replayTimeline.getAsLong();
+
+            if (this.replayCompatStartTimelineMillis < 0L) {
+                long fallbackElapsedMs = (long) (this.replayCompatElapsedTicksFallback * 50.0F);
+                this.replayCompatStartTimelineMillis = replayNowMs - fallbackElapsedMs;
+            }
+
+            return Math.max(0.0D, (replayNowMs - this.replayCompatStartTimelineMillis) / 50.0D);
+        }
+
+        if (deltaTracker != null) {
+            this.replayCompatElapsedTicksFallback += Math.max(0.0F, deltaTracker.getGameTimeDeltaTicks());
+        }
+        return this.replayCompatElapsedTicksFallback;
+    }
+
+    private double estimateMadeInHeavenElapsedTicks() {
+        long distance = Math.max(0L, this.currentAuthoritativeDayTime - this.startTimeOfDay);
+        double lo = 0.0D;
+        double hi = 20000.0D;
+        while (SleepAnimationState.madeInHeavenDistanceForElapsed(hi) < distance && hi < 1_000_000.0D) {
+            hi *= 2.0D;
+        }
+        for (int i = 0; i < 20; i++) {
+            double mid = (lo + hi) * 0.5D;
+            if (SleepAnimationState.madeInHeavenDistanceForElapsed(mid) < distance) {
+                lo = mid;
+            } else {
+                hi = mid;
+            }
+        }
+        return hi;
     }
 
     private boolean isLiveClockUsable(ClientLevel world) {
@@ -364,9 +470,15 @@ public final class ClientSleepAnimationState {
     }
 
     private long interpolateDayTime(double progress) {
-        double eased = SleepAnimationState.integralEase(clamp01(progress));
+        double eased = easeForPhase(clamp01(progress));
         long delta = this.endTimeOfDay - this.startTimeOfDay;
         return this.startTimeOfDay + (long) (delta * eased);
+    }
+
+    private double easeForPhase(double progress) {
+        return this.phase == SleepAnimationPhase.BRAKING
+                ? SleepAnimationState.brakeEase(progress)
+                : SleepAnimationState.integralEase(progress);
     }
 
     private double computeProgressFromDayTime(long dayTime) {

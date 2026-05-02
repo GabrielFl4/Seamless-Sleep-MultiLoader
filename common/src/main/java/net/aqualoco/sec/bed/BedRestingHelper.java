@@ -1,6 +1,9 @@
 package net.aqualoco.sec.bed;
 
 import net.aqualoco.sec.SeamlessSleepCommon;
+import net.aqualoco.sec.config.SeamlessSleepServerConfig;
+import net.aqualoco.sec.config.SeamlessSleepServerConfigManager;
+import net.aqualoco.sec.config.SleepEligibilityMode;
 import net.aqualoco.sec.network.BedHudNetworking;
 import net.aqualoco.sec.sleep.SleepStatusUpdateSuppression;
 import net.minecraft.core.BlockPos;
@@ -75,6 +78,30 @@ public final class BedRestingHelper {
     public static boolean isCountedForSleep(Player player) {
         return player instanceof BedRestingPlayer restingPlayer
                 && restingPlayer.seamlesssleep$isCountedForSleep();
+    }
+
+    public static boolean hasSleptLongEnough(ServerPlayer player, int delayTicks) {
+        int clampedDelay = SeamlessSleepServerConfig.clampInt(
+                delayTicks,
+                SeamlessSleepServerConfig.MIN_FALL_ASLEEP_DELAY_TICKS,
+                SeamlessSleepServerConfig.MAX_FALL_ASLEEP_DELAY_TICKS
+        );
+        return isCountedForSleep(player)
+                && player.isSleeping()
+                && player instanceof BedRestingPlayer restingPlayer
+                && restingPlayer.seamlesssleep$getFallAsleepDelayCounter() >= clampedDelay;
+    }
+
+    public static boolean hasMadeInHeavenSleepLongEnough(ServerPlayer player, int delayTicks) {
+        int clampedDelay = SeamlessSleepServerConfig.clampInt(
+                delayTicks,
+                SeamlessSleepServerConfig.MIN_FALL_ASLEEP_DELAY_TICKS,
+                SeamlessSleepServerConfig.MAX_FALL_ASLEEP_DELAY_TICKS
+        );
+        return player.isSleeping()
+                && canCountForMadeInHeaven(player, player.getSleepingPos().orElse(null))
+                && player instanceof BedRestingPlayer restingPlayer
+                && restingPlayer.seamlesssleep$getFallAsleepDelayCounter() >= clampedDelay;
     }
 
     public static float getAuthoritativeBedLookYaw(Player player) {
@@ -164,7 +191,12 @@ public final class BedRestingHelper {
             return false;
         }
 
-        if (!player.level().environmentAttributes().getValue(EnvironmentAttributes.BED_RULE, bedPos).canSleep(player.level())) {
+        SleepEligibilityMode eligibility = SeamlessSleepServerConfigManager.get().sleepEligibility;
+        boolean bedRuleAllowsSleep = player.level()
+                .environmentAttributes()
+                .getValue(EnvironmentAttributes.BED_RULE, bedPos)
+                .canSleep(player.level());
+        if (!bedRuleAllowsSleep && !eligibility.allowsDaySleep()) {
             return false;
         }
 
@@ -172,7 +204,7 @@ public final class BedRestingHelper {
             return false;
         }
 
-        if (player.isCreative()) {
+        if (player.isCreative() || eligibility.ignoresMonsterCheck()) {
             return true;
         }
 
@@ -184,6 +216,15 @@ public final class BedRestingHelper {
                         monster -> monster.isPreventingPlayerRest(player.level(), player)
                 )
                 .isEmpty();
+    }
+
+    public static boolean canCountForMadeInHeaven(ServerPlayer player, @Nullable BlockPos bedPos) {
+        if (!isManagedBedState(player) || !player.isAlive() || bedPos == null) {
+            return false;
+        }
+
+        Direction direction = getBedDirection(player.level(), bedPos);
+        return direction != null && canStartResting(player, bedPos, direction);
     }
 
     public static boolean isReachableBedBlock(Player player, BlockPos bedPos, Direction direction) {

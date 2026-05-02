@@ -1,6 +1,8 @@
 package net.aqualoco.sec.network;
 
 import net.aqualoco.sec.Constants;
+import net.aqualoco.sec.config.SeamlessSleepServerConfig;
+import net.aqualoco.sec.config.SleepEligibilityMode;
 import net.aqualoco.sec.config.WorldSleepAccelerationMode;
 import net.aqualoco.sec.config.WorldSleepAccelerationPlayersAffected;
 import net.aqualoco.sec.config.WorldSleepAutomaticMode;
@@ -12,6 +14,11 @@ import net.minecraft.resources.Identifier;
 // Packet used to mirror server config values on connected clients.
 public record ServerConfigSyncPayload(int sleepWeatherClearChancePercent,
                                       double sleepAnimationDurationMultiplier,
+                                      int fallAsleepDelayTicks,
+                                      boolean overrideOverlayText,
+                                      String overlayCustomText,
+                                      SleepEligibilityMode sleepEligibility,
+                                      int madeInHeavenChancePercent,
                                       int serverSimulationDistance,
                                       WorldSleepAccelerationMode worldSleepAccelerationMode,
                                       WorldSleepAutomaticMode worldSleepAutomaticMode,
@@ -34,6 +41,14 @@ public record ServerConfigSyncPayload(int sleepWeatherClearChancePercent,
     private static void write(ServerConfigSyncPayload payload, FriendlyByteBuf buf) {
         buf.writeVarInt(payload.sleepWeatherClearChancePercent());
         buf.writeDouble(payload.sleepAnimationDurationMultiplier());
+        buf.writeVarInt(payload.fallAsleepDelayTicks());
+        buf.writeBoolean(payload.overrideOverlayText());
+        buf.writeUtf(SeamlessSleepServerConfig.sanitizeOverlayText(payload.overlayCustomText()), 128);
+        SleepEligibilityMode eligibility = payload.sleepEligibility() == null
+                ? SleepEligibilityMode.VANILLA
+                : payload.sleepEligibility();
+        buf.writeUtf(eligibility.name());
+        buf.writeVarInt(payload.madeInHeavenChancePercent());
         buf.writeVarInt(payload.serverSimulationDistance());
         buf.writeUtf(payload.worldSleepAccelerationMode().name());
         buf.writeUtf(payload.worldSleepAutomaticMode().name());
@@ -51,6 +66,11 @@ public record ServerConfigSyncPayload(int sleepWeatherClearChancePercent,
     private static ServerConfigSyncPayload read(FriendlyByteBuf buf) {
         int weatherClearChancePercent = buf.readVarInt();
         double durationMultiplier = buf.readDouble();
+        int fallAsleepDelayTicks = buf.readVarInt();
+        boolean overrideOverlayText = buf.readBoolean();
+        String overlayCustomText = buf.readUtf(128);
+        SleepEligibilityMode sleepEligibility = readEnum(buf, SleepEligibilityMode.class, SleepEligibilityMode.VANILLA);
+        int madeInHeavenChancePercent = buf.readVarInt();
         int serverSimulationDistance = buf.readVarInt();
         WorldSleepAccelerationMode mode = readEnum(
                 buf,
@@ -78,6 +98,11 @@ public record ServerConfigSyncPayload(int sleepWeatherClearChancePercent,
         return new ServerConfigSyncPayload(
                 weatherClearChancePercent,
                 durationMultiplier,
+                fallAsleepDelayTicks,
+                overrideOverlayText,
+                overlayCustomText,
+                sleepEligibility,
+                madeInHeavenChancePercent,
                 serverSimulationDistance,
                 mode,
                 automaticMode,

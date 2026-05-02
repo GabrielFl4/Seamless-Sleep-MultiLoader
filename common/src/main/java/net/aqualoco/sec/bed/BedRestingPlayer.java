@@ -6,6 +6,12 @@ public interface BedRestingPlayer {
 
     void seamlesssleep$setCountedForSleep(boolean countedForSleep);
 
+    int seamlesssleep$getFallAsleepDelayCounter();
+
+    void seamlesssleep$resetFallAsleepDelayCounter();
+
+    void seamlesssleep$incrementFallAsleepDelayCounter();
+
     float seamlesssleep$getBedLookYaw();
 
     float seamlesssleep$getBedLookPitch();

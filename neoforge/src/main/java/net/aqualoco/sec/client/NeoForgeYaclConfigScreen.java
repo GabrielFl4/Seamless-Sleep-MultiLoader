@@ -10,6 +10,7 @@ import dev.isxander.yacl3.api.controller.BooleanControllerBuilder;
 import dev.isxander.yacl3.api.controller.DoubleSliderControllerBuilder;
 import dev.isxander.yacl3.api.controller.EnumControllerBuilder;
 import dev.isxander.yacl3.api.controller.IntegerSliderControllerBuilder;
+import dev.isxander.yacl3.api.controller.StringControllerBuilder;
 import net.aqualoco.sec.client.sleepindicator.SleepIndicatorAnchor;
 import net.aqualoco.sec.client.sleepindicator.SleepIndicatorMode;
 import net.aqualoco.sec.client.sleepindicator.SleepIndicatorVisibility;
@@ -20,6 +21,7 @@ import net.aqualoco.sec.config.SeamlessSleepClientConfigManager;
 import net.aqualoco.sec.config.SeamlessSleepServerConfig;
 import net.aqualoco.sec.config.SeamlessSleepServerConfigManager;
 import net.aqualoco.sec.config.SeamlessSleepServerConfigSnapshot;
+import net.aqualoco.sec.config.SleepEligibilityMode;
 import net.aqualoco.sec.config.WorldSleepAccelerationConfig;
 import net.aqualoco.sec.config.WorldSleepAccelerationMode;
 import net.aqualoco.sec.config.WorldSleepAccelerationPlayersAffected;
@@ -129,6 +131,92 @@ public final class NeoForgeYaclConfigScreen {
                 NeoForgeYaclConfigScreen::formatMultiplierValue
         );
         listen(animationDurationOption, value -> uiState.sleepAnimationDurationMultiplier = value);
+
+        Option<Integer> fallAsleepDelayOption = buildIntSlider(
+                Component.translatable("config.seamlesssleep.sleep.fall_asleep_delay"),
+                serverDescription(
+                        Component.translatable("config.seamlesssleep.sleep.fall_asleep_delay.desc"),
+                        "config.seamlesssleep.sleep.fall_asleep_delay.command"
+                ),
+                Component.empty(),
+                SeamlessSleepServerConfig.DEFAULT_FALL_ASLEEP_DELAY_TICKS,
+                SeamlessSleepServerConfig.MIN_FALL_ASLEEP_DELAY_TICKS,
+                SeamlessSleepServerConfig.MAX_FALL_ASLEEP_DELAY_TICKS,
+                5,
+                () -> uiState.boundFallAsleepDelayTicks,
+                value -> uiState.boundFallAsleepDelayTicks = value,
+                canEditServerConfig,
+                NeoForgeYaclConfigScreen::formatFallAsleepDelayValue
+        );
+        listen(fallAsleepDelayOption, value -> uiState.fallAsleepDelayTicks = value);
+
+        Option<SleepEligibilityMode> sleepEligibilityOption = buildEnumOption(
+                Component.translatable("config.seamlesssleep.sleep.eligibility"),
+                serverDescription(
+                        Component.translatable("config.seamlesssleep.sleep.eligibility.desc"),
+                        "config.seamlesssleep.sleep.eligibility.command"
+                ),
+                Component.empty(),
+                SleepEligibilityMode.VANILLA,
+                SleepEligibilityMode.class,
+                () -> uiState.boundSleepEligibility,
+                value -> uiState.boundSleepEligibility = value == null ? SleepEligibilityMode.VANILLA : value,
+                canEditServerConfig,
+                value -> enumText("config.seamlesssleep.sleep.eligibility", value)
+        );
+        listen(sleepEligibilityOption, value -> uiState.sleepEligibility = value);
+
+        Option<Boolean> overrideOverlayTextOption = buildToggle(
+                Component.translatable("config.seamlesssleep.sleep.override_overlay_text"),
+                serverDescription(
+                        Component.translatable("config.seamlesssleep.sleep.override_overlay_text.desc"),
+                        "config.seamlesssleep.sleep.override_overlay_text.command"
+                ),
+                Component.empty(),
+                false,
+                () -> uiState.boundOverrideOverlayText,
+                value -> uiState.boundOverrideOverlayText = value,
+                canEditServerConfig
+        );
+        Option<String> overlayCustomTextOption = buildStringOption(
+                Component.translatable("config.seamlesssleep.sleep.overlay_custom_text"),
+                serverDescription(
+                        Component.translatable("config.seamlesssleep.sleep.overlay_custom_text.desc"),
+                        "config.seamlesssleep.sleep.overlay_custom_text.command"
+                ),
+                Component.empty(),
+                SeamlessSleepServerConfig.DEFAULT_OVERLAY_CUSTOM_TEXT,
+                () -> uiState.boundOverlayCustomText,
+                value -> uiState.boundOverlayCustomText = value,
+                canEditServerConfig && uiState.overrideOverlayText
+        );
+        Runnable refreshOverlayTextOptions = () -> overlayCustomTextOption.setAvailable(
+                canEditServerConfig && uiState.overrideOverlayText
+        );
+        listen(overrideOverlayTextOption, value -> {
+            uiState.overrideOverlayText = value;
+            refreshOverlayTextOptions.run();
+        });
+        listen(overlayCustomTextOption, value -> uiState.overlayCustomText = value);
+        refreshOverlayTextOptions.run();
+
+        Option<Integer> madeInHeavenChanceOption = buildIntSlider(
+                Component.translatable("config.seamlesssleep.easter_eggs.made_in_heaven_chance"),
+                serverDescription(
+                        Component.translatable("config.seamlesssleep.easter_eggs.made_in_heaven_chance.desc"),
+                        "config.seamlesssleep.easter_eggs.made_in_heaven_chance.command"
+                ),
+                Component.empty(),
+                0,
+                0,
+                100,
+                1,
+                () -> uiState.boundMadeInHeavenChancePercent,
+                value -> uiState.boundMadeInHeavenChancePercent = value,
+                canEditServerConfig,
+                NeoForgeYaclConfigScreen::formatWeatherChanceValue
+        );
+        listen(madeInHeavenChanceOption, value -> uiState.madeInHeavenChancePercent = value);
 
         Option<WorldSleepAccelerationMode> modeOption = buildEnumOption(
                 Component.translatable("config.seamlesssleep.world_acceleration.mode"),
@@ -341,6 +429,20 @@ public final class NeoForgeYaclConfigScreen {
                 .collapsed(false)
                 .option(weatherChanceOption)
                 .option(animationDurationOption)
+                .option(fallAsleepDelayOption)
+                .option(sleepEligibilityOption)
+                .option(overrideOverlayTextOption)
+                .option(overlayCustomTextOption)
+                .build();
+
+        OptionGroup easterEggsGroup = OptionGroup.createBuilder()
+                .name(Component.translatable("config.seamlesssleep.server.group.easter_eggs"))
+                .description(description(
+                        Component.translatable("config.seamlesssleep.server.group.easter_eggs.desc"),
+                        canEditServerConfig
+                ))
+                .collapsed(false)
+                .option(madeInHeavenChanceOption)
                 .build();
 
         OptionGroup accelerationGroup = OptionGroup.createBuilder()
@@ -368,6 +470,7 @@ public final class NeoForgeYaclConfigScreen {
         return ConfigCategory.createBuilder()
                 .name(Component.translatable("config.seamlesssleep.category.server"))
                 .group(generalGroup)
+                .group(easterEggsGroup)
                 .group(accelerationGroup)
                 .build();
     }
@@ -641,6 +744,23 @@ public final class NeoForgeYaclConfigScreen {
         setPendingIfChanged(playersAffectedOption, uiState.resolveDisplayedPlayersAffected());
     }
 
+    private static Option<String> buildStringOption(Component name,
+                                                    Component description,
+                                                    Component disabledReason,
+                                                    String def,
+                                                    Supplier<String> getter,
+                                                    Consumer<String> setter,
+                                                    boolean available) {
+        OptionDescription optionDescription = optionDescription(description, disabledReason, available);
+        Option.Builder<String> builder = Option.<String>createBuilder()
+                .name(name)
+                .description(optionDescription)
+                .binding(def, getter::get, setter::accept)
+                .controller(StringControllerBuilder::create);
+        builder.available(available);
+        return builder.build();
+    }
+
     private static int resolveSimulationDistance(Minecraft client, SeamlessSleepServerConfig serverCfg) {
         if (client.hasSingleplayerServer() && client.getSingleplayerServer() != null) {
             return Math.max(1, client.getSingleplayerServer().getPlayerList().getSimulationDistance());
@@ -849,6 +969,30 @@ public final class NeoForgeYaclConfigScreen {
         return Component.literal(value + "%");
     }
 
+    private static Component formatFallAsleepDelayValue(Integer value) {
+        int ticks = value == null
+                ? SeamlessSleepServerConfig.DEFAULT_FALL_ASLEEP_DELAY_TICKS
+                : Mth.clamp(
+                        value,
+                        SeamlessSleepServerConfig.MIN_FALL_ASLEEP_DELAY_TICKS,
+                        SeamlessSleepServerConfig.MAX_FALL_ASLEEP_DELAY_TICKS
+                );
+        if (ticks == 0) {
+            return Component.translatable("config.seamlesssleep.value.instant");
+        }
+        if (ticks == SeamlessSleepServerConfig.DEFAULT_FALL_ASLEEP_DELAY_TICKS) {
+            return Component.translatable("config.seamlesssleep.value.vanilla");
+        }
+
+        double seconds = ticks / 20.0D;
+        if (Math.abs(seconds - Math.rint(seconds)) < 0.0001D) {
+            return Component.literal(String.format(Locale.ROOT, "%.0fs", seconds));
+        }
+        return Component.literal(String.format(Locale.ROOT, "%.2fs", seconds)
+                .replaceAll("0+s$", "s")
+                .replace(".s", "s"));
+    }
+
     private static Component formatRadiusValue(Integer value, int simulationDistance) {
         int resolvedSimulationDistance = Math.max(1, simulationDistance);
         int resolvedValue = Mth.clamp(value == null ? resolvedSimulationDistance : value, 1, resolvedSimulationDistance);
@@ -879,6 +1023,11 @@ public final class NeoForgeYaclConfigScreen {
 
         private int sleepWeatherClearChancePercent;
         private double sleepAnimationDurationMultiplier;
+        private int fallAsleepDelayTicks;
+        private boolean overrideOverlayText;
+        private String overlayCustomText;
+        private SleepEligibilityMode sleepEligibility;
+        private int madeInHeavenChancePercent;
         private WorldSleepAccelerationMode mode;
         private WorldSleepAutomaticMode automaticMode;
         private WorldSleepAccelerationPlayersAffected playersAffected;
@@ -892,6 +1041,11 @@ public final class NeoForgeYaclConfigScreen {
         private int processesSpeedPercent;
         private int boundSleepWeatherClearChancePercent;
         private double boundSleepAnimationDurationMultiplier;
+        private int boundFallAsleepDelayTicks;
+        private boolean boundOverrideOverlayText;
+        private String boundOverlayCustomText;
+        private SleepEligibilityMode boundSleepEligibility;
+        private int boundMadeInHeavenChancePercent;
         private WorldSleepAccelerationMode boundMode;
         private int boundDisplayedAccelerationRadius;
         private int boundDisplayedAccelerationSpeedPercent;
@@ -912,6 +1066,11 @@ public final class NeoForgeYaclConfigScreen {
             ServerConfigUiState state = new ServerConfigUiState(simulationDistance);
             state.sleepWeatherClearChancePercent = serverCfg.sleepWeatherClearChancePercent;
             state.sleepAnimationDurationMultiplier = serverCfg.sleepAnimationDurationMultiplier;
+            state.fallAsleepDelayTicks = serverCfg.fallAsleepDelayTicks;
+            state.overrideOverlayText = serverCfg.overrideOverlayText;
+            state.overlayCustomText = serverCfg.overlayCustomText;
+            state.sleepEligibility = serverCfg.sleepEligibility;
+            state.madeInHeavenChancePercent = serverCfg.madeInHeavenChancePercent;
             state.mode = serverCfg.worldSleepAcceleration.mode;
             state.automaticMode = serverCfg.worldSleepAcceleration.automaticMode;
             state.playersAffected = serverCfg.worldSleepAcceleration.playersAffected;
@@ -931,6 +1090,11 @@ public final class NeoForgeYaclConfigScreen {
             ServerConfigUiState state = new ServerConfigUiState(SeamlessSleepServerConfigSnapshot.getServerSimulationDistance());
             state.sleepWeatherClearChancePercent = SeamlessSleepServerConfigSnapshot.getSleepWeatherClearChancePercent();
             state.sleepAnimationDurationMultiplier = SeamlessSleepServerConfigSnapshot.getSleepAnimationDurationMultiplier();
+            state.fallAsleepDelayTicks = SeamlessSleepServerConfigSnapshot.getFallAsleepDelayTicks();
+            state.overrideOverlayText = SeamlessSleepServerConfigSnapshot.isOverrideOverlayText();
+            state.overlayCustomText = SeamlessSleepServerConfigSnapshot.getOverlayCustomText();
+            state.sleepEligibility = SeamlessSleepServerConfigSnapshot.getSleepEligibility();
+            state.madeInHeavenChancePercent = SeamlessSleepServerConfigSnapshot.getMadeInHeavenChancePercent();
             state.mode = SeamlessSleepServerConfigSnapshot.getWorldSleepAccelerationMode();
             state.automaticMode = SeamlessSleepServerConfigSnapshot.getWorldSleepAutomaticMode();
             state.playersAffected = SeamlessSleepServerConfigSnapshot.getWorldSleepAccelerationPlayersAffected();
@@ -949,6 +1113,15 @@ public final class NeoForgeYaclConfigScreen {
         private void snapshotBoundValues() {
             this.boundSleepWeatherClearChancePercent = this.sleepWeatherClearChancePercent;
             this.boundSleepAnimationDurationMultiplier = this.sleepAnimationDurationMultiplier;
+            this.boundFallAsleepDelayTicks = Mth.clamp(
+                    this.fallAsleepDelayTicks,
+                    SeamlessSleepServerConfig.MIN_FALL_ASLEEP_DELAY_TICKS,
+                    SeamlessSleepServerConfig.MAX_FALL_ASLEEP_DELAY_TICKS
+            );
+            this.boundOverrideOverlayText = this.overrideOverlayText;
+            this.boundOverlayCustomText = SeamlessSleepServerConfig.sanitizeOverlayText(this.overlayCustomText);
+            this.boundSleepEligibility = this.sleepEligibility == null ? SleepEligibilityMode.VANILLA : this.sleepEligibility;
+            this.boundMadeInHeavenChancePercent = Mth.clamp(this.madeInHeavenChancePercent, 0, 100);
             this.boundMode = this.mode == null ? WorldSleepAccelerationMode.AUTOMATIC : this.mode;
             this.boundDisplayedAccelerationRadius = this.resolveDisplayedAccelerationRadius();
             this.boundDisplayedAccelerationSpeedPercent = this.resolveDisplayedAccelerationSpeedPercent();
@@ -1008,6 +1181,11 @@ public final class NeoForgeYaclConfigScreen {
         private void applyTo(SeamlessSleepServerConfig serverCfg) {
             serverCfg.sleepWeatherClearChancePercent = sleepWeatherClearChancePercent;
             serverCfg.sleepAnimationDurationMultiplier = sleepAnimationDurationMultiplier;
+            serverCfg.fallAsleepDelayTicks = fallAsleepDelayTicks;
+            serverCfg.overrideOverlayText = overrideOverlayText;
+            serverCfg.overlayCustomText = overlayCustomText;
+            serverCfg.sleepEligibility = sleepEligibility == null ? SleepEligibilityMode.VANILLA : sleepEligibility;
+            serverCfg.madeInHeavenChancePercent = madeInHeavenChancePercent;
             serverCfg.worldSleepAcceleration.mode = mode;
             serverCfg.worldSleepAcceleration.automaticMode = automaticMode;
             serverCfg.worldSleepAcceleration.playersAffected = playersAffected == null

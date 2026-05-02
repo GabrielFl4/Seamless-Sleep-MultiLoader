@@ -4,22 +4,34 @@ import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.BoolArgumentType;
 import com.mojang.brigadier.arguments.DoubleArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import net.aqualoco.sec.acceleration.WorldSleepAccelerationGovernorSnapshot;
 import net.aqualoco.sec.acceleration.WorldSleepAccelerationManager;
 import net.aqualoco.sec.acceleration.WorldSleepAccelerationModuleStatus;
 import net.aqualoco.sec.acceleration.WorldSleepAccelerationStatus;
+import net.aqualoco.sec.SeamlessSleepCommon;
+import net.aqualoco.sec.bed.BedRestingHelper;
 import net.aqualoco.sec.config.SeamlessSleepServerConfig;
 import net.aqualoco.sec.config.SeamlessSleepServerConfigManager;
+import net.aqualoco.sec.config.SleepEligibilityMode;
 import net.aqualoco.sec.config.WorldSleepAccelerationMode;
 import net.aqualoco.sec.config.WorldSleepAccelerationPlayersAffected;
 import net.aqualoco.sec.config.WorldSleepAutomaticMode;
 import net.aqualoco.sec.network.ServerConfigSync;
+import net.aqualoco.sec.network.SleepAnimationNetworking;
+import net.aqualoco.sec.sleep.SleepAnimationMode;
+import net.aqualoco.sec.sleep.SleepAnimationPhase;
+import net.aqualoco.sec.sleep.SleepAnimationSoundMode;
+import net.aqualoco.sec.sleep.SleepAnimationState;
+import net.aqualoco.sec.sleep.SleepAnimationVisualContext;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.permissions.Permissions;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.gamerules.GameRules;
 
 import java.util.Locale;
@@ -35,6 +47,32 @@ public final class SeamlessSleepCommands {
                         .requires(source -> source.permissions().hasPermission(Permissions.COMMANDS_ADMIN))
                         .then(Commands.literal("reload")
                                 .executes(SeamlessSleepCommands::reload))
+                        .then(Commands.literal("timelapse")
+                                .then(Commands.literal("stop")
+                                        .executes(SeamlessSleepCommands::stopTimelapse))
+                                .then(Commands.argument("days", IntegerArgumentType.integer(1, 30))
+                                        .then(Commands.argument("seconds", IntegerArgumentType.integer(1, 300))
+                                                .then(Commands.literal("none")
+                                                        .executes(ctx -> startTimelapse(
+                                                                ctx,
+                                                                IntegerArgumentType.getInteger(ctx, "days"),
+                                                                IntegerArgumentType.getInteger(ctx, "seconds"),
+                                                                SleepAnimationSoundMode.NONE
+                                                        )))
+                                                .then(Commands.literal("sfx")
+                                                        .executes(ctx -> startTimelapse(
+                                                                ctx,
+                                                                IntegerArgumentType.getInteger(ctx, "days"),
+                                                                IntegerArgumentType.getInteger(ctx, "seconds"),
+                                                                SleepAnimationSoundMode.SFX
+                                                        )))
+                                                .then(Commands.literal("music")
+                                                        .executes(ctx -> startTimelapse(
+                                                                ctx,
+                                                                IntegerArgumentType.getInteger(ctx, "days"),
+                                                                IntegerArgumentType.getInteger(ctx, "seconds"),
+                                                                SleepAnimationSoundMode.MUSIC
+                                                        ))))))
                         .then(Commands.literal("set")
                                 .then(Commands.literal("sleepClearsWeather")
                                         .executes(SeamlessSleepCommands::getSleepClearsWeather)
@@ -55,6 +93,52 @@ public final class SeamlessSleepCommands {
                                                         ctx,
                                                         DoubleArgumentType.getDouble(ctx, "value")
                                 ))))
+                                .then(Commands.literal("fallAsleepDelayTicks")
+                                        .executes(SeamlessSleepCommands::getFallAsleepDelayTicks)
+                                        .then(Commands.argument(
+                                                        "value",
+                                                        IntegerArgumentType.integer(
+                                                                SeamlessSleepServerConfig.MIN_FALL_ASLEEP_DELAY_TICKS,
+                                                                SeamlessSleepServerConfig.MAX_FALL_ASLEEP_DELAY_TICKS
+                                                        )
+                                                )
+                                                .executes(ctx -> setFallAsleepDelayTicks(
+                                                        ctx,
+                                                        IntegerArgumentType.getInteger(ctx, "value")
+                                                ))))
+                                .then(Commands.literal("overrideOverlayText")
+                                        .executes(SeamlessSleepCommands::getOverrideOverlayText)
+                                        .then(Commands.argument("value", BoolArgumentType.bool())
+                                                .executes(ctx -> setOverrideOverlayText(
+                                                        ctx,
+                                                        BoolArgumentType.getBool(ctx, "value")
+                                                ))))
+                                .then(Commands.literal("overlayCustomText")
+                                        .executes(SeamlessSleepCommands::getOverlayCustomText)
+                                        .then(Commands.literal("clear")
+                                                .executes(SeamlessSleepCommands::clearOverlayCustomText))
+                                        .then(Commands.argument("text", StringArgumentType.greedyString())
+                                                .executes(ctx -> setOverlayCustomText(
+                                                        ctx,
+                                                        StringArgumentType.getString(ctx, "text")
+                                                ))))
+                                .then(Commands.literal("sleepEligibility")
+                                        .executes(SeamlessSleepCommands::getSleepEligibility)
+                                        .then(Commands.literal("vanilla")
+                                                .executes(ctx -> setSleepEligibility(ctx, SleepEligibilityMode.VANILLA)))
+                                        .then(Commands.literal("day_included")
+                                                .executes(ctx -> setSleepEligibility(ctx, SleepEligibilityMode.DAY_INCLUDED)))
+                                        .then(Commands.literal("dayIncluded")
+                                                .executes(ctx -> setSleepEligibility(ctx, SleepEligibilityMode.DAY_INCLUDED)))
+                                        .then(Commands.literal("always")
+                                                .executes(ctx -> setSleepEligibility(ctx, SleepEligibilityMode.ALWAYS))))
+                                .then(Commands.literal("madeInHeavenChance")
+                                        .executes(SeamlessSleepCommands::getMadeInHeavenChance)
+                                        .then(Commands.argument("value", IntegerArgumentType.integer(0, 100))
+                                                .executes(ctx -> setMadeInHeavenChance(
+                                                        ctx,
+                                                        IntegerArgumentType.getInteger(ctx, "value")
+                                                ))))
                                 .then(Commands.literal("worldAccelerationMode")
                                         .then(Commands.literal("OFF")
                                                 .executes(ctx -> setWorldAccelerationMode(ctx, WorldSleepAccelerationMode.OFF)))
@@ -221,6 +305,191 @@ public final class SeamlessSleepCommands {
                 ),
                 true
         );
+        return 1;
+    }
+
+    private static int getFallAsleepDelayTicks(CommandContext<CommandSourceStack> context) {
+        SeamlessSleepServerConfig config = SeamlessSleepServerConfigManager.get();
+        context.getSource().sendSuccess(
+                () -> Component.literal("Fall asleep delay is " + formatFallAsleepDelay(config.fallAsleepDelayTicks) + "."),
+                false
+        );
+        return 1;
+    }
+
+    private static int setFallAsleepDelayTicks(CommandContext<CommandSourceStack> context, int value) {
+        SeamlessSleepServerConfig config = SeamlessSleepServerConfigManager.get();
+        config.fallAsleepDelayTicks = value;
+        return saveAndSyncConfig(
+                context,
+                config,
+                "Fall asleep delay set to " + formatFallAsleepDelay(config.fallAsleepDelayTicks) + "."
+        );
+    }
+
+    private static int getOverrideOverlayText(CommandContext<CommandSourceStack> context) {
+        SeamlessSleepServerConfig config = SeamlessSleepServerConfigManager.get();
+        context.getSource().sendSuccess(
+                () -> Component.literal("Override Overlay Text is " + formatOnOff(config.overrideOverlayText) + "."),
+                false
+        );
+        return 1;
+    }
+
+    private static int setOverrideOverlayText(CommandContext<CommandSourceStack> context, boolean value) {
+        SeamlessSleepServerConfig config = SeamlessSleepServerConfigManager.get();
+        config.overrideOverlayText = value;
+        return saveAndSyncConfig(
+                context,
+                config,
+                "Override Overlay Text updated to " + formatOnOff(value) + "."
+        );
+    }
+
+    private static int getOverlayCustomText(CommandContext<CommandSourceStack> context) {
+        SeamlessSleepServerConfig config = SeamlessSleepServerConfigManager.get();
+        context.getSource().sendSuccess(
+                () -> Component.literal("Overlay Custom Text is \"" + config.overlayCustomText + "\"."),
+                false
+        );
+        return 1;
+    }
+
+    private static int setOverlayCustomText(CommandContext<CommandSourceStack> context, String value) {
+        SeamlessSleepServerConfig config = SeamlessSleepServerConfigManager.get();
+        config.overlayCustomText = SeamlessSleepServerConfig.sanitizeOverlayText(value);
+        return saveAndSyncConfig(
+                context,
+                config,
+                "Overlay Custom Text updated to \"" + config.overlayCustomText + "\"."
+        );
+    }
+
+    private static int clearOverlayCustomText(CommandContext<CommandSourceStack> context) {
+        SeamlessSleepServerConfig config = SeamlessSleepServerConfigManager.get();
+        config.overrideOverlayText = false;
+        config.overlayCustomText = SeamlessSleepServerConfig.DEFAULT_OVERLAY_CUSTOM_TEXT;
+        return saveAndSyncConfig(
+                context,
+                config,
+                "Overlay Custom Text cleared. Translatable overlay text is active."
+        );
+    }
+
+    private static int getSleepEligibility(CommandContext<CommandSourceStack> context) {
+        SeamlessSleepServerConfig config = SeamlessSleepServerConfigManager.get();
+        context.getSource().sendSuccess(
+                () -> Component.literal("Sleep Eligibility is " + formatSleepEligibility(config.sleepEligibility) + "."),
+                false
+        );
+        return 1;
+    }
+
+    private static int setSleepEligibility(CommandContext<CommandSourceStack> context, SleepEligibilityMode mode) {
+        SeamlessSleepServerConfig config = SeamlessSleepServerConfigManager.get();
+        config.sleepEligibility = mode == null ? SleepEligibilityMode.VANILLA : mode;
+        return saveAndSyncConfig(
+                context,
+                config,
+                "Sleep Eligibility updated to " + formatSleepEligibility(config.sleepEligibility) + "."
+        );
+    }
+
+    private static int getMadeInHeavenChance(CommandContext<CommandSourceStack> context) {
+        SeamlessSleepServerConfig config = SeamlessSleepServerConfigManager.get();
+        context.getSource().sendSuccess(
+                () -> Component.literal("Made In Heaven Chance is " + config.madeInHeavenChancePercent + "%."),
+                false
+        );
+        return 1;
+    }
+
+    private static int setMadeInHeavenChance(CommandContext<CommandSourceStack> context, int value) {
+        SeamlessSleepServerConfig config = SeamlessSleepServerConfigManager.get();
+        config.madeInHeavenChancePercent = value;
+        return saveAndSyncConfig(
+                context,
+                config,
+                "Made In Heaven Chance updated to " + config.madeInHeavenChancePercent + "%."
+        );
+    }
+
+    private static int startTimelapse(CommandContext<CommandSourceStack> context,
+                                      int days,
+                                      int seconds,
+                                      SleepAnimationSoundMode soundMode) {
+        ServerLevel overworld = context.getSource().getServer().getLevel(Level.OVERWORLD);
+        if (overworld == null) {
+            context.getSource().sendFailure(Component.literal("Overworld is unavailable."));
+            return 0;
+        }
+
+        SleepAnimationState state = SeamlessSleepCommon.OVERWORLD_SLEEP_ANIMATION;
+        if (state.isActive()) {
+            context.getSource().sendFailure(Component.literal("A sleep animation is already active."));
+            return 0;
+        }
+
+        if (hasManagedBedPlayers(overworld)) {
+            context.getSource().sendFailure(Component.literal("Cannot start timelapse while players are in managed bed state."));
+            return 0;
+        }
+
+        long currentTime = overworld.getDayTime();
+        long targetTime = currentTime + days * 24000L;
+        int durationTicks = seconds * 20;
+        SleepAnimationSoundMode resolvedSoundMode = soundMode == null ? SleepAnimationSoundMode.NONE : soundMode;
+        if (!state.startExplicit(
+                overworld,
+                currentTime,
+                targetTime,
+                durationTicks,
+                SleepAnimationMode.COMMAND_TIMELAPSE,
+                SleepAnimationVisualContext.MADE_IN_HEAVEN,
+                resolvedSoundMode
+        )) {
+            context.getSource().sendFailure(Component.literal("Failed to start timelapse."));
+            return 0;
+        }
+
+        WorldSleepAccelerationManager.refreshForLevelTick(overworld);
+        SleepAnimationNetworking.sendStart(overworld, state);
+        String soundNote = resolvedSoundMode == SleepAnimationSoundMode.NONE
+                ? ""
+                : " Sound mode " + resolvedSoundMode.name() + " is accepted as a placeholder.";
+        context.getSource().sendSuccess(
+                () -> Component.literal("Started timelapse for " + days + " day(s) over " + seconds + " second(s)." + soundNote),
+                true
+        );
+        return 1;
+    }
+
+    private static int stopTimelapse(CommandContext<CommandSourceStack> context) {
+        ServerLevel overworld = context.getSource().getServer().getLevel(Level.OVERWORLD);
+        if (overworld == null) {
+            context.getSource().sendFailure(Component.literal("Overworld is unavailable."));
+            return 0;
+        }
+
+        SleepAnimationState state = SeamlessSleepCommon.OVERWORLD_SLEEP_ANIMATION;
+        if (!state.isActive() || state.getMode() != SleepAnimationMode.COMMAND_TIMELAPSE) {
+            context.getSource().sendSuccess(() -> Component.literal("No command timelapse is active right now."), false);
+            return 0;
+        }
+
+        if (state.getPhase() == SleepAnimationPhase.BRAKING) {
+            context.getSource().sendSuccess(() -> Component.literal("The command timelapse is already stopping."), false);
+            return 1;
+        }
+
+        if (!state.startCommandTimelapseStopBraking(overworld)) {
+            context.getSource().sendFailure(Component.literal("Failed to stop the command timelapse smoothly."));
+            return 0;
+        }
+
+        WorldSleepAccelerationManager.refreshForLevelTick(overworld);
+        SleepAnimationNetworking.sendStart(overworld, state);
+        context.getSource().sendSuccess(() -> Component.literal("Command timelapse is stopping smoothly."), true);
         return 1;
     }
 
@@ -632,11 +901,26 @@ public final class SeamlessSleepCommands {
     private static int saveAndSyncAcceleration(CommandContext<CommandSourceStack> context,
                                                SeamlessSleepServerConfig config,
                                                String message) {
+        return saveAndSyncConfig(context, config, message);
+    }
+
+    private static int saveAndSyncConfig(CommandContext<CommandSourceStack> context,
+                                         SeamlessSleepServerConfig config,
+                                         String message) {
         config.clamp();
         SeamlessSleepServerConfigManager.save();
         ServerConfigSync.sendToAll(context.getSource().getServer(), config);
         context.getSource().sendSuccess(() -> Component.literal(message), true);
         return 1;
+    }
+
+    private static boolean hasManagedBedPlayers(ServerLevel level) {
+        for (ServerPlayer player : level.players()) {
+            if (BedRestingHelper.isManagedBedStateServer(player)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static String formatPercent(double value) {
@@ -649,6 +933,29 @@ public final class SeamlessSleepCommands {
 
     private static String formatMultiplier(double value) {
         return String.format(Locale.ROOT, "%.2fx", value);
+    }
+
+    private static String formatFallAsleepDelay(int ticks) {
+        int clamped = SeamlessSleepServerConfig.clampInt(
+                ticks,
+                SeamlessSleepServerConfig.MIN_FALL_ASLEEP_DELAY_TICKS,
+                SeamlessSleepServerConfig.MAX_FALL_ASLEEP_DELAY_TICKS
+        );
+        if (clamped == 0) {
+            return "0 ticks (Instant)";
+        }
+        if (clamped == SeamlessSleepServerConfig.DEFAULT_FALL_ASLEEP_DELAY_TICKS) {
+            return clamped + " ticks (Vanilla, " + formatSeconds(clamped) + ")";
+        }
+        return clamped + " ticks (" + formatSeconds(clamped) + ")";
+    }
+
+    private static String formatSeconds(int ticks) {
+        double seconds = ticks / 20.0D;
+        if (Math.abs(seconds - Math.rint(seconds)) < 0.0001D) {
+            return String.format(Locale.ROOT, "%.0fs", seconds);
+        }
+        return String.format(Locale.ROOT, "%.2fs", seconds).replaceAll("0+s$", "s").replace(".s", "s");
     }
 
     private static String formatWeatherChance(int value) {
@@ -671,6 +978,15 @@ public final class SeamlessSleepCommands {
             case OFF -> "OFF";
             case AUTOMATIC -> "AUTO";
             case MANUAL -> "MANUAL";
+        };
+    }
+
+    private static String formatSleepEligibility(SleepEligibilityMode mode) {
+        SleepEligibilityMode resolved = mode == null ? SleepEligibilityMode.VANILLA : mode;
+        return switch (resolved) {
+            case VANILLA -> "VANILLA";
+            case DAY_INCLUDED -> "DAY_INCLUDED";
+            case ALWAYS -> "ALWAYS";
         };
     }
 

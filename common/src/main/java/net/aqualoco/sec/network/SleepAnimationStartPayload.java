@@ -3,6 +3,8 @@ package net.aqualoco.sec.network;
 import net.aqualoco.sec.Constants;
 import net.aqualoco.sec.sleep.SleepAnimationMode;
 import net.aqualoco.sec.sleep.SleepAnimationPhase;
+import net.aqualoco.sec.sleep.SleepAnimationSoundMode;
+import net.aqualoco.sec.sleep.SleepAnimationVisualContext;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
@@ -15,6 +17,8 @@ public record SleepAnimationStartPayload(
         long sequenceId,
         SleepAnimationMode mode,
         SleepAnimationPhase phase,
+        SleepAnimationVisualContext visualContext,
+        SleepAnimationSoundMode soundMode,
         long startTimeOfDay,
         long endTimeOfDay,
         int durationTicks,
@@ -37,6 +41,8 @@ public record SleepAnimationStartPayload(
         buf.writeLong(payload.sequenceId());
         buf.writeUtf(payload.mode().name());
         buf.writeUtf(payload.phase().name());
+        buf.writeUtf(payload.visualContext().name());
+        buf.writeUtf(payload.soundMode().name());
         buf.writeLong(payload.startTimeOfDay());
         buf.writeLong(payload.endTimeOfDay());
         buf.writeInt(payload.durationTicks());
@@ -51,6 +57,12 @@ public record SleepAnimationStartPayload(
         long sequenceId = buf.readLong();
         SleepAnimationMode mode = readEnum(buf, SleepAnimationMode.class, SleepAnimationMode.NORMAL_SLEEP);
         SleepAnimationPhase phase = readEnum(buf, SleepAnimationPhase.class, SleepAnimationPhase.RUNNING);
+        SleepAnimationVisualContext visualContext = readEnum(
+                buf,
+                SleepAnimationVisualContext.class,
+                SleepAnimationVisualContext.NIGHT
+        );
+        SleepAnimationSoundMode soundMode = readEnum(buf, SleepAnimationSoundMode.class, SleepAnimationSoundMode.NONE);
         long startTime = buf.readLong();
         long endTime = buf.readLong();
         int duration = buf.readInt();
@@ -63,6 +75,8 @@ public record SleepAnimationStartPayload(
                 sequenceId,
                 mode,
                 phase,
+                visualContext,
+                soundMode,
                 startTime,
                 endTime,
                 duration,

@@ -4,6 +4,11 @@ package net.aqualoco.sec.config;
 public final class SeamlessSleepServerConfigSnapshot {
     private static int sleepWeatherClearChancePercent = 100;
     private static double sleepAnimationDurationMultiplier = 1.0D;
+    private static int fallAsleepDelayTicks = SeamlessSleepServerConfig.DEFAULT_FALL_ASLEEP_DELAY_TICKS;
+    private static boolean overrideOverlayText = false;
+    private static String overlayCustomText = SeamlessSleepServerConfig.DEFAULT_OVERLAY_CUSTOM_TEXT;
+    private static SleepEligibilityMode sleepEligibility = SleepEligibilityMode.VANILLA;
+    private static int madeInHeavenChancePercent = 0;
     private static int serverSimulationDistance = 12;
     private static WorldSleepAccelerationMode worldSleepAccelerationMode = WorldSleepAccelerationMode.AUTOMATIC;
     private static WorldSleepAutomaticMode worldSleepAutomaticMode = WorldSleepAutomaticMode.AGGRESSIVE;
@@ -23,6 +28,11 @@ public final class SeamlessSleepServerConfigSnapshot {
 
     public static void update(int weatherClearChancePercent,
                               double durationMultiplier,
+                              int fallAsleepDelayTicksValue,
+                              boolean overrideOverlayTextValue,
+                              String overlayCustomTextValue,
+                              SleepEligibilityMode sleepEligibilityValue,
+                              int madeInHeavenChancePercentValue,
                               int simulationDistance,
                               WorldSleepAccelerationMode accelerationMode,
                               WorldSleepAutomaticMode automaticMode,
@@ -37,6 +47,15 @@ public final class SeamlessSleepServerConfigSnapshot {
                               int processesSpeedPercentValue) {
         sleepWeatherClearChancePercent = weatherClearChancePercent;
         sleepAnimationDurationMultiplier = durationMultiplier;
+        fallAsleepDelayTicks = SeamlessSleepServerConfig.clampInt(
+                fallAsleepDelayTicksValue,
+                SeamlessSleepServerConfig.MIN_FALL_ASLEEP_DELAY_TICKS,
+                SeamlessSleepServerConfig.MAX_FALL_ASLEEP_DELAY_TICKS
+        );
+        overrideOverlayText = overrideOverlayTextValue;
+        overlayCustomText = SeamlessSleepServerConfig.sanitizeOverlayText(overlayCustomTextValue);
+        sleepEligibility = sleepEligibilityValue == null ? SleepEligibilityMode.VANILLA : sleepEligibilityValue;
+        madeInHeavenChancePercent = SeamlessSleepServerConfig.clampInt(madeInHeavenChancePercentValue, 0, 100);
         serverSimulationDistance = Math.max(1, simulationDistance);
         worldSleepAccelerationMode = accelerationMode;
         worldSleepAutomaticMode = automaticMode;
@@ -62,6 +81,26 @@ public final class SeamlessSleepServerConfigSnapshot {
 
     public static double getSleepAnimationDurationMultiplier() {
         return sleepAnimationDurationMultiplier;
+    }
+
+    public static int getFallAsleepDelayTicks() {
+        return fallAsleepDelayTicks;
+    }
+
+    public static boolean isOverrideOverlayText() {
+        return overrideOverlayText;
+    }
+
+    public static String getOverlayCustomText() {
+        return overlayCustomText;
+    }
+
+    public static SleepEligibilityMode getSleepEligibility() {
+        return sleepEligibility;
+    }
+
+    public static int getMadeInHeavenChancePercent() {
+        return madeInHeavenChancePercent;
     }
 
     public static int getServerSimulationDistance() {
