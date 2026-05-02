@@ -116,10 +116,12 @@ public class ForgeNetworkHelper implements INetworkHelper {
             return;
         }
 
-        ClientHandler handler = clientHandler;
-        if (handler != null) {
-            handler.handleStart(payload);
-        }
+        context.enqueueWork(() -> {
+            ClientHandler handler = clientHandler;
+            if (handler != null) {
+                handler.handleStart(payload);
+            }
+        });
     }
 
     private static void handleBedHudSleepProgress(BedHudSleepProgressPayload payload, CustomPayloadEvent.Context context) {
@@ -127,10 +129,12 @@ public class ForgeNetworkHelper implements INetworkHelper {
             return;
         }
 
-        ClientHandler handler = clientHandler;
-        if (handler != null) {
-            handler.handleBedHudSleepProgress(payload);
-        }
+        context.enqueueWork(() -> {
+            ClientHandler handler = clientHandler;
+            if (handler != null) {
+                handler.handleBedHudSleepProgress(payload);
+            }
+        });
     }
 
     private static void handleStop(SleepAnimationStopPayload payload, CustomPayloadEvent.Context context) {
@@ -138,10 +142,12 @@ public class ForgeNetworkHelper implements INetworkHelper {
             return;
         }
 
-        ClientHandler handler = clientHandler;
-        if (handler != null) {
-            handler.handleStop(payload);
-        }
+        context.enqueueWork(() -> {
+            ClientHandler handler = clientHandler;
+            if (handler != null) {
+                handler.handleStop(payload);
+            }
+        });
     }
 
     private static void handleServerConfig(ServerConfigSyncPayload payload, CustomPayloadEvent.Context context) {
@@ -149,10 +155,12 @@ public class ForgeNetworkHelper implements INetworkHelper {
             return;
         }
 
-        ClientHandler handler = clientHandler;
-        if (handler != null) {
-            handler.handleServerConfig(payload);
-        }
+        context.enqueueWork(() -> {
+            ClientHandler handler = clientHandler;
+            if (handler != null) {
+                handler.handleServerConfig(payload);
+            }
+        });
     }
 
     private static void handleBedLookSync(BedLookSyncPayload payload, CustomPayloadEvent.Context context) {

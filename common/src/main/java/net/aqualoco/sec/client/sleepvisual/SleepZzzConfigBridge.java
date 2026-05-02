@@ -8,7 +8,7 @@ import java.util.Locale;
 // Keeps the visual system insulated from config parsing and older TOML values.
 public final class SleepZzzConfigBridge {
 
-    public static final int DEFAULT_CHANCE = 35;
+    public static final int DEFAULT_CHANCE = 70;
     public static final SleepZzzStyle DEFAULT_STYLE = SleepZzzStyle.CARTOON_DRIFT;
 
     private SleepZzzConfigBridge() {

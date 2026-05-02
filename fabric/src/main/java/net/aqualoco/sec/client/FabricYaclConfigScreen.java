@@ -63,7 +63,7 @@ final class FabricYaclConfigScreen {
                 .title(Component.translatable("config.seamlesssleep.title"))
                 .category(buildClientConfigCategory(clientCfg))
                 .category(buildServerConfigCategory(serverUiState, canEditServerConfig))
-                .category(buildAdvancedCategory(clientCfg))
+                .category(buildAdvancedCategory(clientCfg, serverUiState, canEditServerConfig))
                 .save(() -> {
                     clientCfg.clamp();
                     SeamlessSleepClientConfigManager.save();
@@ -88,10 +88,10 @@ final class FabricYaclConfigScreen {
         return ConfigCategory.createBuilder()
                 .name(Component.translatable("config.seamlesssleep.category.client"))
                 .group(buildOverlayGroup(cfg))
-                .group(buildSleepZzzGroup(cfg))
                 .group(buildChatGroup(cfg))
                 .group(buildCameraGroup(cfg))
-                .group(buildSleepIndicatorTestingGroup(cfg))
+                .group(buildSleepIndicatorGroup(cfg))
+                .group(buildSleepZzzGroup(cfg))
                 .build();
     }
 
@@ -199,24 +199,6 @@ final class FabricYaclConfigScreen {
         });
         listen(overlayCustomTextOption, value -> uiState.overlayCustomText = value);
         refreshOverlayTextOptions.run();
-
-        Option<Integer> madeInHeavenChanceOption = buildIntSlider(
-                Component.translatable("config.seamlesssleep.easter_eggs.made_in_heaven_chance"),
-                serverDescription(
-                        Component.translatable("config.seamlesssleep.easter_eggs.made_in_heaven_chance.desc"),
-                        "config.seamlesssleep.easter_eggs.made_in_heaven_chance.command"
-                ),
-                Component.empty(),
-                0,
-                0,
-                100,
-                1,
-                () -> uiState.boundMadeInHeavenChancePercent,
-                value -> uiState.boundMadeInHeavenChancePercent = value,
-                canEditServerConfig,
-                FabricYaclConfigScreen::formatWeatherChanceValue
-        );
-        listen(madeInHeavenChanceOption, value -> uiState.madeInHeavenChancePercent = value);
 
         Option<WorldSleepAccelerationMode> modeOption = buildEnumOption(
                 Component.translatable("config.seamlesssleep.world_acceleration.mode"),
@@ -435,16 +417,6 @@ final class FabricYaclConfigScreen {
                 .option(overlayCustomTextOption)
                 .build();
 
-        OptionGroup easterEggsGroup = OptionGroup.createBuilder()
-                .name(Component.translatable("config.seamlesssleep.server.group.easter_eggs"))
-                .description(description(
-                        Component.translatable("config.seamlesssleep.server.group.easter_eggs.desc"),
-                        canEditServerConfig
-                ))
-                .collapsed(false)
-                .option(madeInHeavenChanceOption)
-                .build();
-
         OptionGroup accelerationGroup = OptionGroup.createBuilder()
                 .name(Component.translatable("config.seamlesssleep.server.group.acceleration"))
                 .description(description(
@@ -470,12 +442,43 @@ final class FabricYaclConfigScreen {
         return ConfigCategory.createBuilder()
                 .name(Component.translatable("config.seamlesssleep.category.server"))
                 .group(generalGroup)
-                .group(easterEggsGroup)
                 .group(accelerationGroup)
                 .build();
     }
 
-    private static ConfigCategory buildAdvancedCategory(SeamlessSleepClientConfig cfg) {
+    private static ConfigCategory buildAdvancedCategory(
+            SeamlessSleepClientConfig cfg,
+            ServerConfigUiState uiState,
+            boolean canEditServerConfig
+    ) {
+        Option<Integer> madeInHeavenChanceOption = buildIntSlider(
+                Component.translatable("config.seamlesssleep.easter_eggs.made_in_heaven_chance"),
+                serverDescription(
+                        Component.translatable("config.seamlesssleep.easter_eggs.made_in_heaven_chance.desc"),
+                        "config.seamlesssleep.easter_eggs.made_in_heaven_chance.command"
+                ),
+                Component.empty(),
+                0,
+                0,
+                100,
+                1,
+                () -> uiState.boundMadeInHeavenChancePercent,
+                value -> uiState.boundMadeInHeavenChancePercent = value,
+                canEditServerConfig,
+                FabricYaclConfigScreen::formatWeatherChanceValue
+        );
+        listen(madeInHeavenChanceOption, value -> uiState.madeInHeavenChancePercent = value);
+
+        OptionGroup easterEggsGroup = OptionGroup.createBuilder()
+                .name(Component.translatable("config.seamlesssleep.server.group.easter_eggs"))
+                .description(description(
+                        Component.translatable("config.seamlesssleep.server.group.easter_eggs.desc"),
+                        canEditServerConfig
+                ))
+                .collapsed(false)
+                .option(madeInHeavenChanceOption)
+                .build();
+
         return ConfigCategory.createBuilder()
                 .name(Component.translatable("config.seamlesssleep.category.advanced"))
                 .option(LabelOption.create(Component.translatable("config.seamlesssleep.advanced.notice")))
@@ -497,6 +500,7 @@ final class FabricYaclConfigScreen {
                         value -> cfg.replayCompatibilityEnabled = value,
                         true
                 ))
+                .group(easterEggsGroup)
                 .build();
     }
 
@@ -555,60 +559,89 @@ final class FabricYaclConfigScreen {
                 .build();
     }
 
-    private static OptionGroup buildSleepIndicatorTestingGroup(SeamlessSleepClientConfig cfg) {
+    private static OptionGroup buildSleepIndicatorGroup(SeamlessSleepClientConfig cfg) {
+        Option<SleepIndicatorMode> modeOption = buildEnumOption(
+                Component.translatable("config.seamlesssleep.sleep_indicator.mode"),
+                Component.translatable("config.seamlesssleep.sleep_indicator.mode.desc"),
+                Component.empty(),
+                SleepIndicatorMode.BIOME_CLOCK,
+                SleepIndicatorMode.class,
+                () -> cfg.sleepIndicatorMode,
+                value -> {
+                    cfg.sleepIndicatorMode = value == null ? SleepIndicatorMode.BIOME_CLOCK : value;
+                    cfg.sleepOverlayEnabled = cfg.sleepIndicatorMode != SleepIndicatorMode.OFF;
+                },
+                true,
+                value -> enumText("config.seamlesssleep.sleep_indicator.mode", value)
+        );
+        Option<SleepIndicatorAnchor> anchorOption = buildEnumOption(
+                Component.translatable("config.seamlesssleep.sleep_indicator.anchor"),
+                Component.translatable("config.seamlesssleep.sleep_indicator.anchor.desc"),
+                Component.empty(),
+                SleepIndicatorAnchor.TOP_LEFT,
+                SleepIndicatorAnchor.class,
+                () -> cfg.sleepIndicatorAnchor,
+                value -> cfg.sleepIndicatorAnchor = value == null ? SleepIndicatorAnchor.TOP_LEFT : value,
+                true,
+                value -> enumText("config.seamlesssleep.sleep_indicator.anchor", value)
+        );
+        Option<SleepIndicatorVisibility> visibilityOption = buildEnumOption(
+                Component.translatable("config.seamlesssleep.sleep_indicator.visibility"),
+                Component.translatable("config.seamlesssleep.sleep_indicator.visibility.desc"),
+                Component.empty(),
+                SleepIndicatorVisibility.SLEEP,
+                SleepIndicatorVisibility.class,
+                () -> cfg.sleepIndicatorVisibility,
+                value -> cfg.sleepIndicatorVisibility = value == null ? SleepIndicatorVisibility.SLEEP : value,
+                true,
+                value -> enumText("config.seamlesssleep.sleep_indicator.visibility", value)
+        );
+        Option<Double> scaleOption = buildDoubleSlider(
+                Component.translatable("config.seamlesssleep.sleep_indicator.scale"),
+                Component.translatable("config.seamlesssleep.sleep_indicator.scale.desc"),
+                Component.empty(),
+                1.0D,
+                0.25D,
+                4.0D,
+                0.05D,
+                () -> cfg.sleepIndicatorScale,
+                value -> cfg.sleepIndicatorScale = value,
+                true,
+                FabricYaclConfigScreen::formatMultiplierValue
+        );
+
+        Runnable refreshIndicatorOptions = () -> {
+            SleepIndicatorMode mode = cfg.sleepIndicatorMode == null
+                    ? SleepIndicatorMode.BIOME_CLOCK
+                    : cfg.sleepIndicatorMode;
+            boolean indicatorEnabled = mode != SleepIndicatorMode.OFF;
+            if (mode == SleepIndicatorMode.OVERLAY) {
+                cfg.sleepIndicatorVisibility = SleepIndicatorVisibility.SLEEP;
+                setPendingIfChanged(visibilityOption, SleepIndicatorVisibility.SLEEP);
+            }
+            anchorOption.setAvailable(indicatorEnabled);
+            scaleOption.setAvailable(indicatorEnabled);
+            visibilityOption.setAvailable(mode == SleepIndicatorMode.BIOME_CLOCK);
+        };
+
+        listen(modeOption, value -> {
+            cfg.sleepIndicatorMode = value == null ? SleepIndicatorMode.BIOME_CLOCK : value;
+            cfg.sleepOverlayEnabled = cfg.sleepIndicatorMode != SleepIndicatorMode.OFF;
+            refreshIndicatorOptions.run();
+        });
+        listen(anchorOption, value -> cfg.sleepIndicatorAnchor = value == null ? SleepIndicatorAnchor.TOP_LEFT : value);
+        listen(visibilityOption, value -> cfg.sleepIndicatorVisibility = value == null ? SleepIndicatorVisibility.SLEEP : value);
+        listen(scaleOption, value -> cfg.sleepIndicatorScale = value);
+        refreshIndicatorOptions.run();
+
         return OptionGroup.createBuilder()
-                .name(Component.translatable("config.seamlesssleep.client.group.sleep_indicator_testing"))
-                .description(OptionDescription.of(Component.translatable("config.seamlesssleep.client.group.sleep_indicator_testing.desc")))
+                .name(Component.translatable("config.seamlesssleep.client.group.sleep_indicator"))
+                .description(OptionDescription.of(Component.translatable("config.seamlesssleep.client.group.sleep_indicator.desc")))
                 .collapsed(false)
-                .option(buildEnumOption(
-                        Component.translatable("config.seamlesssleep.sleep_indicator.mode"),
-                        Component.translatable("config.seamlesssleep.sleep_indicator.mode.desc"),
-                        Component.empty(),
-                        SleepIndicatorMode.BIOME_CLOCK,
-                        SleepIndicatorMode.class,
-                        () -> cfg.sleepIndicatorMode,
-                        value -> {
-                            cfg.sleepIndicatorMode = value == null ? SleepIndicatorMode.BIOME_CLOCK : value;
-                            cfg.sleepOverlayEnabled = cfg.sleepIndicatorMode != SleepIndicatorMode.OFF;
-                        },
-                        true,
-                        value -> enumText("config.seamlesssleep.sleep_indicator.mode", value)
-                ))
-                .option(buildEnumOption(
-                        Component.translatable("config.seamlesssleep.sleep_indicator.anchor"),
-                        Component.translatable("config.seamlesssleep.sleep_indicator.anchor.desc"),
-                        Component.empty(),
-                        SleepIndicatorAnchor.CENTER,
-                        SleepIndicatorAnchor.class,
-                        () -> cfg.sleepIndicatorAnchor,
-                        value -> cfg.sleepIndicatorAnchor = value == null ? SleepIndicatorAnchor.CENTER : value,
-                        true,
-                        value -> enumText("config.seamlesssleep.sleep_indicator.anchor", value)
-                ))
-                .option(buildEnumOption(
-                        Component.translatable("config.seamlesssleep.sleep_indicator.visibility"),
-                        Component.translatable("config.seamlesssleep.sleep_indicator.visibility.desc"),
-                        Component.empty(),
-                        SleepIndicatorVisibility.ALWAYS,
-                        SleepIndicatorVisibility.class,
-                        () -> cfg.sleepIndicatorVisibility,
-                        value -> cfg.sleepIndicatorVisibility = value == null ? SleepIndicatorVisibility.ALWAYS : value,
-                        true,
-                        value -> enumText("config.seamlesssleep.sleep_indicator.visibility", value)
-                ))
-                .option(buildDoubleSlider(
-                        Component.translatable("config.seamlesssleep.sleep_indicator.scale"),
-                        Component.translatable("config.seamlesssleep.sleep_indicator.scale.desc"),
-                        Component.empty(),
-                        1.0D,
-                        0.25D,
-                        4.0D,
-                        0.05D,
-                        () -> cfg.sleepIndicatorScale,
-                        value -> cfg.sleepIndicatorScale = value,
-                        true,
-                        FabricYaclConfigScreen::formatMultiplierValue
-                ))
+                .option(modeOption)
+                .option(anchorOption)
+                .option(visibilityOption)
+                .option(scaleOption)
                 .build();
     }
 

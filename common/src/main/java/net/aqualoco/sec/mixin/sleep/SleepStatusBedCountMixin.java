@@ -2,10 +2,10 @@ package net.aqualoco.sec.mixin.sleep;
 
 import net.aqualoco.sec.bed.BedRestingHelper;
 import net.aqualoco.sec.config.SeamlessSleepServerConfigManager;
+import net.aqualoco.sec.sleep.SleepRequirement;
 import net.aqualoco.sec.sleep.SleepStatusUpdateSuppression;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.players.SleepStatus;
-import net.minecraft.util.Mth;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -62,7 +62,7 @@ public abstract class SleepStatusBedCountMixin {
                         SeamlessSleepServerConfigManager.get().fallAsleepDelayTicks
                 ))
                 .count();
-        int sleepersNeeded = Math.max(1, Mth.ceil(this.activePlayers * requiredSleepPercentage / 100.0F));
+        int sleepersNeeded = SleepRequirement.sleepersNeeded(this.activePlayers, requiredSleepPercentage);
         cir.setReturnValue(deepSleepers >= sleepersNeeded);
     }
 }

@@ -120,18 +120,17 @@ public final class SleepIndicatorSystem {
     }
 
     private static float pivotX(SleepIndicatorAnchor anchor, int width) {
-        return switch (anchor == null ? SleepIndicatorAnchor.CENTER : anchor) {
-            case TOP_LEFT, BOTTOM_LEFT -> 0.0F;
-            case TOP_CENTER, CENTER, BOTTOM_CENTER -> width * 0.5F;
+        return switch (anchor == null ? SleepIndicatorAnchor.TOP_LEFT : anchor) {
+            case TOP_LEFT -> 0.0F;
+            case TOP_CENTER, CENTER -> width * 0.5F;
             case TOP_RIGHT, BOTTOM_RIGHT -> width;
         };
     }
 
     private static float pivotY(SleepIndicatorAnchor anchor, int height) {
-        return switch (anchor == null ? SleepIndicatorAnchor.CENTER : anchor) {
+        return switch (anchor == null ? SleepIndicatorAnchor.TOP_LEFT : anchor) {
             case TOP_LEFT, TOP_CENTER, TOP_RIGHT -> 0.0F;
-            case CENTER -> height * 0.5F;
-            case BOTTOM_LEFT, BOTTOM_CENTER, BOTTOM_RIGHT -> height;
+            case CENTER, BOTTOM_RIGHT -> height;
         };
     }
 }

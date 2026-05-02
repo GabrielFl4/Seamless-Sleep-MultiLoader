@@ -2,6 +2,7 @@ package net.aqualoco.sec.mixin.client.render;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.aqualoco.sec.client.sleepvisual.SleepZzzVisualSystem;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.state.LevelRenderState;
@@ -19,6 +20,7 @@ public abstract class LevelRendererSleepZzzMixin {
                                                LevelRenderState levelRenderState,
                                                SubmitNodeCollector submitNodeCollector,
                                                CallbackInfo ci) {
+        SleepZzzVisualSystem.tickReplay(Minecraft.getInstance());
         SleepZzzVisualSystem.submitRender(
                 poseStack,
                 levelRenderState.cameraRenderState,

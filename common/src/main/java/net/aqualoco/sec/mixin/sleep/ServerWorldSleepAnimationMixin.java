@@ -14,6 +14,7 @@ import net.aqualoco.sec.sleep.SleepAnimationState;
 import net.aqualoco.sec.sleep.SleepAnimationStopReason;
 import net.aqualoco.sec.sleep.SleepStatusUpdateSuppression;
 import net.aqualoco.sec.sleep.SleepAnimationVisualContext;
+import net.aqualoco.sec.sleep.SleepRequirement;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
@@ -312,10 +313,6 @@ public abstract class ServerWorldSleepAnimationMixin {
     @Unique
     private boolean seamlesssleep$hasEnoughSleeping(ServerLevel world) {
         int percentage = world.getGameRules().get(GameRules.PLAYERS_SLEEPING_PERCENTAGE);
-        if (percentage <= 0) {
-            return false;
-        }
-
         int total = 0;
         int sleeping = 0;
         for (ServerPlayer player : world.players()) {
@@ -332,17 +329,13 @@ public abstract class ServerWorldSleepAnimationMixin {
             return false;
         }
 
-        int required = Math.max(1, (int) Math.ceil(total * percentage / 100.0D));
+        int required = SleepRequirement.sleepersNeeded(total, percentage);
         return sleeping >= required;
     }
 
     @Unique
     private boolean seamlesssleep$hasEnoughDeepSleeping(ServerLevel world) {
         int percentage = world.getGameRules().get(GameRules.PLAYERS_SLEEPING_PERCENTAGE);
-        if (percentage <= 0) {
-            return false;
-        }
-
         int total = 0;
         int deepSleeping = 0;
         int delayTicks = SeamlessSleepServerConfigManager.get().fallAsleepDelayTicks;
@@ -360,17 +353,13 @@ public abstract class ServerWorldSleepAnimationMixin {
             return false;
         }
 
-        int required = Math.max(1, (int) Math.ceil(total * percentage / 100.0D));
+        int required = SleepRequirement.sleepersNeeded(total, percentage);
         return deepSleeping >= required;
     }
 
     @Unique
     private boolean seamlesssleep$hasEnoughMadeInHeavenSleeping(ServerLevel world) {
         int percentage = world.getGameRules().get(GameRules.PLAYERS_SLEEPING_PERCENTAGE);
-        if (percentage <= 0) {
-            return false;
-        }
-
         int total = 0;
         int sleepers = 0;
         int delayTicks = SeamlessSleepServerConfigManager.get().fallAsleepDelayTicks;
@@ -388,7 +377,7 @@ public abstract class ServerWorldSleepAnimationMixin {
             return false;
         }
 
-        int required = Math.max(1, (int) Math.ceil(total * percentage / 100.0D));
+        int required = SleepRequirement.sleepersNeeded(total, percentage);
         return sleepers >= required;
     }
 

@@ -2,8 +2,8 @@ package net.aqualoco.sec.network;
 
 import net.aqualoco.sec.bed.BedRestingHelper;
 import net.aqualoco.sec.platform.Services;
+import net.aqualoco.sec.sleep.SleepRequirement;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.util.Mth;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.gamerules.GameRules;
@@ -31,11 +31,6 @@ public final class BedHudNetworking {
         }
 
         int percentage = world.getGameRules().get(GameRules.PLAYERS_SLEEPING_PERCENTAGE);
-        if (percentage <= 0) {
-            clearSleepProgress(world);
-            return;
-        }
-
         int activePlayers = 0;
         int sleepingPlayers = 0;
         for (ServerPlayer player : world.players()) {
@@ -53,7 +48,7 @@ public final class BedHudNetworking {
             return;
         }
 
-        int sleepersNeeded = Math.max(1, Mth.ceil(activePlayers * percentage / 100.0F));
+        int sleepersNeeded = SleepRequirement.sleepersNeeded(activePlayers, percentage);
         if (sleepingPlayers >= sleepersNeeded) {
             clearSleepProgress(world);
             return;

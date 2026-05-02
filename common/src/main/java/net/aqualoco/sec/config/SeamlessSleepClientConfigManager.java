@@ -168,15 +168,15 @@ public final class SeamlessSleepClientConfigManager {
         appendSectionGap(sb, 2);
         appendSectionHeader(sb, "sleep_indicator");
         appendEntry(sb,
-                "Sleep indicator renderer. Range: OFF | OVERLAY | BIOME_CLOCK. V1 debug default: BIOME_CLOCK",
+                "Sleep indicator renderer. Range: OFF | OVERLAY | BIOME_CLOCK. Default: BIOME_CLOCK",
                 "mode",
                 toTomlString(cfg.sleepIndicatorMode.name()));
         appendEntry(sb,
-                "Sleep indicator screen anchor. Range: TOP_LEFT | TOP_CENTER | TOP_RIGHT | CENTER | BOTTOM_LEFT | BOTTOM_CENTER | BOTTOM_RIGHT. V1 debug default: CENTER",
+                "Sleep indicator screen anchor. Range: TOP_LEFT | TOP_CENTER | TOP_RIGHT | BOTTOM_RIGHT | CENTER. Default: TOP_LEFT",
                 "anchor",
                 toTomlString(cfg.sleepIndicatorAnchor.name()));
         appendEntry(sb,
-                "Sleep indicator visibility. Range: BED | SLEEP | ALWAYS. V1 debug default: ALWAYS",
+                "Sleep indicator visibility. Range: BED | SLEEP | ALWAYS. Default: SLEEP",
                 "visibility",
                 toTomlString(cfg.sleepIndicatorVisibility.name()));
         appendEntry(sb,
@@ -187,7 +187,7 @@ public final class SeamlessSleepClientConfigManager {
         appendSectionGap(sb, 2);
         appendSectionHeader(sb, "sleep_zzz");
         appendEntry(sb,
-                "Chance to show world-space Zs for each counted sleep session. Range: 0 to 100. 0=never, 100=always. Default: 35",
+                "Chance to show world-space Zs for each counted sleep session. Range: 0 to 100. 0=never, 100=always. Default: 70",
                 "chance",
                 Integer.toString(cfg.sleepZzzChance));
         appendEntry(sb,

@@ -18,7 +18,7 @@ public final class SleepIndicatorPresentationState {
     private static final float EXIT_SCALE = 1.0F;
 
     private SleepIndicatorPresenceState state = SleepIndicatorPresenceState.HIDDEN;
-    private SleepIndicatorAnchor transitionAnchor = SleepIndicatorAnchor.CENTER;
+    private SleepIndicatorAnchor transitionAnchor = SleepIndicatorAnchor.TOP_LEFT;
     private boolean targetVisible;
     private boolean exitPending;
     private long exitPendingSinceMs;
@@ -31,7 +31,7 @@ public final class SleepIndicatorPresentationState {
     private float scaleMultiplier = 1.0F;
 
     public void update(boolean shouldBeVisible, SleepIndicatorAnchor anchor, long nowMs) {
-        SleepIndicatorAnchor safeAnchor = anchor == null ? SleepIndicatorAnchor.CENTER : anchor;
+        SleepIndicatorAnchor safeAnchor = anchor == null ? SleepIndicatorAnchor.TOP_LEFT : anchor;
         advance(nowMs);
 
         if (shouldBeVisible) {
@@ -59,7 +59,7 @@ public final class SleepIndicatorPresentationState {
         this.state = SleepIndicatorPresenceState.HIDDEN;
         this.targetVisible = false;
         this.exitPending = false;
-        this.transitionAnchor = SleepIndicatorAnchor.CENTER;
+        this.transitionAnchor = SleepIndicatorAnchor.TOP_LEFT;
         this.transitionStartMs = 0L;
         this.transitionStartAlpha = 0.0F;
         this.transitionStartOffsetY = 0.0F;
@@ -195,9 +195,7 @@ public final class SleepIndicatorPresentationState {
     }
 
     private static boolean isBottom(SleepIndicatorAnchor anchor) {
-        return anchor == SleepIndicatorAnchor.BOTTOM_LEFT
-                || anchor == SleepIndicatorAnchor.BOTTOM_CENTER
-                || anchor == SleepIndicatorAnchor.BOTTOM_RIGHT;
+        return anchor == SleepIndicatorAnchor.BOTTOM_RIGHT;
     }
 
     private static float easeOutCubic(float value) {

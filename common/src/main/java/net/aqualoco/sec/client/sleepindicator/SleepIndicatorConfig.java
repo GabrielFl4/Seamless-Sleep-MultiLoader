@@ -14,11 +14,14 @@ public record SleepIndicatorConfig(
                 ? SleepIndicatorMode.BIOME_CLOCK
                 : config.sleepIndicatorMode;
         SleepIndicatorAnchor anchor = config.sleepIndicatorAnchor == null
-                ? SleepIndicatorAnchor.CENTER
+                ? SleepIndicatorAnchor.TOP_LEFT
                 : config.sleepIndicatorAnchor;
         SleepIndicatorVisibility visibility = config.sleepIndicatorVisibility == null
-                ? SleepIndicatorVisibility.ALWAYS
+                ? SleepIndicatorVisibility.SLEEP
                 : config.sleepIndicatorVisibility;
+        if (mode == SleepIndicatorMode.OVERLAY) {
+            visibility = SleepIndicatorVisibility.SLEEP;
+        }
 
         float scale = (float) config.sleepIndicatorScale;
         if (!Float.isFinite(scale) || scale <= 0.0F) {

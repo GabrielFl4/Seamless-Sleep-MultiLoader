@@ -140,7 +140,7 @@ public final class SeamlessSleepCommands {
                                                         IntegerArgumentType.getInteger(ctx, "value")
                                                 ))))
                                 .then(Commands.literal("worldAccelerationMode")
-                                        .then(Commands.literal("OFF")
+                                        .then(Commands.literal("NONE")
                                                 .executes(ctx -> setWorldAccelerationMode(ctx, WorldSleepAccelerationMode.OFF)))
                                         .then(Commands.literal("AUTO")
                                                 .executes(ctx -> setWorldAccelerationMode(ctx, WorldSleepAccelerationMode.AUTOMATIC)))
@@ -975,7 +975,7 @@ public final class SeamlessSleepCommands {
     private static String formatAccelerationMode(WorldSleepAccelerationMode mode) {
         WorldSleepAccelerationMode resolved = mode == null ? WorldSleepAccelerationMode.AUTOMATIC : mode;
         return switch (resolved) {
-            case OFF -> "OFF";
+            case OFF -> "NONE";
             case AUTOMATIC -> "AUTO";
             case MANUAL -> "MANUAL";
         };

@@ -3,12 +3,14 @@ package net.aqualoco.sec.client.sleepvisual;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.aqualoco.sec.bed.BedRestingHelper;
 import net.aqualoco.sec.client.ClientBedWorkflow;
+import net.aqualoco.sec.client.ReplayPlaybackCompat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Camera;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.state.CameraRenderState;
+import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 
@@ -24,11 +26,32 @@ public final class SleepZzzVisualSystem {
 
     private static final Map<UUID, SleepZzzEmitter> EMITTERS = new LinkedHashMap<>();
     private static ClientLevel activeLevel;
+    private static boolean replayMode;
 
     private SleepZzzVisualSystem() {
     }
 
     public static void tick(Minecraft client) {
+        if (ReplayPlaybackCompat.isReplayPlaybackActive()) {
+            return;
+        }
+        replayMode = false;
+        tickInternal(client, false);
+    }
+
+    public static void tickReplay(Minecraft client) {
+        if (!ReplayPlaybackCompat.isReplayPlaybackActive()) {
+            if (replayMode) {
+                clear();
+                replayMode = false;
+            }
+            return;
+        }
+        replayMode = true;
+        tickInternal(client, true);
+    }
+
+    private static void tickInternal(Minecraft client, boolean replay) {
         ClientLevel level = client.level;
         if (level == null || !level.dimension().equals(Level.OVERWORLD)) {
             clear();
@@ -52,7 +75,7 @@ public final class SleepZzzVisualSystem {
         for (Player player : level.players()) {
             UUID playerId = player.getUUID();
             seen.add(playerId);
-            boolean countedForSleep = isCountedForSleep(player);
+            boolean countedForSleep = replay ? isReplaySleepingCandidate(player) : isCountedForSleep(player);
             SleepZzzEmitter emitter = EMITTERS.get(playerId);
             if (countedForSleep) {
                 if (emitter == null) {
@@ -87,7 +110,8 @@ public final class SleepZzzVisualSystem {
         Minecraft client = Minecraft.getInstance();
         float partialTick = resolvePartialTick(client);
         UUID localPlayerId = client.player == null ? null : client.player.getUUID();
-        boolean hideLocalFirstPerson = client.player != null
+        boolean hideLocalFirstPerson = !ReplayPlaybackCompat.isReplayPlaybackActive()
+                && client.player != null
                 && client.getCameraEntity() == client.player
                 && client.options.getCameraType().isFirstPerson();
 
@@ -114,6 +138,10 @@ public final class SleepZzzVisualSystem {
             return ClientBedWorkflow.isCountedForSleep(localPlayer);
         }
         return BedRestingHelper.isCountedForSleep(player);
+    }
+
+    private static boolean isReplaySleepingCandidate(Player player) {
+        return player != null && (player.isSleeping() || player.getPose() == Pose.SLEEPING);
     }
 
     private static float resolvePartialTick(Minecraft client) {

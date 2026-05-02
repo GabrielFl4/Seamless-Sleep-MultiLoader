@@ -35,8 +35,8 @@ public final class SeamlessSleepClientConfig {
     public boolean leaveBedHintEnabled = DEFAULT_LEAVE_BED_HINT_ENABLED;
     public boolean sleepContextEnabled = DEFAULT_SLEEP_CONTEXT_ENABLED;
     public SleepIndicatorMode sleepIndicatorMode = SleepIndicatorMode.BIOME_CLOCK;
-    public SleepIndicatorAnchor sleepIndicatorAnchor = SleepIndicatorAnchor.CENTER;
-    public SleepIndicatorVisibility sleepIndicatorVisibility = SleepIndicatorVisibility.ALWAYS;
+    public SleepIndicatorAnchor sleepIndicatorAnchor = SleepIndicatorAnchor.TOP_LEFT;
+    public SleepIndicatorVisibility sleepIndicatorVisibility = SleepIndicatorVisibility.SLEEP;
     public double sleepIndicatorScale = DEFAULT_SLEEP_INDICATOR_SCALE;
     public int sleepZzzChance = SleepZzzConfigBridge.DEFAULT_CHANCE;
     public String sleepZzzStyle = SleepZzzConfigBridge.DEFAULT_STYLE.name();
@@ -58,10 +58,13 @@ public final class SeamlessSleepClientConfig {
             sleepIndicatorMode = SleepIndicatorMode.BIOME_CLOCK;
         }
         if (sleepIndicatorAnchor == null) {
-            sleepIndicatorAnchor = SleepIndicatorAnchor.CENTER;
+            sleepIndicatorAnchor = SleepIndicatorAnchor.TOP_LEFT;
         }
         if (sleepIndicatorVisibility == null) {
-            sleepIndicatorVisibility = SleepIndicatorVisibility.ALWAYS;
+            sleepIndicatorVisibility = SleepIndicatorVisibility.SLEEP;
+        }
+        if (sleepIndicatorMode == SleepIndicatorMode.OVERLAY) {
+            sleepIndicatorVisibility = SleepIndicatorVisibility.SLEEP;
         }
 
         sleepOverlayDarknessMultiplier = clampRange(

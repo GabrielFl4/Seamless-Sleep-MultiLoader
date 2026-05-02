@@ -104,7 +104,7 @@ public final class ClientSleepAnimationState {
         }
 
         if (this.mode == SleepAnimationMode.MADE_IN_HEAVEN_BED && this.phase == SleepAnimationPhase.RUNNING) {
-            return SleepAnimationState.madeInHeavenVelocityForElapsed(this.estimateMadeInHeavenElapsedTicks());
+            return SleepAnimationState.madeInHeavenVelocityForElapsed(this.estimateMadeInHeavenElapsedTicksFromVisualTime());
         }
 
         long deltaTime = Math.max(0L, this.endTimeOfDay - this.startTimeOfDay);
@@ -385,7 +385,18 @@ public final class ClientSleepAnimationState {
     }
 
     private double estimateMadeInHeavenElapsedTicks() {
-        long distance = Math.max(0L, this.currentAuthoritativeDayTime - this.startTimeOfDay);
+        return estimateMadeInHeavenElapsedTicksForDistance(
+                Math.max(0L, this.currentAuthoritativeDayTime - this.startTimeOfDay)
+        );
+    }
+
+    private double estimateMadeInHeavenElapsedTicksFromVisualTime() {
+        return estimateMadeInHeavenElapsedTicksForDistance(
+                Math.max(0L, this.currentVisualDayTime - this.startTimeOfDay)
+        );
+    }
+
+    private static double estimateMadeInHeavenElapsedTicksForDistance(long distance) {
         double lo = 0.0D;
         double hi = 20000.0D;
         while (SleepAnimationState.madeInHeavenDistanceForElapsed(hi) < distance && hi < 1_000_000.0D) {

@@ -15,6 +15,11 @@ public enum BiomeClockCategory {
     PALE_GARDEN("palegarden"),
     BADLANDS("badlands"),
     BEACH("beach"),
+    MUSHROOMS("mushrooms"),
+    RIVER("river"),
+    RIVER_FROZEN("frozen_river"),
+    MEADOW("meadow"),
+    STONY_PEAKS("stonypeaks"),
     DEFAULT("default");
 
     private final String textureId;

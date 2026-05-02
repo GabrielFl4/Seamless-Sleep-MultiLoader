@@ -13,11 +13,18 @@ public final class BedHudMessageRenderer {
     private static final int OVERLAY_BASELINE_Y = 68;
     private static final int LINE_SPACING = 16;
     private static final int FADE_OUT_TICKS = 20;
+    private static final long DUPLICATE_RENDER_WINDOW_NANOS = 1_000_000L;
+    private static GuiGraphics seamlesssleep$lastRenderedGraphics;
+    private static long seamlesssleep$lastRenderNanos;
 
     private BedHudMessageRenderer() {
     }
 
     public static void render(GuiGraphics graphics, DeltaTracker deltaTracker) {
+        if (seamlesssleep$skipDuplicateRender(graphics)) {
+            return;
+        }
+
         if (ReplayPlaybackCompat.isReplayPlaybackActive()) {
             BedHudMessageManager.clearAll();
             return;
@@ -81,5 +88,15 @@ public final class BedHudMessageRenderer {
         int color = (alpha << 24) | (message.colorRgb() & 0x00FFFFFF);
         graphics.drawStringWithBackdrop(font, message.text(), -textWidth / 2, -4, textWidth, color);
         graphics.pose().popMatrix();
+    }
+
+    private static boolean seamlesssleep$skipDuplicateRender(GuiGraphics graphics) {
+        long now = System.nanoTime();
+        if (seamlesssleep$lastRenderedGraphics == graphics && now - seamlesssleep$lastRenderNanos < DUPLICATE_RENDER_WINDOW_NANOS) {
+            return true;
+        }
+        seamlesssleep$lastRenderedGraphics = graphics;
+        seamlesssleep$lastRenderNanos = now;
+        return false;
     }
 }

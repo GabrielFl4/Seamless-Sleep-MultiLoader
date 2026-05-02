@@ -22,7 +22,7 @@ public final class BiomeClockWeatherResolver {
         }
         boolean thundering = thunderLevel > WEATHER_THUNDER_THRESHOLD;
 
-        if (context.biomeClockCategory() == BiomeClockCategory.SNOW) {
+        if (usesSnowPrecipitation(context.biomeClockCategory())) {
             return thundering ? BiomeClockWeatherKind.SNOW_THUNDER : BiomeClockWeatherKind.SNOW;
         }
 
@@ -41,5 +41,9 @@ public final class BiomeClockWeatherResolver {
             return 1.0F;
         }
         return value;
+    }
+
+    private static boolean usesSnowPrecipitation(BiomeClockCategory category) {
+        return category == BiomeClockCategory.SNOW || category == BiomeClockCategory.RIVER_FROZEN;
     }
 }
