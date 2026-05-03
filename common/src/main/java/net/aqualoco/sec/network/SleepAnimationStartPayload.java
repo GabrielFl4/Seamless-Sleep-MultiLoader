@@ -34,6 +34,7 @@ public record SleepAnimationStartPayload(
 
     public static final StreamCodec<FriendlyByteBuf, SleepAnimationStartPayload> CODEC =
             CustomPacketPayload.codec(SleepAnimationStartPayload::write, SleepAnimationStartPayload::read);
+    private static final int LEGACY_REMAINING_BYTES_AFTER_PHASE = Long.BYTES * 5 + Integer.BYTES;
 
     private static void write(SleepAnimationStartPayload payload, FriendlyByteBuf buf) {
         buf.writeIdentifier(payload.worldId());
@@ -57,12 +58,18 @@ public record SleepAnimationStartPayload(
         long sequenceId = buf.readLong();
         SleepAnimationMode mode = readEnum(buf, SleepAnimationMode.class, SleepAnimationMode.NORMAL_SLEEP);
         SleepAnimationPhase phase = readEnum(buf, SleepAnimationPhase.class, SleepAnimationPhase.RUNNING);
+        if (buf.readableBytes() == LEGACY_REMAINING_BYTES_AFTER_PHASE) {
+            return readLegacyBody(buf, worldId, sessionId, sequenceId, mode, phase);
+        }
+
         SleepAnimationVisualContext visualContext = readEnum(
                 buf,
                 SleepAnimationVisualContext.class,
                 SleepAnimationVisualContext.NIGHT
         );
-        SleepAnimationSoundMode soundMode = readEnum(buf, SleepAnimationSoundMode.class, SleepAnimationSoundMode.NONE);
+        SleepAnimationSoundMode soundMode = buf.readableBytes() == LEGACY_REMAINING_BYTES_AFTER_PHASE
+                ? SleepAnimationSoundMode.NONE
+                : readEnum(buf, SleepAnimationSoundMode.class, SleepAnimationSoundMode.NONE);
         long startTime = buf.readLong();
         long endTime = buf.readLong();
         int duration = buf.readInt();
@@ -77,6 +84,39 @@ public record SleepAnimationStartPayload(
                 phase,
                 visualContext,
                 soundMode,
+                startTime,
+                endTime,
+                duration,
+                serverStartGameTime,
+                serverGameTimeAtSend,
+                currentDayTime
+        );
+    }
+
+    private static SleepAnimationStartPayload readLegacyBody(FriendlyByteBuf buf,
+                                                             Identifier worldId,
+                                                             long sessionId,
+                                                             long sequenceId,
+                                                             SleepAnimationMode mode,
+                                                             SleepAnimationPhase phase) {
+        long startTime = buf.readLong();
+        long endTime = buf.readLong();
+        int duration = buf.readInt();
+        long serverStartGameTime = buf.readLong();
+        long serverGameTimeAtSend = buf.readLong();
+        long currentDayTime = buf.readLong();
+        SleepAnimationVisualContext visualContext = mode == SleepAnimationMode.MADE_IN_HEAVEN_BED
+                || mode == SleepAnimationMode.COMMAND_TIMELAPSE
+                ? SleepAnimationVisualContext.MADE_IN_HEAVEN
+                : SleepAnimationVisualContext.NIGHT;
+        return new SleepAnimationStartPayload(
+                worldId,
+                sessionId,
+                sequenceId,
+                mode,
+                phase,
+                visualContext,
+                SleepAnimationSoundMode.NONE,
                 startTime,
                 endTime,
                 duration,

@@ -34,16 +34,23 @@ public final class SleepZzzEmitter {
     }
 
     public void tick(Player player, boolean countedForSleep, int chance, SleepZzzStyle style) {
+        this.tick(player, countedForSleep, chance, style, 1);
+    }
+
+    public void tick(Player player, boolean countedForSleep, int chance, SleepZzzStyle style, int ticksToAdvance) {
         if (countedForSleep) {
             this.startSessionIfNeeded(chance, style);
         } else {
             this.stopSession();
         }
 
-        this.tickGlyphs();
+        int safeTicks = Math.max(0, ticksToAdvance);
+        for (int tick = 0; tick < safeTicks; tick++) {
+            this.tickGlyphs();
 
-        if (this.sessionActive && this.approvedForSession) {
-            this.tickSpawning(player, style);
+            if (this.sessionActive && this.approvedForSession) {
+                this.tickSpawning(player, style);
+            }
         }
     }
 
@@ -55,8 +62,15 @@ public final class SleepZzzEmitter {
     }
 
     public void tickStopped() {
+        this.tickStopped(1);
+    }
+
+    public void tickStopped(int ticksToAdvance) {
         this.stopSession();
-        this.tickGlyphs();
+        int safeTicks = Math.max(0, ticksToAdvance);
+        for (int tick = 0; tick < safeTicks; tick++) {
+            this.tickGlyphs();
+        }
     }
 
     public boolean canRemove() {

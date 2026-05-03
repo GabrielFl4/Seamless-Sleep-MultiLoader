@@ -66,6 +66,21 @@ public record ServerConfigSyncPayload(int sleepWeatherClearChancePercent,
     private static ServerConfigSyncPayload read(FriendlyByteBuf buf) {
         int weatherClearChancePercent = buf.readVarInt();
         double durationMultiplier = buf.readDouble();
+        int bodyStartIndex = buf.readerIndex();
+        try {
+            if (looksLikeLegacyBody(buf)) {
+                return readLegacyBody(buf, weatherClearChancePercent, durationMultiplier);
+            }
+            return readCurrentBody(buf, weatherClearChancePercent, durationMultiplier);
+        } catch (RuntimeException currentFailure) {
+            buf.readerIndex(bodyStartIndex);
+            return readLegacyBody(buf, weatherClearChancePercent, durationMultiplier);
+        }
+    }
+
+    private static ServerConfigSyncPayload readCurrentBody(FriendlyByteBuf buf,
+                                                           int weatherClearChancePercent,
+                                                           double durationMultiplier) {
         int fallAsleepDelayTicks = buf.readVarInt();
         boolean overrideOverlayText = buf.readBoolean();
         String overlayCustomText = buf.readUtf(128);
@@ -116,6 +131,71 @@ public record ServerConfigSyncPayload(int sleepWeatherClearChancePercent,
                 processesEnabled,
                 processesSpeedPercent
         );
+    }
+
+    private static ServerConfigSyncPayload readLegacyBody(FriendlyByteBuf buf,
+                                                          int weatherClearChancePercent,
+                                                          double durationMultiplier) {
+        int serverSimulationDistance = buf.readVarInt();
+        WorldSleepAccelerationMode mode = readEnum(
+                buf,
+                WorldSleepAccelerationMode.class,
+                WorldSleepAccelerationMode.AUTOMATIC
+        );
+        WorldSleepAutomaticMode automaticMode = readEnum(
+                buf,
+                WorldSleepAutomaticMode.class,
+                WorldSleepAutomaticMode.AGGRESSIVE
+        );
+        WorldSleepAccelerationPlayersAffected playersAffected = readEnum(
+                buf,
+                WorldSleepAccelerationPlayersAffected.class,
+                WorldSleepAccelerationPlayersAffected.ALL_PLAYERS
+        );
+        int manualRadius = buf.readVarInt();
+        int manualSpeed = buf.readVarInt();
+        boolean grassAndFoliageEnabled = buf.readBoolean();
+        boolean cropsAndSaplingsEnabled = buf.readBoolean();
+        boolean kelpEnabled = buf.readBoolean();
+        boolean vanillaOnlyAcceleration = buf.readBoolean();
+        boolean processesEnabled = buf.readBoolean();
+        int processesSpeedPercent = buf.readVarInt();
+        return new ServerConfigSyncPayload(
+                weatherClearChancePercent,
+                durationMultiplier,
+                SeamlessSleepServerConfig.DEFAULT_FALL_ASLEEP_DELAY_TICKS,
+                false,
+                SeamlessSleepServerConfig.DEFAULT_OVERLAY_CUSTOM_TEXT,
+                SleepEligibilityMode.VANILLA,
+                0,
+                serverSimulationDistance,
+                mode,
+                automaticMode,
+                playersAffected,
+                manualRadius,
+                manualSpeed,
+                grassAndFoliageEnabled,
+                cropsAndSaplingsEnabled,
+                kelpEnabled,
+                vanillaOnlyAcceleration,
+                processesEnabled,
+                processesSpeedPercent
+        );
+    }
+
+    private static boolean looksLikeLegacyBody(FriendlyByteBuf buf) {
+        int bodyStartIndex = buf.readerIndex();
+        try {
+            buf.readVarInt();
+            if (buf.readableBytes() <= 0) {
+                return false;
+            }
+
+            int nextByte = buf.readByte() & 0xFF;
+            return nextByte != 0 && nextByte != 1;
+        } finally {
+            buf.readerIndex(bodyStartIndex);
+        }
     }
 
     @Override

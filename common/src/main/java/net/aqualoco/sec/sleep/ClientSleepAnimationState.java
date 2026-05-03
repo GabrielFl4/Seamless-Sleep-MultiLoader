@@ -15,6 +15,9 @@ public final class ClientSleepAnimationState {
     private static final long NIGHT_END_TICKS = 23460L;
     private static final int FINISH_GRACE_FRAMES = 80;
     private static final long CLOSED_SESSION_NONE = -1L;
+    private static final long MILLIS_PER_TICK = 50L;
+    private static final long REPLAY_SEEK_THRESHOLD_MILLIS = 1000L;
+    private static final double REPLAY_WINDOW_EPSILON_TICKS = 0.5D;
 
     private boolean active;
     private long sessionId = -1L;
@@ -37,6 +40,7 @@ public final class ClientSleepAnimationState {
     private int activeWorldIdentity;
     private boolean replayCompatMode;
     private long replayCompatStartTimelineMillis;
+    private long lastReplayTimelineMillis;
     private float replayCompatElapsedTicksFallback;
     private boolean loggedReplayTimelineFallback;
 
@@ -46,6 +50,14 @@ public final class ClientSleepAnimationState {
 
     public boolean isReplayCompatMode() {
         return this.active && this.replayCompatMode;
+    }
+
+    public boolean isVisualOverlayActive() {
+        return this.isActiveForReplayTimelineSnapshot();
+    }
+
+    public boolean shouldRenderSleepIndicator() {
+        return this.isVisualOverlayActive();
     }
 
     public boolean startedDuringDay() {
@@ -72,6 +84,9 @@ public final class ClientSleepAnimationState {
             return 1.0D;
         }
         if (!this.active) {
+            return 0.0D;
+        }
+        if (this.replayCompatMode && !this.isActiveForReplayTimelineSnapshot()) {
             return 0.0D;
         }
         if (this.replayCompatMode) {
@@ -102,9 +117,15 @@ public final class ClientSleepAnimationState {
         if ((!this.active && !this.awaitingFinish) || this.durationTicks <= 0) {
             return 0.0D;
         }
+        if (this.replayCompatMode && !this.isActiveForReplayTimelineSnapshot()) {
+            return 0.0D;
+        }
 
         if (this.mode == SleepAnimationMode.MADE_IN_HEAVEN_BED && this.phase == SleepAnimationPhase.RUNNING) {
-            return SleepAnimationState.madeInHeavenVelocityForElapsed(this.estimateMadeInHeavenElapsedTicksFromVisualTime());
+            double elapsedTicks = this.replayCompatMode
+                    ? this.computeReplayCompatElapsedTicksSnapshot()
+                    : this.estimateMadeInHeavenElapsedTicksFromVisualTime();
+            return SleepAnimationState.madeInHeavenVelocityForElapsed(elapsedTicks);
         }
 
         long deltaTime = Math.max(0L, this.endTimeOfDay - this.startTimeOfDay);
@@ -159,7 +180,10 @@ public final class ClientSleepAnimationState {
         }
         this.resetIfWorldMismatch(world, "start_world_changed");
 
-        if (sessionId < this.sessionId) {
+        boolean replayCompatEnabled = SeamlessSleepClientConfigManager.get().replayCompatibilityEnabled;
+        boolean replayCompatActive = replayCompatEnabled && ReplayPlaybackCompat.isReplayPlaybackActive();
+
+        if (!replayCompatActive && sessionId < this.sessionId) {
             Constants.debug(
                     "Ignored stale sleep animation start on client (session {}, current {})",
                     sessionId,
@@ -168,12 +192,9 @@ public final class ClientSleepAnimationState {
             return;
         }
 
-        if (sessionId == this.sessionId && this.active && sequenceId <= this.sequenceId) {
+        if (!replayCompatActive && sessionId == this.sessionId && this.active && sequenceId <= this.sequenceId) {
             return;
         }
-
-        boolean replayCompatEnabled = SeamlessSleepClientConfigManager.get().replayCompatibilityEnabled;
-        boolean replayCompatActive = replayCompatEnabled && ReplayPlaybackCompat.isReplayPlaybackActive();
 
         this.sessionId = sessionId;
         this.sequenceId = sequenceId;
@@ -196,14 +217,27 @@ public final class ClientSleepAnimationState {
         this.active = true;
         this.replayCompatMode = replayCompatActive;
         this.replayCompatStartTimelineMillis = -1L;
+        this.lastReplayTimelineMillis = -1L;
         this.replayCompatElapsedTicksFallback = 0.0F;
         this.loggedReplayTimelineFallback = false;
 
         if (this.replayCompatMode) {
             OptionalLong replayTimeline = ReplayPlaybackCompat.getReplayTimelineMillis();
             if (replayTimeline.isPresent()) {
-                this.replayCompatStartTimelineMillis = replayTimeline.getAsLong();
+                long replayNowMillis = replayTimeline.getAsLong();
+                this.replayCompatStartTimelineMillis = this.computeReplayStartTimelineMillis(replayNowMillis);
+                this.lastReplayTimelineMillis = replayNowMillis;
+                double elapsedTicks = this.computeReplayCompatElapsedTicksSignedSnapshot(replayNowMillis);
+                if (elapsedTicks < -REPLAY_WINDOW_EPSILON_TICKS) {
+                    this.clearReplayVisualLocally("replay_start_before_window");
+                    return;
+                }
+                if (elapsedTicks >= this.replayVisualWindowEndTicks()) {
+                    this.finishReplayVisualLocally(world, this.endTimeOfDay);
+                    return;
+                }
             }
+            this.applyReplayVisualSnapshot(world);
         } else if (this.isLiveClockUsable(world)) {
             this.cachedProgress = clamp01(this.computeLiveProgress(world, 0.0F));
             this.currentVisualDayTime = interpolateDayTime(this.cachedProgress);
@@ -220,10 +254,12 @@ public final class ClientSleepAnimationState {
     }
 
     public void finish(ClientLevel world, long sessionId, long finalDayTime, SleepAnimationStopReason reason) {
-        if (sessionId == this.closedSessionId && !this.active && !this.awaitingFinish) {
+        boolean replayCompatActive = SeamlessSleepClientConfigManager.get().replayCompatibilityEnabled
+                && ReplayPlaybackCompat.isReplayPlaybackActive();
+        if (!replayCompatActive && sessionId == this.closedSessionId && !this.active && !this.awaitingFinish) {
             return;
         }
-        if (sessionId < this.sessionId) {
+        if (!replayCompatActive && sessionId < this.sessionId) {
             return;
         }
 
@@ -264,13 +300,21 @@ public final class ClientSleepAnimationState {
             return;
         }
 
+        ReplayTimelineStep replayStep = this.replayCompatMode
+                ? this.updateReplayLifecycle(deltaTracker)
+                : ReplayTimelineStep.unavailable();
+        if (this.replayCompatMode && this.isBeforeReplayVisualWindow(replayStep)) {
+            this.clearReplayVisualLocally("replay_before_start");
+            return;
+        }
+
         if (this.mode == SleepAnimationMode.MADE_IN_HEAVEN_BED && this.phase == SleepAnimationPhase.RUNNING) {
-            this.tickMadeInHeavenRunning(world, deltaTracker);
+            this.tickMadeInHeavenRunning(world, deltaTracker, replayStep);
             return;
         }
 
         double x = this.replayCompatMode
-                ? this.computeReplayCompatProgress(deltaTracker)
+                ? this.computeReplayCompatProgress(replayStep)
                 : this.computeLiveProgressOrFallback(world, deltaTracker);
         x = clamp01(x);
         this.cachedProgress = x;
@@ -284,6 +328,9 @@ public final class ClientSleepAnimationState {
         this.currentVisualDayTime = newTimeOfDay;
 
         if (this.replayCompatMode) {
+            if (x >= 1.0D && this.shouldFinishFiniteReplayVisualLocally()) {
+                this.finishReplayVisualLocally(world, this.endTimeOfDay);
+            }
             return;
         }
 
@@ -325,12 +372,25 @@ public final class ClientSleepAnimationState {
         return this.durationTicks <= 0 ? 1.0D : elapsedTicks / this.durationTicks;
     }
 
-    private void tickMadeInHeavenRunning(ClientLevel world, DeltaTracker deltaTracker) {
-        double elapsedTicks = this.computeMadeInHeavenElapsedTicks(world, deltaTracker);
+    private void tickMadeInHeavenRunning(ClientLevel world, DeltaTracker deltaTracker, ReplayTimelineStep replayStep) {
+        if (this.replayCompatMode && this.isBeforeReplayVisualWindow(replayStep)) {
+            this.clearReplayVisualLocally("replay_before_start");
+            return;
+        }
+        if (this.replayCompatMode && this.isAfterReplayVisualWindow(replayStep)) {
+            this.finishReplayVisualLocally(world, this.endTimeOfDay);
+            return;
+        }
+
+        double elapsedTicks = this.computeMadeInHeavenElapsedTicks(world, deltaTracker, replayStep);
         double distance = SleepAnimationState.madeInHeavenDistanceForElapsed(elapsedTicks);
         long newTimeOfDay = this.startTimeOfDay + Math.max(0L, (long) distance);
         if (newTimeOfDay >= this.endTimeOfDay) {
             newTimeOfDay = this.endTimeOfDay;
+            if (this.replayCompatMode) {
+                this.finishReplayVisualLocally(world, newTimeOfDay);
+                return;
+            }
             this.awaitingFinish = true;
             this.finishGraceFrames++;
             if (this.finishGraceFrames >= FINISH_GRACE_FRAMES) {
@@ -342,7 +402,9 @@ public final class ClientSleepAnimationState {
             this.finishGraceFrames = 0;
         }
 
-        newTimeOfDay = Math.max(newTimeOfDay, this.currentVisualDayTime);
+        if (!this.replayCompatMode) {
+            newTimeOfDay = Math.max(newTimeOfDay, this.currentVisualDayTime);
+        }
         world.getLevelData().setDayTime(newTimeOfDay);
         this.currentVisualDayTime = newTimeOfDay;
 
@@ -350,9 +412,11 @@ public final class ClientSleepAnimationState {
         this.cachedProgress = delta <= 0L ? 0.0D : clamp01((newTimeOfDay - this.startTimeOfDay) / (double) delta);
     }
 
-    private double computeMadeInHeavenElapsedTicks(ClientLevel world, DeltaTracker deltaTracker) {
+    private double computeMadeInHeavenElapsedTicks(ClientLevel world,
+                                                  DeltaTracker deltaTracker,
+                                                  ReplayTimelineStep replayStep) {
         if (this.replayCompatMode) {
-            return this.computeReplayCompatElapsedTicks(deltaTracker);
+            return replayStep.elapsedTicks();
         }
         if (!this.isLiveClockUsable(world)) {
             return estimateMadeInHeavenElapsedTicks();
@@ -365,23 +429,68 @@ public final class ClientSleepAnimationState {
         return Math.max(0.0D, world.getGameTime() + partialTick - this.serverStartGameTime);
     }
 
-    private double computeReplayCompatElapsedTicks(DeltaTracker deltaTracker) {
+    private ReplayTimelineStep updateReplayLifecycle(DeltaTracker deltaTracker) {
         OptionalLong replayTimeline = ReplayPlaybackCompat.getReplayTimelineMillis();
         if (replayTimeline.isPresent()) {
             long replayNowMs = replayTimeline.getAsLong();
-
             if (this.replayCompatStartTimelineMillis < 0L) {
-                long fallbackElapsedMs = (long) (this.replayCompatElapsedTicksFallback * 50.0F);
-                this.replayCompatStartTimelineMillis = replayNowMs - fallbackElapsedMs;
+                this.replayCompatStartTimelineMillis = this.computeReplayStartTimelineMillis(replayNowMs);
             }
 
-            return Math.max(0.0D, (replayNowMs - this.replayCompatStartTimelineMillis) / 50.0D);
+            long deltaMillis = this.lastReplayTimelineMillis < 0L
+                    ? 0L
+                    : replayNowMs - this.lastReplayTimelineMillis;
+            boolean timelinePaused = this.lastReplayTimelineMillis >= 0L && deltaMillis == 0L;
+            boolean timelineSeek = this.lastReplayTimelineMillis >= 0L
+                    && (deltaMillis < 0L || deltaMillis > REPLAY_SEEK_THRESHOLD_MILLIS);
+            this.lastReplayTimelineMillis = replayNowMs;
+            if (timelinePaused || timelineSeek) {
+                this.awaitingFinish = false;
+                this.finishGraceFrames = 0;
+            }
+
+            double elapsedTicks = (replayNowMs - this.replayCompatStartTimelineMillis) / 50.0D;
+            return new ReplayTimelineStep(true, replayNowMs, deltaMillis, timelinePaused, timelineSeek, elapsedTicks);
         }
 
+        this.lastReplayTimelineMillis = -1L;
         if (deltaTracker != null) {
             this.replayCompatElapsedTicksFallback += Math.max(0.0F, deltaTracker.getGameTimeDeltaTicks());
         }
+        if (!this.loggedReplayTimelineFallback) {
+            this.loggedReplayTimelineFallback = true;
+            Constants.debug("Replay timeline was unavailable; using DeltaTracker fallback for sleep animation progress.");
+        }
+
+        return new ReplayTimelineStep(
+                false,
+                -1L,
+                deltaTracker == null ? 0L : (long) (Math.max(0.0F, deltaTracker.getGameTimeDeltaTicks()) * 50.0F),
+                false,
+                false,
+                this.replayCompatElapsedTicksFallback
+        );
+    }
+
+    private double computeReplayCompatElapsedTicksSnapshot() {
+        return Math.max(0.0D, this.computeReplayCompatElapsedTicksSignedSnapshot());
+    }
+
+    private double computeReplayCompatElapsedTicksSignedSnapshot() {
+        OptionalLong replayTimeline = ReplayPlaybackCompat.getReplayTimelineMillis();
+        if (replayTimeline.isPresent()) {
+            long replayNowMs = replayTimeline.getAsLong();
+            return this.computeReplayCompatElapsedTicksSignedSnapshot(replayNowMs);
+        }
+
         return this.replayCompatElapsedTicksFallback;
+    }
+
+    private double computeReplayCompatElapsedTicksSignedSnapshot(long replayNowMs) {
+        long replayStartMs = this.replayCompatStartTimelineMillis >= 0L
+                ? this.replayCompatStartTimelineMillis
+                : this.computeReplayStartTimelineMillis(replayNowMs);
+        return (replayNowMs - replayStartMs) / (double) MILLIS_PER_TICK;
     }
 
     private double estimateMadeInHeavenElapsedTicks() {
@@ -427,27 +536,20 @@ public final class ClientSleepAnimationState {
                 || Math.abs(localGameTime - this.serverGameTimeAtSend) <= maxExpectedDrift;
     }
 
-    private double computeReplayCompatProgress(DeltaTracker deltaTracker) {
+    private double computeReplayCompatProgress(ReplayTimelineStep replayStep) {
+        if (this.durationTicks <= 0) {
+            return 1.0;
+        }
+
+        return replayStep.elapsedTicks() / (double) this.durationTicks;
+    }
+
+    private double computeReplayCompatProgressSnapshot() {
         OptionalLong replayTimeline = ReplayPlaybackCompat.getReplayTimelineMillis();
         if (replayTimeline.isPresent()) {
-            long replayNowMs = replayTimeline.getAsLong();
-
-            if (this.replayCompatStartTimelineMillis < 0L) {
-                long fallbackElapsedMs = (long) (this.replayCompatElapsedTicksFallback * 50.0F);
-                this.replayCompatStartTimelineMillis = replayNowMs - fallbackElapsedMs;
-            }
-
-            long elapsedReplayMs = replayNowMs - this.replayCompatStartTimelineMillis;
             double totalMs = (double) this.durationTicks * 50.0;
-            return totalMs <= 0.0 ? 1.0 : elapsedReplayMs / totalMs;
-        }
-
-        if (deltaTracker != null) {
-            this.replayCompatElapsedTicksFallback += Math.max(0.0F, deltaTracker.getGameTimeDeltaTicks());
-        }
-        if (!this.loggedReplayTimelineFallback) {
-            this.loggedReplayTimelineFallback = true;
-            Constants.debug("Replay timeline was unavailable; using DeltaTracker fallback for sleep animation progress.");
+            double elapsedTicks = this.computeReplayCompatElapsedTicksSignedSnapshot(replayTimeline.getAsLong());
+            return totalMs <= 0.0 ? 1.0 : (elapsedTicks * MILLIS_PER_TICK) / totalMs;
         }
 
         if (this.durationTicks <= 0) {
@@ -457,27 +559,92 @@ public final class ClientSleepAnimationState {
         return this.replayCompatElapsedTicksFallback / (double) this.durationTicks;
     }
 
-    private double computeReplayCompatProgressSnapshot() {
+    private void applyReplayVisualSnapshot(ClientLevel world) {
+        if (this.mode == SleepAnimationMode.MADE_IN_HEAVEN_BED && this.phase == SleepAnimationPhase.RUNNING) {
+            double elapsedTicks = this.computeReplayCompatElapsedTicksSnapshot();
+            double distance = SleepAnimationState.madeInHeavenDistanceForElapsed(elapsedTicks);
+            long replayTimeOfDay = this.startTimeOfDay + Math.max(0L, (long) distance);
+            replayTimeOfDay = Math.min(replayTimeOfDay, this.endTimeOfDay);
+            world.getLevelData().setDayTime(replayTimeOfDay);
+            this.currentVisualDayTime = replayTimeOfDay;
+            long delta = this.endTimeOfDay - this.startTimeOfDay;
+            this.cachedProgress = delta <= 0L
+                    ? 0.0D
+                    : clamp01((replayTimeOfDay - this.startTimeOfDay) / (double) delta);
+            return;
+        }
+
+        double progress = clamp01(this.computeReplayCompatProgressSnapshot());
+        long replayTimeOfDay = interpolateDayTime(progress);
+        world.getLevelData().setDayTime(replayTimeOfDay);
+        this.currentVisualDayTime = replayTimeOfDay;
+        this.cachedProgress = progress;
+    }
+
+    private long computeReplayStartTimelineMillis(long replayNowMillis) {
+        if (this.serverStartGameTime > 0L && this.serverGameTimeAtSend >= this.serverStartGameTime) {
+            long elapsedServerTicksAtSend = this.serverGameTimeAtSend - this.serverStartGameTime;
+            return replayNowMillis - elapsedServerTicksAtSend * MILLIS_PER_TICK;
+        }
+
+        long fallbackElapsedMillis = (long) (this.replayCompatElapsedTicksFallback * MILLIS_PER_TICK);
+        return replayNowMillis - fallbackElapsedMillis;
+    }
+
+    private boolean shouldFinishFiniteReplayVisualLocally() {
+        return this.phase == SleepAnimationPhase.BRAKING
+                || this.mode == SleepAnimationMode.NORMAL_SLEEP
+                || this.mode == SleepAnimationMode.COMMAND_TIMELAPSE;
+    }
+
+    private void finishReplayVisualLocally(ClientLevel world, long finalDayTime) {
+        world.getLevelData().setDayTime(finalDayTime);
+        this.currentAuthoritativeDayTime = finalDayTime;
+        this.currentVisualDayTime = finalDayTime;
+        this.cachedProgress = 1.0D;
+        this.phase = SleepAnimationPhase.FINISHED;
+        this.clearPlaybackState(true);
+    }
+
+    private void clearReplayVisualLocally(String reason) {
+        Constants.debug("Client sleep animation replay visual cleared: {} (session {})", reason, this.sessionId);
+        this.clearPlaybackState(true);
+    }
+
+    private boolean isActiveForReplayTimelineSnapshot() {
+        if (!this.active) {
+            return false;
+        }
+        if (!this.replayCompatMode) {
+            return true;
+        }
+
         OptionalLong replayTimeline = ReplayPlaybackCompat.getReplayTimelineMillis();
-        if (replayTimeline.isPresent()) {
-            long replayNowMs = replayTimeline.getAsLong();
-            long replayStartMs = this.replayCompatStartTimelineMillis;
-
-            if (replayStartMs < 0L) {
-                long fallbackElapsedMs = (long) (this.replayCompatElapsedTicksFallback * 50.0F);
-                replayStartMs = replayNowMs - fallbackElapsedMs;
-            }
-
-            long elapsedReplayMs = replayNowMs - replayStartMs;
-            double totalMs = (double) this.durationTicks * 50.0;
-            return totalMs <= 0.0 ? 1.0 : elapsedReplayMs / totalMs;
+        if (replayTimeline.isEmpty()) {
+            return true;
         }
 
-        if (this.durationTicks <= 0) {
-            return 1.0;
-        }
+        double elapsedTicks = this.computeReplayCompatElapsedTicksSignedSnapshot(replayTimeline.getAsLong());
+        return elapsedTicks >= -REPLAY_WINDOW_EPSILON_TICKS
+                && elapsedTicks < this.replayVisualWindowEndTicks();
+    }
 
-        return this.replayCompatElapsedTicksFallback / (double) this.durationTicks;
+    private boolean isBeforeReplayVisualWindow(ReplayTimelineStep replayStep) {
+        return replayStep.timelineAvailable()
+                && replayStep.elapsedTicks() < -REPLAY_WINDOW_EPSILON_TICKS;
+    }
+
+    private boolean isAfterReplayVisualWindow(ReplayTimelineStep replayStep) {
+        return replayStep.timelineAvailable()
+                && replayStep.elapsedTicks() >= this.replayVisualWindowEndTicks();
+    }
+
+    private double replayVisualWindowEndTicks() {
+        if (this.mode == SleepAnimationMode.MADE_IN_HEAVEN_BED && this.phase == SleepAnimationPhase.RUNNING) {
+            long visualDistance = Math.max(0L, this.endTimeOfDay - this.startTimeOfDay);
+            return Math.max(1.0D, estimateMadeInHeavenElapsedTicksForDistance(visualDistance));
+        }
+        return Math.max(1.0D, this.durationTicks);
     }
 
     private long interpolateDayTime(double progress) {
@@ -506,6 +673,7 @@ public final class ClientSleepAnimationState {
         this.finishGraceFrames = 0;
         this.replayCompatMode = false;
         this.replayCompatStartTimelineMillis = -1L;
+        this.lastReplayTimelineMillis = -1L;
         this.replayCompatElapsedTicksFallback = 0.0F;
         this.loggedReplayTimelineFallback = false;
         if (!keepWorldAnchor) {
@@ -526,5 +694,18 @@ public final class ClientSleepAnimationState {
     private static boolean isNightStart(long timeOfDay) {
         long wrapped = Math.floorMod(timeOfDay, DAY_TICKS);
         return wrapped >= NIGHT_START_TICKS && wrapped < NIGHT_END_TICKS;
+    }
+
+    private record ReplayTimelineStep(
+            boolean timelineAvailable,
+            long nowMillis,
+            long deltaMillis,
+            boolean paused,
+            boolean seek,
+            double elapsedTicks
+    ) {
+        private static ReplayTimelineStep unavailable() {
+            return new ReplayTimelineStep(false, -1L, 0L, false, false, 0.0D);
+        }
     }
 }

@@ -53,7 +53,7 @@ public record SleepIndicatorContext(
         long visualDayTime = level.getDayTime();
         long wrappedDayTime = Math.floorMod(visualDayTime, DAY_TICKS);
         float normalizedDayTime = wrappedDayTime / (float) DAY_TICKS;
-        boolean animationActive = sleepAnimation != null && sleepAnimation.isActive();
+        boolean animationActive = sleepAnimation != null && sleepAnimation.isVisualOverlayActive();
         float rainLevel = level.getRainLevel(tickDelta);
         float thunderLevel = level.getThunderLevel(tickDelta);
         Camera camera = client.gameRenderer == null ? null : client.gameRenderer.getMainCamera();

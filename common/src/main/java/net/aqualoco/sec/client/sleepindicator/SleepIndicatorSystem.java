@@ -93,7 +93,7 @@ public final class SleepIndicatorSystem {
         return switch (config.visibility()) {
             case ALWAYS -> true;
             case BED -> ClientBedWorkflow.isManagedBedState(player);
-            case SLEEP -> sleepAnimation != null && sleepAnimation.isActive();
+            case SLEEP -> sleepAnimation != null && sleepAnimation.shouldRenderSleepIndicator();
         };
     }
 
