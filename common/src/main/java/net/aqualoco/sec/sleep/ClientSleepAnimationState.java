@@ -18,6 +18,7 @@ public final class ClientSleepAnimationState {
     private static final long MILLIS_PER_TICK = 50L;
     private static final long REPLAY_SEEK_THRESHOLD_MILLIS = 1000L;
     private static final double REPLAY_WINDOW_EPSILON_TICKS = 0.5D;
+    private static final long REPLAY_FINITE_ELAPSED_TOLERANCE_TICKS = 20L;
 
     private boolean active;
     private long sessionId = -1L;
@@ -43,6 +44,7 @@ public final class ClientSleepAnimationState {
     private long lastReplayTimelineMillis;
     private float replayCompatElapsedTicksFallback;
     private boolean loggedReplayTimelineFallback;
+    private boolean replayCompatPendingWorldTimeReanchor;
 
     public boolean isActive() {
         return this.active;
@@ -220,13 +222,15 @@ public final class ClientSleepAnimationState {
         this.lastReplayTimelineMillis = -1L;
         this.replayCompatElapsedTicksFallback = 0.0F;
         this.loggedReplayTimelineFallback = false;
+        this.replayCompatPendingWorldTimeReanchor = false;
 
         if (this.replayCompatMode) {
             OptionalLong replayTimeline = ReplayPlaybackCompat.getReplayTimelineMillis();
             if (replayTimeline.isPresent()) {
                 long replayNowMillis = replayTimeline.getAsLong();
-                this.replayCompatStartTimelineMillis = this.computeReplayStartTimelineMillis(replayNowMillis);
+                this.replayCompatStartTimelineMillis = this.computeReplayStartTimelineMillis(world, replayNowMillis);
                 this.lastReplayTimelineMillis = replayNowMillis;
+                this.replayCompatPendingWorldTimeReanchor = true;
                 double elapsedTicks = this.computeReplayCompatElapsedTicksSignedSnapshot(replayNowMillis);
                 if (elapsedTicks < -REPLAY_WINDOW_EPSILON_TICKS) {
                     this.clearReplayVisualLocally("replay_start_before_window");
@@ -301,7 +305,7 @@ public final class ClientSleepAnimationState {
         }
 
         ReplayTimelineStep replayStep = this.replayCompatMode
-                ? this.updateReplayLifecycle(deltaTracker)
+                ? this.updateReplayLifecycle(world, deltaTracker)
                 : ReplayTimelineStep.unavailable();
         if (this.replayCompatMode && this.isBeforeReplayVisualWindow(replayStep)) {
             this.clearReplayVisualLocally("replay_before_start");
@@ -429,12 +433,14 @@ public final class ClientSleepAnimationState {
         return Math.max(0.0D, world.getGameTime() + partialTick - this.serverStartGameTime);
     }
 
-    private ReplayTimelineStep updateReplayLifecycle(DeltaTracker deltaTracker) {
+    private ReplayTimelineStep updateReplayLifecycle(ClientLevel world, DeltaTracker deltaTracker) {
         OptionalLong replayTimeline = ReplayPlaybackCompat.getReplayTimelineMillis();
         if (replayTimeline.isPresent()) {
             long replayNowMs = replayTimeline.getAsLong();
             if (this.replayCompatStartTimelineMillis < 0L) {
-                this.replayCompatStartTimelineMillis = this.computeReplayStartTimelineMillis(replayNowMs);
+                this.replayCompatStartTimelineMillis = this.computeReplayStartTimelineMillis(world, replayNowMs);
+            } else if (this.replayCompatPendingWorldTimeReanchor) {
+                this.tryReanchorReplayStartFromWorldTime(world, replayNowMs);
             }
 
             long deltaMillis = this.lastReplayTimelineMillis < 0L
@@ -581,6 +587,15 @@ public final class ClientSleepAnimationState {
         this.cachedProgress = progress;
     }
 
+    private long computeReplayStartTimelineMillis(ClientLevel world, long replayNowMillis) {
+        OptionalLong worldElapsedTicks = this.computeReplayWorldElapsedTicks(world);
+        if (worldElapsedTicks.isPresent()) {
+            return replayNowMillis - worldElapsedTicks.getAsLong() * MILLIS_PER_TICK;
+        }
+
+        return this.computeReplayStartTimelineMillis(replayNowMillis);
+    }
+
     private long computeReplayStartTimelineMillis(long replayNowMillis) {
         if (this.serverStartGameTime > 0L && this.serverGameTimeAtSend >= this.serverStartGameTime) {
             long elapsedServerTicksAtSend = this.serverGameTimeAtSend - this.serverStartGameTime;
@@ -589,6 +604,50 @@ public final class ClientSleepAnimationState {
 
         long fallbackElapsedMillis = (long) (this.replayCompatElapsedTicksFallback * MILLIS_PER_TICK);
         return replayNowMillis - fallbackElapsedMillis;
+    }
+
+    private void tryReanchorReplayStartFromWorldTime(ClientLevel world, long replayNowMillis) {
+        this.replayCompatPendingWorldTimeReanchor = false;
+        OptionalLong worldElapsedTicks = this.computeReplayWorldElapsedTicks(world);
+        if (worldElapsedTicks.isEmpty()) {
+            return;
+        }
+
+        double currentElapsedTicks = this.computeReplayCompatElapsedTicksSignedSnapshot(replayNowMillis);
+        long resolvedElapsedTicks = worldElapsedTicks.getAsLong();
+        if (Math.abs(resolvedElapsedTicks - currentElapsedTicks) <= REPLAY_WINDOW_EPSILON_TICKS) {
+            return;
+        }
+
+        this.replayCompatStartTimelineMillis = replayNowMillis - resolvedElapsedTicks * MILLIS_PER_TICK;
+        Constants.debug(
+                "Client sleep animation replay reanchored from world gameTime: elapsed {} ticks (was {})",
+                resolvedElapsedTicks,
+                currentElapsedTicks
+        );
+    }
+
+    private OptionalLong computeReplayWorldElapsedTicks(ClientLevel world) {
+        if (world == null || this.serverStartGameTime <= 0L) {
+            return OptionalLong.empty();
+        }
+
+        long localGameTime = world.getGameTime();
+        if (localGameTime < this.serverStartGameTime) {
+            return OptionalLong.empty();
+        }
+
+        long elapsedTicks = localGameTime - this.serverStartGameTime;
+        return OptionalLong.of(this.normalizeReplayWorldElapsedTicks(elapsedTicks));
+    }
+
+    private long normalizeReplayWorldElapsedTicks(long elapsedTicks) {
+        if (this.mode == SleepAnimationMode.MADE_IN_HEAVEN_BED && this.phase == SleepAnimationPhase.RUNNING) {
+            return elapsedTicks;
+        }
+
+        long finiteWindowLimit = Math.max(1L, this.durationTicks) + REPLAY_FINITE_ELAPSED_TOLERANCE_TICKS;
+        return Math.min(elapsedTicks, finiteWindowLimit);
     }
 
     private boolean shouldFinishFiniteReplayVisualLocally() {
@@ -676,6 +735,7 @@ public final class ClientSleepAnimationState {
         this.lastReplayTimelineMillis = -1L;
         this.replayCompatElapsedTicksFallback = 0.0F;
         this.loggedReplayTimelineFallback = false;
+        this.replayCompatPendingWorldTimeReanchor = false;
         if (!keepWorldAnchor) {
             this.activeWorldIdentity = 0;
         }
