@@ -6,6 +6,7 @@ import net.aqualoco.sec.Constants;
 import net.aqualoco.sec.client.sleepindicator.SleepIndicatorAnchor;
 import net.aqualoco.sec.client.sleepindicator.SleepIndicatorMode;
 import net.aqualoco.sec.client.sleepindicator.SleepIndicatorVisibility;
+import net.aqualoco.sec.client.sleepindicator.TimestampStyle;
 import net.aqualoco.sec.client.sleepvisual.SleepZzzConfigBridge;
 import net.aqualoco.sec.client.sleepvisual.SleepZzzStyle;
 import net.aqualoco.sec.platform.Services;
@@ -22,7 +23,7 @@ public final class SeamlessSleepClientConfigManager {
     private static final String FILE_NAME = "seamless_sleep.toml";
     private static final String LEGACY_JSON_FILE_NAME = "seamless_sleep.json";
     private static final String LEGACY_JSONC_FILE_NAME = "seamless_sleep.jsonc";
-    private static final int CONFIG_VERSION = 5;
+    private static final int CONFIG_VERSION = 6;
 
     private static SeamlessSleepClientConfig config = defaultConfig();
     private static Path configPath;
@@ -124,6 +125,8 @@ public final class SeamlessSleepClientConfigManager {
         cfg.sleepIndicatorAnchor = readEnum(file, List.of("sleep_indicator", "anchor"), "sleepIndicatorAnchor", SleepIndicatorAnchor.class, cfg.sleepIndicatorAnchor);
         cfg.sleepIndicatorVisibility = readEnum(file, List.of("sleep_indicator", "visibility"), "sleepIndicatorVisibility", SleepIndicatorVisibility.class, cfg.sleepIndicatorVisibility);
         cfg.sleepIndicatorScale = readDouble(file, List.of("sleep_indicator", "scale"), "sleepIndicatorScale", cfg.sleepIndicatorScale);
+        cfg.timestampStyle = readEnum(file, List.of("sleep_indicator", "timestamp", "style"), "timestampStyle", TimestampStyle.class, cfg.timestampStyle);
+        cfg.timestampColor = sanitizeRgb(readInt(file, List.of("sleep_indicator", "timestamp", "color"), "timestampColor", cfg.timestampColor));
         cfg.sleepZzzChance = readInt(file, List.of("sleep_zzz", "chance"), "sleepZzzChance", cfg.sleepZzzChance);
         cfg.sleepZzzStyle = readEnum(file, List.of("sleep_zzz", "style"), "sleepZzzStyle", SleepZzzStyle.class, SleepZzzConfigBridge.DEFAULT_STYLE).name();
         cfg.sleepChatTextOpacityMultiplier = readDouble(file, List.of("chat", "sleepChatTextOpacityMultiplier"), "sleepChatTextOpacityMultiplier", cfg.sleepChatTextOpacityMultiplier);
@@ -164,7 +167,7 @@ public final class SeamlessSleepClientConfigManager {
         appendSectionGap(sb, 2);
         appendSectionHeader(sb, "sleep_indicator");
         appendEntry(sb,
-                "Sleep indicator renderer. Range: OFF | TEXT | BIOME_CLOCK. Default: BIOME_CLOCK",
+                "Sleep indicator renderer. Range: OFF | TEXT | BIOME_CLOCK | TIMESTAMP. Default: BIOME_CLOCK",
                 "mode",
                 toTomlString(cfg.sleepIndicatorMode.name()));
         appendEntry(sb,
@@ -179,6 +182,17 @@ public final class SeamlessSleepClientConfigManager {
                 "Sleep indicator visual scale. Range: 0.25 to 4.0. Default: 1.0",
                 "scale",
                 Double.toString(cfg.sleepIndicatorScale));
+
+        appendSectionGap(sb, 1);
+        appendSectionHeader(sb, "sleep_indicator.timestamp");
+        appendEntry(sb,
+                "Timestamp layout. Range: DAY_FIRST | TIME_FIRST. Default: DAY_FIRST",
+                "style",
+                toTomlString(cfg.timestampStyle.name()));
+        appendEntry(sb,
+                "Timestamp text color as RGB decimal. Default: 16777215 (white)",
+                "color",
+                Integer.toString(sanitizeRgb(cfg.timestampColor)));
 
         appendSectionGap(sb, 2);
         appendSectionHeader(sb, "sleep_zzz");
@@ -281,6 +295,10 @@ public final class SeamlessSleepClientConfigManager {
     private static int readInt(CommentedFileConfig file, List<String> path, String legacyKey, int fallback) {
         Object value = readRaw(file, path, legacyKey);
         return value instanceof Number number ? number.intValue() : fallback;
+    }
+
+    private static int sanitizeRgb(int value) {
+        return value & 0x00FFFFFF;
     }
 
     private static double readDouble(CommentedFileConfig file, List<String> path, String legacyKey, double fallback) {

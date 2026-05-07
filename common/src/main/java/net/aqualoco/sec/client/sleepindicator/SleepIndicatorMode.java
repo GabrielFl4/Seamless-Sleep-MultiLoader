@@ -4,5 +4,6 @@ package net.aqualoco.sec.client.sleepindicator;
 public enum SleepIndicatorMode {
     OFF,
     TEXT,
-    BIOME_CLOCK
+    BIOME_CLOCK,
+    TIMESTAMP
 }

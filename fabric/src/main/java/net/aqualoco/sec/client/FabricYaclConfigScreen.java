@@ -8,6 +8,7 @@ import dev.isxander.yacl3.api.OptionDescription;
 import dev.isxander.yacl3.api.OptionGroup;
 import dev.isxander.yacl3.api.YetAnotherConfigLib;
 import dev.isxander.yacl3.api.controller.BooleanControllerBuilder;
+import dev.isxander.yacl3.api.controller.ColorControllerBuilder;
 import dev.isxander.yacl3.api.controller.ControllerBuilder;
 import dev.isxander.yacl3.api.controller.DoubleSliderControllerBuilder;
 import dev.isxander.yacl3.api.controller.EnumControllerBuilder;
@@ -21,6 +22,7 @@ import dev.isxander.yacl3.gui.utils.GuiUtils;
 import net.aqualoco.sec.client.sleepindicator.SleepIndicatorAnchor;
 import net.aqualoco.sec.client.sleepindicator.SleepIndicatorMode;
 import net.aqualoco.sec.client.sleepindicator.SleepIndicatorVisibility;
+import net.aqualoco.sec.client.sleepindicator.TimestampStyle;
 import net.aqualoco.sec.client.sleepvisual.SleepZzzConfigBridge;
 import net.aqualoco.sec.client.sleepvisual.SleepZzzStyle;
 import net.aqualoco.sec.config.ServerConfigMutationService;
@@ -52,6 +54,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 
+import java.awt.Color;
 import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.Locale;
@@ -667,19 +670,43 @@ final class FabricYaclConfigScreen {
                 true,
                 FabricYaclConfigScreen::formatMultiplierValue
         );
-
+        Option<TimestampStyle> timestampStyleOption = buildEnumOption(
+                Component.translatable("config.seamlesssleep.sleep_indicator.timestamp.style"),
+                Component.translatable("config.seamlesssleep.sleep_indicator.timestamp.style.desc"),
+                Component.empty(),
+                TimestampStyle.DAY_FIRST,
+                TimestampStyle.class,
+                () -> cfg.timestampStyle,
+                value -> cfg.timestampStyle = value == null ? TimestampStyle.DAY_FIRST : value,
+                true,
+                value -> enumText("config.seamlesssleep.sleep_indicator.timestamp.style", value)
+        );
+        Option<Color> timestampColorOption = buildColorOption(
+                Component.translatable("config.seamlesssleep.sleep_indicator.timestamp.color"),
+                Component.translatable("config.seamlesssleep.sleep_indicator.timestamp.color.desc"),
+                Component.empty(),
+                new Color(SeamlessSleepClientConfig.DEFAULT_TIMESTAMP_COLOR | 0xFF000000, true),
+                () -> new Color((cfg.timestampColor & 0x00FFFFFF) | 0xFF000000, true),
+                value -> cfg.timestampColor = value == null
+                        ? SeamlessSleepClientConfig.DEFAULT_TIMESTAMP_COLOR
+                        : value.getRGB() & 0x00FFFFFF,
+                true
+        );
         Runnable refreshIndicatorOptions = () -> {
             SleepIndicatorMode mode = cfg.sleepIndicatorMode == null
                     ? SleepIndicatorMode.BIOME_CLOCK
                     : cfg.sleepIndicatorMode;
             boolean indicatorEnabled = mode != SleepIndicatorMode.OFF;
+            boolean timestampEnabled = mode == SleepIndicatorMode.TIMESTAMP;
             if (mode == SleepIndicatorMode.TEXT) {
                 cfg.sleepIndicatorVisibility = SleepIndicatorVisibility.SLEEP;
                 setPendingIfChanged(visibilityOption, SleepIndicatorVisibility.SLEEP);
             }
             anchorOption.setAvailable(indicatorEnabled);
             scaleOption.setAvailable(indicatorEnabled);
-            visibilityOption.setAvailable(mode == SleepIndicatorMode.BIOME_CLOCK);
+            visibilityOption.setAvailable(mode == SleepIndicatorMode.BIOME_CLOCK || mode == SleepIndicatorMode.TIMESTAMP);
+            timestampStyleOption.setAvailable(timestampEnabled);
+            timestampColorOption.setAvailable(timestampEnabled);
         };
 
         listen(modeOption, value -> {
@@ -689,6 +716,10 @@ final class FabricYaclConfigScreen {
         listen(anchorOption, value -> cfg.sleepIndicatorAnchor = value == null ? SleepIndicatorAnchor.TOP_LEFT : value);
         listen(visibilityOption, value -> cfg.sleepIndicatorVisibility = value == null ? SleepIndicatorVisibility.SLEEP : value);
         listen(scaleOption, value -> cfg.sleepIndicatorScale = value);
+        listen(timestampStyleOption, value -> cfg.timestampStyle = value == null ? TimestampStyle.DAY_FIRST : value);
+        listen(timestampColorOption, value -> cfg.timestampColor = value == null
+                ? SeamlessSleepClientConfig.DEFAULT_TIMESTAMP_COLOR
+                : value.getRGB() & 0x00FFFFFF);
         refreshIndicatorOptions.run();
 
         return OptionGroup.createBuilder()
@@ -699,6 +730,8 @@ final class FabricYaclConfigScreen {
                 .option(anchorOption)
                 .option(visibilityOption)
                 .option(scaleOption)
+                .option(timestampStyleOption)
+                .option(timestampColorOption)
                 .build();
     }
 
@@ -861,6 +894,25 @@ final class FabricYaclConfigScreen {
                 StringControllerBuilder::create,
                 session,
                 field);
+        builder.available(available);
+        return builder.build();
+    }
+
+    private static Option<Color> buildColorOption(Component name,
+                                                  Component description,
+                                                  Component disabledReason,
+                                                  Color def,
+                                                  Supplier<Color> getter,
+                                                  Consumer<Color> setter,
+                                                  boolean available) {
+        OptionDescription optionDescription = optionDescription(description, disabledReason, available);
+        Option.Builder<Color> builder = withConflictController(Option.<Color>createBuilder()
+                .name(name)
+                .description(optionDescription)
+                .binding(def, getter::get, setter::accept),
+                opt -> ColorControllerBuilder.create(opt).allowAlpha(false),
+                null,
+                null);
         builder.available(available);
         return builder.build();
     }

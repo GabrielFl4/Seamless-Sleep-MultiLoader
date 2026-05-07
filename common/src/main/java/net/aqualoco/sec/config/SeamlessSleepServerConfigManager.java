@@ -434,7 +434,7 @@ public final class SeamlessSleepServerConfigManager {
                 "manual_speed_percent",
                 Integer.toString(cfg.worldSleepAcceleration.manualAccelerationSpeedPercent));
         appendEntry(sb,
-                "Enable safe grass, spreadables and foliage acceleration for random ticks",
+                "Enable safe grass, spreadables, foliage and copper weathering acceleration for random ticks",
                 "grass_and_foliage_acceleration_enabled",
                 Boolean.toString(cfg.worldSleepAcceleration.grassAndFoliageAccelerationEnabled));
         appendEntry(sb,

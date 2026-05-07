@@ -23,6 +23,7 @@ import net.minecraft.world.level.block.SpreadingSnowyDirtBlock;
 import net.minecraft.world.level.block.StemBlock;
 import net.minecraft.world.level.block.SugarCaneBlock;
 import net.minecraft.world.level.block.SweetBerryBushBlock;
+import net.minecraft.world.level.block.WeatheringCopper;
 import net.minecraft.world.level.block.state.BlockState;
 
 public final class WorldSleepRandomTickFilters {
@@ -157,6 +158,7 @@ public final class WorldSleepRandomTickFilters {
                 || block instanceof LeavesBlock
                 || block instanceof MushroomBlock
                 || block instanceof ChorusFlowerBlock
+                || block instanceof WeatheringCopper
                 || (block instanceof GrowingPlantHeadBlock && !(block instanceof KelpBlock));
     }
 

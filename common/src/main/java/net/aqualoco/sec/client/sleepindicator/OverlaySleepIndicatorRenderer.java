@@ -27,6 +27,13 @@ public final class OverlaySleepIndicatorRenderer implements SleepIndicatorRender
     }
 
     @Override
+    public IndicatorSize measure(SleepIndicatorContext context) {
+        Minecraft client = context.client();
+        Component text = resolveText(context.visualContext());
+        return new IndicatorSize(client.font.width(text), HEIGHT);
+    }
+
+    @Override
     public void render(GuiGraphics graphics, SleepIndicatorContext context, float tickDelta) {
         Minecraft client = context.client();
         Component text = resolveText(context.visualContext());

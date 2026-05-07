@@ -3,6 +3,7 @@ package net.aqualoco.sec.config;
 import net.aqualoco.sec.client.sleepindicator.SleepIndicatorAnchor;
 import net.aqualoco.sec.client.sleepindicator.SleepIndicatorMode;
 import net.aqualoco.sec.client.sleepindicator.SleepIndicatorVisibility;
+import net.aqualoco.sec.client.sleepindicator.TimestampStyle;
 import net.aqualoco.sec.client.sleepvisual.SleepZzzConfigBridge;
 
 // Client-side visual settings with validation bounds for safe values.
@@ -17,6 +18,7 @@ public final class SeamlessSleepClientConfig {
     private static final double DEFAULT_TILT_DEGREES = 10.0D;
     private static final int DEFAULT_MOUSE_SMOOTHNESS_PERCENT = 100;
     private static final double DEFAULT_SLEEP_INDICATOR_SCALE = 1.0D;
+    public static final int DEFAULT_TIMESTAMP_COLOR = 0x00FFFFFF;
     private static final double MIN_SLEEP_INDICATOR_SCALE = 0.25D;
     private static final double MAX_SLEEP_INDICATOR_SCALE = 4.0D;
     private static final int MIN_SLEEP_ZZZ_CHANCE = 0;
@@ -36,6 +38,8 @@ public final class SeamlessSleepClientConfig {
     public SleepIndicatorAnchor sleepIndicatorAnchor = SleepIndicatorAnchor.TOP_LEFT;
     public SleepIndicatorVisibility sleepIndicatorVisibility = SleepIndicatorVisibility.SLEEP;
     public double sleepIndicatorScale = DEFAULT_SLEEP_INDICATOR_SCALE;
+    public TimestampStyle timestampStyle = TimestampStyle.DAY_FIRST;
+    public int timestampColor = DEFAULT_TIMESTAMP_COLOR;
     public int sleepZzzChance = SleepZzzConfigBridge.DEFAULT_CHANCE;
     public String sleepZzzStyle = SleepZzzConfigBridge.DEFAULT_STYLE.name();
 
@@ -61,6 +65,9 @@ public final class SeamlessSleepClientConfig {
         if (sleepIndicatorVisibility == null) {
             sleepIndicatorVisibility = SleepIndicatorVisibility.SLEEP;
         }
+        if (timestampStyle == null) {
+            timestampStyle = TimestampStyle.DAY_FIRST;
+        }
         if (sleepIndicatorMode == SleepIndicatorMode.TEXT) {
             sleepIndicatorVisibility = SleepIndicatorVisibility.SLEEP;
         }
@@ -83,6 +90,7 @@ public final class SeamlessSleepClientConfig {
                 MAX_SLEEP_INDICATOR_SCALE,
                 DEFAULT_SLEEP_INDICATOR_SCALE
         );
+        timestampColor &= 0x00FFFFFF;
         sleepZzzChance = clampInt(sleepZzzChance, MIN_SLEEP_ZZZ_CHANCE, MAX_SLEEP_ZZZ_CHANCE, SleepZzzConfigBridge.DEFAULT_CHANCE);
         sleepZzzStyle = SleepZzzConfigBridge.parseStyle(sleepZzzStyle).name();
         sleepChatMaxLines = clampInt(sleepChatMaxLines, 0, 12, DEFAULT_CHAT_MAX_LINES);

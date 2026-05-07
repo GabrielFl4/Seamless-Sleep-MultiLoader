@@ -15,6 +15,7 @@ public final class SleepIndicatorSystem {
     private static final long DUPLICATE_RENDER_WINDOW_NANOS = 1_000_000L;
     private static final SleepIndicatorRenderer OVERLAY_RENDERER = new OverlaySleepIndicatorRenderer();
     private static final SleepIndicatorRenderer BIOME_CLOCK_RENDERER = new BiomeClockSleepIndicatorRenderer();
+    private static final SleepIndicatorRenderer TIMESTAMP_RENDERER = new TimestampSleepIndicatorRenderer();
     private static final SleepIndicatorPresentationState PRESENTATION = new SleepIndicatorPresentationState();
     private static GuiGraphics lastRenderedGraphics;
     private static long lastRenderNanos;
@@ -53,11 +54,12 @@ public final class SleepIndicatorSystem {
 
         float tickDelta = deltaTracker == null ? 0.0F : deltaTracker.getGameTimeDeltaPartialTick(false);
         SleepIndicatorContext context = SleepIndicatorContext.create(client, level, player, sleepAnimation, tickDelta);
+        IndicatorSize measuredSize = renderer.measure(context);
         SleepIndicatorPlacement placement = SleepIndicatorPlacement.resolve(
                 graphics.guiWidth(),
                 graphics.guiHeight(),
-                renderer.width(),
-                renderer.height(),
+                measuredSize.width(),
+                measuredSize.height(),
                 config.anchor(),
                 config.scale(),
                 DEFAULT_MARGIN
@@ -66,8 +68,8 @@ public final class SleepIndicatorSystem {
         SleepIndicatorContext animatedContext = context.withAlphaMultiplier(PRESENTATION.alpha());
         float animatedScale = placement.scale() * PRESENTATION.scaleMultiplier();
         float animatedOffsetY = PRESENTATION.offsetY() * placement.scale();
-        float pivotX = pivotX(config.anchor(), renderer.width());
-        float pivotY = pivotY(config.anchor(), renderer.height());
+        float pivotX = pivotX(config.anchor(), measuredSize.width());
+        float pivotY = pivotY(config.anchor(), measuredSize.height());
         float animatedX = placement.x() + pivotX * placement.scale() - pivotX * animatedScale;
         float animatedY = placement.y() + animatedOffsetY + pivotY * placement.scale() - pivotY * animatedScale;
 
@@ -102,6 +104,7 @@ public final class SleepIndicatorSystem {
             case OFF -> null;
             case TEXT -> OVERLAY_RENDERER;
             case BIOME_CLOCK -> BIOME_CLOCK_RENDERER;
+            case TIMESTAMP -> TIMESTAMP_RENDERER;
         };
     }
 
