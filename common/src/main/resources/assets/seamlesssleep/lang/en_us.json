@@ -32,8 +32,6 @@
   "config.seamlesssleep.client.group.sleep_zzz": "Sleep Zzz",
   "config.seamlesssleep.client.group.sleep_zzz.desc": "World-space Zs shown around players who are counted for sleep.",
 
-  "config.seamlesssleep.overlay.enabled": "Sleep Text Overlay",
-  "config.seamlesssleep.overlay.enabled.desc": "Toggles the sleep animation indicator.",
   "config.seamlesssleep.overlay.darkness": "Sleep Vignette",
   "config.seamlesssleep.overlay.darkness.desc": "Controls how dark the sleep vignette becomes.",
   "config.seamlesssleep.overlay.leave_bed_hint": "Bed Hint",
@@ -79,12 +77,12 @@
   "config.seamlesssleep.sleep.eligibility.vanilla": "Vanilla",
   "config.seamlesssleep.sleep.eligibility.day_included": "Day Included",
   "config.seamlesssleep.sleep.eligibility.always": "Always",
-  "config.seamlesssleep.sleep.override_overlay_text": "Override Overlay Text",
-  "config.seamlesssleep.sleep.override_overlay_text.desc": "Uses a server-defined global text for the textual Overlay indicator during normal sleep skips.",
-  "config.seamlesssleep.sleep.override_overlay_text.command": "/sleep set overrideOverlayText <true | false>",
-  "config.seamlesssleep.sleep.overlay_custom_text": "Overlay Custom Text",
-  "config.seamlesssleep.sleep.overlay_custom_text.desc": "Plain global text shown by the textual Overlay indicator when override is enabled.",
-  "config.seamlesssleep.sleep.overlay_custom_text.command": "/sleep set overlayCustomText <text...>",
+  "config.seamlesssleep.sleep.override_overlay_text": "Text Indicator Override",
+  "config.seamlesssleep.sleep.override_overlay_text.desc": "Uses server-defined global text for the Text indicator during normal sleep skips.",
+  "config.seamlesssleep.sleep.override_overlay_text.command": "/sleep set textIndicatorOverride <true | false>",
+  "config.seamlesssleep.sleep.overlay_custom_text": "Text Indicator Custom Text",
+  "config.seamlesssleep.sleep.overlay_custom_text.desc": "Plain global text shown by the Text indicator when override is enabled.",
+  "config.seamlesssleep.sleep.overlay_custom_text.command": "/sleep set textIndicatorCustomText <text...>",
   "config.seamlesssleep.server_controlled": "Controlled by the server",
   "config.seamlesssleep.server_command": "\nCommand: %s",
 
@@ -155,7 +153,7 @@
   "config.seamlesssleep.sleep_indicator.mode": "Indicator Mode",
   "config.seamlesssleep.sleep_indicator.mode.desc": "Selects the active sleep indicator renderer.",
   "config.seamlesssleep.sleep_indicator.mode.off": "OFF",
-  "config.seamlesssleep.sleep_indicator.mode.overlay": "Overlay",
+  "config.seamlesssleep.sleep_indicator.mode.text": "Text",
   "config.seamlesssleep.sleep_indicator.mode.biome_clock": "Biome Clock",
   "config.seamlesssleep.sleep_indicator.anchor": "Indicator Anchor",
   "config.seamlesssleep.sleep_indicator.anchor.desc": "Screen anchor used by the sleep indicator placement.",
@@ -207,5 +205,6 @@
   "screen.seamlesssleep.forge_config.hint": "Edit the config file in your config folder for server and client changes.",
   "screen.seamlesssleep.config.open_folder": "Open Folder",
   "screen.seamlesssleep.missing_yacl.notice": "\u00A7eYACL\u00A7r not found",
-  "screen.seamlesssleep.missing_yacl.hint": "Install YetAnotherConfigLib v3 to edit configs."
+  "screen.seamlesssleep.missing_yacl.hint": "Install YetAnotherConfigLib v3 to edit configs.",
+  "config.seamlesssleep.remote.conflict.option_warning": "⚠ Changed on server while you were editing. Saving will overwrite the server value."
 }

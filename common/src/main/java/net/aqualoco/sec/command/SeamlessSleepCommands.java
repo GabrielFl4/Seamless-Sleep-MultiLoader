@@ -12,13 +12,13 @@ import net.aqualoco.sec.acceleration.WorldSleepAccelerationModuleStatus;
 import net.aqualoco.sec.acceleration.WorldSleepAccelerationStatus;
 import net.aqualoco.sec.SeamlessSleepCommon;
 import net.aqualoco.sec.bed.BedRestingHelper;
+import net.aqualoco.sec.config.ServerConfigMutationService;
 import net.aqualoco.sec.config.SeamlessSleepServerConfig;
 import net.aqualoco.sec.config.SeamlessSleepServerConfigManager;
 import net.aqualoco.sec.config.SleepEligibilityMode;
 import net.aqualoco.sec.config.WorldSleepAccelerationMode;
 import net.aqualoco.sec.config.WorldSleepAccelerationPlayersAffected;
 import net.aqualoco.sec.config.WorldSleepAutomaticMode;
-import net.aqualoco.sec.network.ServerConfigSync;
 import net.aqualoco.sec.network.SleepAnimationNetworking;
 import net.aqualoco.sec.sleep.SleepAnimationMode;
 import net.aqualoco.sec.sleep.SleepAnimationPhase;
@@ -106,12 +106,28 @@ public final class SeamlessSleepCommands {
                                                         ctx,
                                                         IntegerArgumentType.getInteger(ctx, "value")
                                                 ))))
+                                .then(Commands.literal("textIndicatorOverride")
+                                        .executes(SeamlessSleepCommands::getOverrideOverlayText)
+                                        .then(Commands.argument("value", BoolArgumentType.bool())
+                                                .executes(ctx -> setOverrideOverlayText(
+                                                        ctx,
+                                                        BoolArgumentType.getBool(ctx, "value")
+                                                ))))
                                 .then(Commands.literal("overrideOverlayText")
                                         .executes(SeamlessSleepCommands::getOverrideOverlayText)
                                         .then(Commands.argument("value", BoolArgumentType.bool())
                                                 .executes(ctx -> setOverrideOverlayText(
                                                         ctx,
                                                         BoolArgumentType.getBool(ctx, "value")
+                                                ))))
+                                .then(Commands.literal("textIndicatorCustomText")
+                                        .executes(SeamlessSleepCommands::getOverlayCustomText)
+                                        .then(Commands.literal("clear")
+                                                .executes(SeamlessSleepCommands::clearOverlayCustomText))
+                                        .then(Commands.argument("text", StringArgumentType.greedyString())
+                                                .executes(ctx -> setOverlayCustomText(
+                                                        ctx,
+                                                        StringArgumentType.getString(ctx, "text")
                                                 ))))
                                 .then(Commands.literal("overlayCustomText")
                                         .executes(SeamlessSleepCommands::getOverlayCustomText)
@@ -242,7 +258,7 @@ public final class SeamlessSleepCommands {
     private static int reload(CommandContext<CommandSourceStack> context) {
         SeamlessSleepServerConfigManager.ReloadResult result = SeamlessSleepServerConfigManager.reloadWithStatus();
         SeamlessSleepServerConfig config = SeamlessSleepServerConfigManager.get();
-        ServerConfigSync.sendToAll(context.getSource().getServer(), config);
+        ServerConfigMutationService.syncAfterMutation(context.getSource().getServer(), config);
 
         String message = switch (result) {
             case SUCCESS -> "Server config reloaded.";
@@ -270,15 +286,11 @@ public final class SeamlessSleepCommands {
     private static int setSleepWeatherClearChancePercent(CommandContext<CommandSourceStack> context, int value) {
         SeamlessSleepServerConfig config = SeamlessSleepServerConfigManager.get();
         config.sleepWeatherClearChancePercent = value;
-        config.clamp();
-        SeamlessSleepServerConfigManager.save();
-        ServerConfigSync.sendToAll(context.getSource().getServer(), config);
-
-        context.getSource().sendSuccess(
-                () -> Component.literal("Weather Clear Chance updated to " + formatWeatherChance(config.sleepWeatherClearChancePercent) + "."),
-                true
+        return saveAndSyncConfig(
+                context,
+                config,
+                "Weather Clear Chance updated to " + formatWeatherChance(config.sleepWeatherClearChancePercent) + "."
         );
-        return 1;
     }
 
     private static int getSleepDurationMultiplier(CommandContext<CommandSourceStack> context) {
@@ -295,17 +307,11 @@ public final class SeamlessSleepCommands {
     private static int setSleepDurationMultiplier(CommandContext<CommandSourceStack> context, double value) {
         SeamlessSleepServerConfig config = SeamlessSleepServerConfigManager.get();
         config.sleepAnimationDurationMultiplier = value;
-        config.clamp();
-        SeamlessSleepServerConfigManager.save();
-        ServerConfigSync.sendToAll(context.getSource().getServer(), config);
-
-        context.getSource().sendSuccess(
-                () -> Component.literal(
-                        "Animation Duration updated to " + formatMultiplier(config.sleepAnimationDurationMultiplier) + " (valid: 0.25x to 8.00x)."
-                ),
-                true
+        return saveAndSyncConfig(
+                context,
+                config,
+                "Animation Duration updated to " + formatMultiplier(config.sleepAnimationDurationMultiplier) + " (valid: 0.25x to 8.00x)."
         );
-        return 1;
     }
 
     private static int getFallAsleepDelayTicks(CommandContext<CommandSourceStack> context) {
@@ -330,7 +336,7 @@ public final class SeamlessSleepCommands {
     private static int getOverrideOverlayText(CommandContext<CommandSourceStack> context) {
         SeamlessSleepServerConfig config = SeamlessSleepServerConfigManager.get();
         context.getSource().sendSuccess(
-                () -> Component.literal("Override Overlay Text is " + formatOnOff(config.overrideOverlayText) + "."),
+                () -> Component.literal("Text Indicator Override is " + formatOnOff(config.overrideOverlayText) + "."),
                 false
         );
         return 1;
@@ -342,14 +348,14 @@ public final class SeamlessSleepCommands {
         return saveAndSyncConfig(
                 context,
                 config,
-                "Override Overlay Text updated to " + formatOnOff(value) + "."
+                "Text Indicator Override updated to " + formatOnOff(value) + "."
         );
     }
 
     private static int getOverlayCustomText(CommandContext<CommandSourceStack> context) {
         SeamlessSleepServerConfig config = SeamlessSleepServerConfigManager.get();
         context.getSource().sendSuccess(
-                () -> Component.literal("Overlay Custom Text is \"" + config.overlayCustomText + "\"."),
+                () -> Component.literal("Text Indicator Custom Text is \"" + config.overlayCustomText + "\"."),
                 false
         );
         return 1;
@@ -361,7 +367,7 @@ public final class SeamlessSleepCommands {
         return saveAndSyncConfig(
                 context,
                 config,
-                "Overlay Custom Text updated to \"" + config.overlayCustomText + "\"."
+                "Text Indicator Custom Text updated to \"" + config.overlayCustomText + "\"."
         );
     }
 
@@ -372,7 +378,7 @@ public final class SeamlessSleepCommands {
         return saveAndSyncConfig(
                 context,
                 config,
-                "Overlay Custom Text cleared. Translatable overlay text is active."
+                "Text Indicator Custom Text cleared. Translatable text indicator text is active."
         );
     }
 
@@ -908,8 +914,7 @@ public final class SeamlessSleepCommands {
                                          SeamlessSleepServerConfig config,
                                          String message) {
         config.clamp();
-        SeamlessSleepServerConfigManager.save();
-        ServerConfigSync.sendToAll(context.getSource().getServer(), config);
+        ServerConfigMutationService.saveAndSync(context.getSource().getServer(), config);
         context.getSource().sendSuccess(() -> Component.literal(message), true);
         return 1;
     }

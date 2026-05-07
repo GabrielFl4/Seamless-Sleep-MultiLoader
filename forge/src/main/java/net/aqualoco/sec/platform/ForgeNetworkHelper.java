@@ -3,8 +3,13 @@ package net.aqualoco.sec.platform;
 import net.aqualoco.sec.network.BedLookNetworking;
 import net.aqualoco.sec.network.BedLookSyncPayload;
 import net.aqualoco.sec.Constants;
+import net.aqualoco.sec.config.ServerConfigMutationService;
 import net.aqualoco.sec.network.BedHudSleepProgressPayload;
+import net.aqualoco.sec.network.ServerConfigAccessRequestC2SPayload;
+import net.aqualoco.sec.network.ServerConfigAccessS2CPayload;
 import net.aqualoco.sec.network.ServerConfigSyncPayload;
+import net.aqualoco.sec.network.ServerConfigUpdateC2SPayload;
+import net.aqualoco.sec.network.ServerConfigUpdateResultS2CPayload;
 import net.aqualoco.sec.network.SleepAnimationStartPayload;
 import net.aqualoco.sec.network.SleepAnimationStopPayload;
 import net.aqualoco.sec.platform.services.INetworkHelper;
@@ -26,6 +31,8 @@ public class ForgeNetworkHelper implements INetworkHelper {
         void handleStart(SleepAnimationStartPayload payload);
         void handleStop(SleepAnimationStopPayload payload);
         void handleServerConfig(ServerConfigSyncPayload payload);
+        void handleServerConfigAccess(ServerConfigAccessS2CPayload payload);
+        void handleServerConfigUpdateResult(ServerConfigUpdateResultS2CPayload payload);
     }
 
     private static final Identifier CHANNEL_ID =
@@ -66,7 +73,27 @@ public class ForgeNetworkHelper implements INetworkHelper {
                         ServerConfigSyncPayload.CODEC.cast(),
                         ForgeNetworkHelper::handleServerConfig
                 )
+                .addMain(
+                        ServerConfigAccessS2CPayload.ID,
+                        ServerConfigAccessS2CPayload.CODEC.cast(),
+                        ForgeNetworkHelper::handleServerConfigAccess
+                )
+                .addMain(
+                        ServerConfigUpdateResultS2CPayload.ID,
+                        ServerConfigUpdateResultS2CPayload.CODEC.cast(),
+                        ForgeNetworkHelper::handleServerConfigUpdateResult
+                )
                 .serverbound()
+                .addMain(
+                        ServerConfigAccessRequestC2SPayload.ID,
+                        ServerConfigAccessRequestC2SPayload.CODEC.cast(),
+                        ForgeNetworkHelper::handleServerConfigAccessRequest
+                )
+                .addMain(
+                        ServerConfigUpdateC2SPayload.ID,
+                        ServerConfigUpdateC2SPayload.CODEC.cast(),
+                        ForgeNetworkHelper::handleServerConfigUpdate
+                )
                 .addMain(
                         BedLookSyncPayload.ID,
                         BedLookSyncPayload.CODEC.cast(),
@@ -159,6 +186,58 @@ public class ForgeNetworkHelper implements INetworkHelper {
             ClientHandler handler = clientHandler;
             if (handler != null) {
                 handler.handleServerConfig(payload);
+            }
+        });
+    }
+
+    private static void handleServerConfigAccess(ServerConfigAccessS2CPayload payload, CustomPayloadEvent.Context context) {
+        if (!context.isClientSide()) {
+            return;
+        }
+
+        context.enqueueWork(() -> {
+            ClientHandler handler = clientHandler;
+            if (handler != null) {
+                handler.handleServerConfigAccess(payload);
+            }
+        });
+    }
+
+    private static void handleServerConfigUpdateResult(ServerConfigUpdateResultS2CPayload payload, CustomPayloadEvent.Context context) {
+        if (!context.isClientSide()) {
+            return;
+        }
+
+        context.enqueueWork(() -> {
+            ClientHandler handler = clientHandler;
+            if (handler != null) {
+                handler.handleServerConfigUpdateResult(payload);
+            }
+        });
+    }
+
+    private static void handleServerConfigAccessRequest(ServerConfigAccessRequestC2SPayload payload, CustomPayloadEvent.Context context) {
+        if (context.isClientSide()) {
+            return;
+        }
+
+        context.enqueueWork(() -> {
+            ServerPlayer player = context.getSender();
+            if (player != null) {
+                ServerConfigMutationService.handleAccessRequest(player);
+            }
+        });
+    }
+
+    private static void handleServerConfigUpdate(ServerConfigUpdateC2SPayload payload, CustomPayloadEvent.Context context) {
+        if (context.isClientSide()) {
+            return;
+        }
+
+        context.enqueueWork(() -> {
+            ServerPlayer player = context.getSender();
+            if (player != null) {
+                ServerConfigMutationService.handleRemoteUpdate(player, payload);
             }
         });
     }

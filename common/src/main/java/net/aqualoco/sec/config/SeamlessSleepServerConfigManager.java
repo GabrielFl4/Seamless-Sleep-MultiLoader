@@ -134,12 +134,14 @@ public final class SeamlessSleepServerConfigManager {
         );
         cfg.overrideOverlayText = readBoolean(
                 file,
+                List.of("sleep", "text_indicator_override"),
                 List.of("sleep", "override_overlay_text"),
                 "overrideOverlayText",
                 cfg.overrideOverlayText
         );
         cfg.overlayCustomText = readString(
                 file,
+                List.of("sleep", "text_indicator_custom_text"),
                 List.of("sleep", "overlay_custom_text"),
                 "overlayCustomText",
                 cfg.overlayCustomText
@@ -390,12 +392,12 @@ public final class SeamlessSleepServerConfigManager {
                 "fall_asleep_delay_ticks",
                 Integer.toString(cfg.fallAsleepDelayTicks));
         appendEntry(sb,
-                "When true, Overlay indicator text uses overlay_custom_text for normal Night/Day/Storm skips",
-                "override_overlay_text",
+                "When true, the Text indicator uses text_indicator_custom_text for normal Night/Day/Storm skips",
+                "text_indicator_override",
                 Boolean.toString(cfg.overrideOverlayText));
         appendEntry(sb,
-                "Plain global Overlay indicator text. Max 128 characters. Formatting codes are stripped",
-                "overlay_custom_text",
+                "Plain global Text indicator text. Max 128 characters. Formatting codes are stripped",
+                "text_indicator_custom_text",
                 toTomlString(cfg.overlayCustomText));
         appendEntry(sb,
                 "Sleep eligibility policy. Values: VANILLA, DAY_INCLUDED, ALWAYS. Default: VANILLA",
@@ -600,8 +602,37 @@ public final class SeamlessSleepServerConfigManager {
         return value instanceof String string ? string : fallback;
     }
 
+    private static String readString(CommentedFileConfig file,
+                                     List<String> path,
+                                     List<String> legacyPath,
+                                     String legacyKey,
+                                     String fallback) {
+        Object value = readRaw(file, path, legacyPath, legacyKey);
+        return value instanceof String string ? string : fallback;
+    }
+
     private static boolean readBoolean(CommentedFileConfig file, List<String> path, String legacyKey, boolean fallback) {
         Object value = readRaw(file, path, legacyKey);
+        if (value instanceof Boolean bool) {
+            return bool;
+        }
+        if (value instanceof String string) {
+            if (string.equalsIgnoreCase("true")) {
+                return true;
+            }
+            if (string.equalsIgnoreCase("false")) {
+                return false;
+            }
+        }
+        return fallback;
+    }
+
+    private static boolean readBoolean(CommentedFileConfig file,
+                                       List<String> path,
+                                       List<String> legacyPath,
+                                       String legacyKey,
+                                       boolean fallback) {
+        Object value = readRaw(file, path, legacyPath, legacyKey);
         if (value instanceof Boolean bool) {
             return bool;
         }
@@ -635,6 +666,15 @@ public final class SeamlessSleepServerConfigManager {
 
     private static Object readRaw(CommentedFileConfig file, List<String> path, String legacyKey) {
         Object value = file.getRaw(path);
+        return value != null ? value : file.getRaw(legacyKey);
+    }
+
+    private static Object readRaw(CommentedFileConfig file, List<String> path, List<String> legacyPath, String legacyKey) {
+        Object value = file.getRaw(path);
+        if (value != null) {
+            return value;
+        }
+        value = file.getRaw(legacyPath);
         return value != null ? value : file.getRaw(legacyKey);
     }
 

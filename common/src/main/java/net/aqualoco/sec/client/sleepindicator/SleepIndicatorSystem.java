@@ -100,7 +100,7 @@ public final class SleepIndicatorSystem {
     private static SleepIndicatorRenderer rendererFor(SleepIndicatorMode mode) {
         return switch (mode) {
             case OFF -> null;
-            case OVERLAY -> OVERLAY_RENDERER;
+            case TEXT -> OVERLAY_RENDERER;
             case BIOME_CLOCK -> BIOME_CLOCK_RENDERER;
         };
     }

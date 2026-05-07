@@ -3,7 +3,12 @@ package net.aqualoco.sec.platform;
 import net.aqualoco.sec.network.BedHudSleepProgressPayload;
 import net.aqualoco.sec.network.BedLookNetworking;
 import net.aqualoco.sec.network.BedLookSyncPayload;
+import net.aqualoco.sec.config.ServerConfigMutationService;
+import net.aqualoco.sec.network.ServerConfigAccessRequestC2SPayload;
+import net.aqualoco.sec.network.ServerConfigAccessS2CPayload;
 import net.aqualoco.sec.network.ServerConfigSyncPayload;
+import net.aqualoco.sec.network.ServerConfigUpdateC2SPayload;
+import net.aqualoco.sec.network.ServerConfigUpdateResultS2CPayload;
 import net.aqualoco.sec.network.SleepAnimationStartPayload;
 import net.aqualoco.sec.network.SleepAnimationStopPayload;
 import net.aqualoco.sec.platform.services.INetworkHelper;
@@ -37,8 +42,24 @@ public class FabricNetworkHelper implements INetworkHelper {
                 ServerConfigSyncPayload.CODEC
         );
         PayloadTypeRegistry.playS2C().register(
+                ServerConfigAccessS2CPayload.ID,
+                ServerConfigAccessS2CPayload.CODEC
+        );
+        PayloadTypeRegistry.playS2C().register(
+                ServerConfigUpdateResultS2CPayload.ID,
+                ServerConfigUpdateResultS2CPayload.CODEC
+        );
+        PayloadTypeRegistry.playS2C().register(
                 BedHudSleepProgressPayload.ID,
                 BedHudSleepProgressPayload.CODEC
+        );
+        PayloadTypeRegistry.playC2S().register(
+                ServerConfigAccessRequestC2SPayload.ID,
+                ServerConfigAccessRequestC2SPayload.CODEC
+        );
+        PayloadTypeRegistry.playC2S().register(
+                ServerConfigUpdateC2SPayload.ID,
+                ServerConfigUpdateC2SPayload.CODEC
         );
         PayloadTypeRegistry.playC2S().register(
                 BedLookSyncPayload.ID,
@@ -48,6 +69,18 @@ public class FabricNetworkHelper implements INetworkHelper {
                 BedLookSyncPayload.ID,
                 (payload, context) -> context.server().execute(
                         () -> BedLookNetworking.handleServer(context.player(), payload)
+                )
+        );
+        ServerPlayNetworking.registerGlobalReceiver(
+                ServerConfigAccessRequestC2SPayload.ID,
+                (payload, context) -> context.server().execute(
+                        () -> ServerConfigMutationService.handleAccessRequest(context.player())
+                )
+        );
+        ServerPlayNetworking.registerGlobalReceiver(
+                ServerConfigUpdateC2SPayload.ID,
+                (payload, context) -> context.server().execute(
+                        () -> ServerConfigMutationService.handleRemoteUpdate(context.player(), payload)
                 )
         );
     }

@@ -1,21 +1,29 @@
 package net.aqualoco.sec.client;
 
 import dev.isxander.yacl3.api.ConfigCategory;
+import dev.isxander.yacl3.api.Controller;
 import dev.isxander.yacl3.api.LabelOption;
 import dev.isxander.yacl3.api.Option;
 import dev.isxander.yacl3.api.OptionDescription;
 import dev.isxander.yacl3.api.OptionGroup;
 import dev.isxander.yacl3.api.YetAnotherConfigLib;
 import dev.isxander.yacl3.api.controller.BooleanControllerBuilder;
+import dev.isxander.yacl3.api.controller.ControllerBuilder;
 import dev.isxander.yacl3.api.controller.DoubleSliderControllerBuilder;
 import dev.isxander.yacl3.api.controller.EnumControllerBuilder;
 import dev.isxander.yacl3.api.controller.IntegerSliderControllerBuilder;
 import dev.isxander.yacl3.api.controller.StringControllerBuilder;
+import dev.isxander.yacl3.api.utils.Dimension;
+import dev.isxander.yacl3.gui.AbstractWidget;
+import dev.isxander.yacl3.gui.YACLScreen;
+import dev.isxander.yacl3.gui.image.ImageRenderer;
+import dev.isxander.yacl3.gui.utils.GuiUtils;
 import net.aqualoco.sec.client.sleepindicator.SleepIndicatorAnchor;
 import net.aqualoco.sec.client.sleepindicator.SleepIndicatorMode;
 import net.aqualoco.sec.client.sleepindicator.SleepIndicatorVisibility;
 import net.aqualoco.sec.client.sleepvisual.SleepZzzConfigBridge;
 import net.aqualoco.sec.client.sleepvisual.SleepZzzStyle;
+import net.aqualoco.sec.config.ServerConfigMutationService;
 import net.aqualoco.sec.config.SeamlessSleepClientConfig;
 import net.aqualoco.sec.config.SeamlessSleepClientConfigManager;
 import net.aqualoco.sec.config.SeamlessSleepServerConfig;
@@ -26,17 +34,35 @@ import net.aqualoco.sec.config.WorldSleepAccelerationConfig;
 import net.aqualoco.sec.config.WorldSleepAccelerationMode;
 import net.aqualoco.sec.config.WorldSleepAccelerationPlayersAffected;
 import net.aqualoco.sec.config.WorldSleepAutomaticMode;
-import net.aqualoco.sec.network.ServerConfigSync;
+import net.aqualoco.sec.network.ServerConfigField;
+import net.aqualoco.sec.network.ServerConfigUpdateC2SPayload;
+import net.aqualoco.sec.network.ServerConfigUpdateResultS2CPayload;
+import net.aqualoco.sec.network.ServerConfigUpdateStatus;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.ComponentPath;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.narration.NarratableEntry.NarrationPriority;
+import net.minecraft.client.gui.narration.NarrationElementOutput;
+import net.minecraft.client.gui.navigation.FocusNavigationEvent;
+import net.minecraft.client.input.CharacterEvent;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 
+import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.IntSupplier;
 import java.util.function.Supplier;
 
 public final class NeoForgeYaclConfigScreen {
@@ -52,50 +78,63 @@ public final class NeoForgeYaclConfigScreen {
         serverCfg.clamp();
 
         Minecraft client = Minecraft.getInstance();
+        boolean hasIntegratedServer = client.getSingleplayerServer() != null;
         boolean connectedToRemote = client.getConnection() != null && !client.hasSingleplayerServer();
-        boolean canEditServerConfig = !connectedToRemote;
+        boolean liveServer = connectedToRemote || hasIntegratedServer;
+        boolean canEditServerConfig = !connectedToRemote || RemoteServerConfigClientState.canEditServerConfig();
         int simulationDistance = resolveSimulationDistance(client, serverCfg);
-        ServerConfigUiState serverUiState = canEditServerConfig
-                ? ServerConfigUiState.fromLocal(serverCfg, simulationDistance)
-                : ServerConfigUiState.fromSnapshot();
+        ServerConfigUiState serverUiState = connectedToRemote
+                ? ServerConfigUiState.fromSnapshot()
+                : ServerConfigUiState.fromLocal(serverCfg, simulationDistance);
+        RemoteServerConfigScreenSession serverSession = new RemoteServerConfigScreenSession(
+                connectedToRemote,
+                liveServer,
+                serverUiState,
+                canEditServerConfig
+        );
 
-        return YetAnotherConfigLib.createBuilder()
+        Screen screen = YetAnotherConfigLib.createBuilder()
                 .title(Component.translatable("config.seamlesssleep.title"))
                 .category(buildClientConfigCategory(clientCfg))
-                .category(buildServerConfigCategory(serverUiState, canEditServerConfig))
-                .category(buildAdvancedCategory(clientCfg, serverUiState, canEditServerConfig))
+                .category(buildServerConfigCategory(serverSession))
+                .category(buildAdvancedCategory(clientCfg, serverSession))
                 .save(() -> {
                     clientCfg.clamp();
                     SeamlessSleepClientConfigManager.save();
-                    if (canEditServerConfig) {
+                    if (serverSession.remote()) {
+                        serverSession.sendPatch();
+                    } else if (serverSession.liveServer()) {
+                        serverSession.saveLocalPatch(client);
+                    } else if (serverSession.canEditServerConfig()) {
                         serverUiState.applyTo(serverCfg);
                         serverCfg.clamp();
                         SeamlessSleepServerConfigManager.save();
-                        syncLocalServerConfigIfPresent(client, serverCfg);
                     }
                 })
+                .screenInit(serverSession::attachScreen)
                 .build()
                 .generateScreen(parent);
-    }
 
-    private static void syncLocalServerConfigIfPresent(Minecraft client, SeamlessSleepServerConfig serverCfg) {
-        if (client.getSingleplayerServer() != null) {
-            ServerConfigSync.sendToAll(client.getSingleplayerServer(), serverCfg);
+        if (connectedToRemote) {
+            RemoteServerConfigClientState.requestAccessRefresh();
         }
+        return screen;
     }
 
     private static ConfigCategory buildClientConfigCategory(SeamlessSleepClientConfig cfg) {
         return ConfigCategory.createBuilder()
                 .name(Component.translatable("config.seamlesssleep.category.client"))
+                .group(buildSleepIndicatorGroup(cfg))
+                .group(buildSleepZzzGroup(cfg))
                 .group(buildOverlayGroup(cfg))
                 .group(buildChatGroup(cfg))
                 .group(buildCameraGroup(cfg))
-                .group(buildSleepIndicatorGroup(cfg))
-                .group(buildSleepZzzGroup(cfg))
                 .build();
     }
 
-    private static ConfigCategory buildServerConfigCategory(ServerConfigUiState uiState, boolean canEditServerConfig) {
+    private static ConfigCategory buildServerConfigCategory(RemoteServerConfigScreenSession session) {
+        ServerConfigUiState uiState = session.uiState();
+        boolean canEditServerConfig = session.canEditServerConfig();
         Option<Integer> weatherChanceOption = buildIntSlider(
                 Component.translatable("config.seamlesssleep.sleep.clears_weather"),
                 serverDescription(
@@ -110,9 +149,11 @@ public final class NeoForgeYaclConfigScreen {
                 () -> uiState.boundSleepWeatherClearChancePercent,
                 value -> uiState.boundSleepWeatherClearChancePercent = value,
                 canEditServerConfig,
-                NeoForgeYaclConfigScreen::formatWeatherChanceValue
+                NeoForgeYaclConfigScreen::formatWeatherChanceValue,
+                session,
+                ServerConfigField.SLEEP_WEATHER_CLEAR_CHANCE_PERCENT
         );
-        listen(weatherChanceOption, value -> uiState.sleepWeatherClearChancePercent = value);
+        listenServer(session, ServerConfigField.SLEEP_WEATHER_CLEAR_CHANCE_PERCENT, weatherChanceOption, value -> uiState.sleepWeatherClearChancePercent = value);
 
         Option<Double> animationDurationOption = buildDoubleSlider(
                 Component.translatable("config.seamlesssleep.sleep.duration_multiplier"),
@@ -128,9 +169,11 @@ public final class NeoForgeYaclConfigScreen {
                 () -> uiState.boundSleepAnimationDurationMultiplier,
                 value -> uiState.boundSleepAnimationDurationMultiplier = value,
                 canEditServerConfig,
-                NeoForgeYaclConfigScreen::formatMultiplierValue
+                NeoForgeYaclConfigScreen::formatMultiplierValue,
+                session,
+                ServerConfigField.SLEEP_ANIMATION_DURATION_MULTIPLIER
         );
-        listen(animationDurationOption, value -> uiState.sleepAnimationDurationMultiplier = value);
+        listenServer(session, ServerConfigField.SLEEP_ANIMATION_DURATION_MULTIPLIER, animationDurationOption, value -> uiState.sleepAnimationDurationMultiplier = value);
 
         Option<Integer> fallAsleepDelayOption = buildIntSlider(
                 Component.translatable("config.seamlesssleep.sleep.fall_asleep_delay"),
@@ -146,9 +189,11 @@ public final class NeoForgeYaclConfigScreen {
                 () -> uiState.boundFallAsleepDelayTicks,
                 value -> uiState.boundFallAsleepDelayTicks = value,
                 canEditServerConfig,
-                NeoForgeYaclConfigScreen::formatFallAsleepDelayValue
+                NeoForgeYaclConfigScreen::formatFallAsleepDelayValue,
+                session,
+                ServerConfigField.FALL_ASLEEP_DELAY_TICKS
         );
-        listen(fallAsleepDelayOption, value -> uiState.fallAsleepDelayTicks = value);
+        listenServer(session, ServerConfigField.FALL_ASLEEP_DELAY_TICKS, fallAsleepDelayOption, value -> uiState.fallAsleepDelayTicks = value);
 
         Option<SleepEligibilityMode> sleepEligibilityOption = buildEnumOption(
                 Component.translatable("config.seamlesssleep.sleep.eligibility"),
@@ -162,9 +207,11 @@ public final class NeoForgeYaclConfigScreen {
                 () -> uiState.boundSleepEligibility,
                 value -> uiState.boundSleepEligibility = value == null ? SleepEligibilityMode.VANILLA : value,
                 canEditServerConfig,
-                value -> enumText("config.seamlesssleep.sleep.eligibility", value)
+                value -> enumText("config.seamlesssleep.sleep.eligibility", value),
+                session,
+                ServerConfigField.SLEEP_ELIGIBILITY
         );
-        listen(sleepEligibilityOption, value -> uiState.sleepEligibility = value);
+        listenServer(session, ServerConfigField.SLEEP_ELIGIBILITY, sleepEligibilityOption, value -> uiState.sleepEligibility = value);
 
         Option<Boolean> overrideOverlayTextOption = buildToggle(
                 Component.translatable("config.seamlesssleep.sleep.override_overlay_text"),
@@ -176,7 +223,9 @@ public final class NeoForgeYaclConfigScreen {
                 false,
                 () -> uiState.boundOverrideOverlayText,
                 value -> uiState.boundOverrideOverlayText = value,
-                canEditServerConfig
+                canEditServerConfig,
+                session,
+                ServerConfigField.OVERRIDE_OVERLAY_TEXT
         );
         Option<String> overlayCustomTextOption = buildStringOption(
                 Component.translatable("config.seamlesssleep.sleep.overlay_custom_text"),
@@ -188,17 +237,19 @@ public final class NeoForgeYaclConfigScreen {
                 SeamlessSleepServerConfig.DEFAULT_OVERLAY_CUSTOM_TEXT,
                 () -> uiState.boundOverlayCustomText,
                 value -> uiState.boundOverlayCustomText = value,
-                canEditServerConfig && uiState.overrideOverlayText
+                canEditServerConfig && uiState.overrideOverlayText,
+                session,
+                ServerConfigField.OVERLAY_CUSTOM_TEXT
         );
         Runnable refreshOverlayTextOptions = () -> overlayCustomTextOption.setAvailable(
-                canEditServerConfig && uiState.overrideOverlayText
+                session.canEditServerConfig() && uiState.overrideOverlayText
         );
-        listen(overrideOverlayTextOption, value -> {
+        listenServer(session, ServerConfigField.OVERRIDE_OVERLAY_TEXT, overrideOverlayTextOption, value -> {
             uiState.overrideOverlayText = value;
-            refreshOverlayTextOptions.run();
+            session.runWithSuppressedDirtyTracking(refreshOverlayTextOptions);
         });
-        listen(overlayCustomTextOption, value -> uiState.overlayCustomText = value);
-        refreshOverlayTextOptions.run();
+        listenServer(session, ServerConfigField.OVERLAY_CUSTOM_TEXT, overlayCustomTextOption, value -> uiState.overlayCustomText = value);
+        session.runWithSuppressedDirtyTracking(refreshOverlayTextOptions);
 
         Option<WorldSleepAccelerationMode> modeOption = buildEnumOption(
                 Component.translatable("config.seamlesssleep.world_acceleration.mode"),
@@ -212,7 +263,9 @@ public final class NeoForgeYaclConfigScreen {
                 () -> uiState.boundMode,
                 value -> uiState.boundMode = value == null ? WorldSleepAccelerationMode.AUTOMATIC : value,
                 canEditServerConfig,
-                value -> enumText("config.seamlesssleep.world_acceleration.mode", value)
+                value -> enumText("config.seamlesssleep.world_acceleration.mode", value),
+                session,
+                ServerConfigField.WORLD_SLEEP_ACCELERATION_MODE
         );
         Option<Integer> radiusOption = buildIntSlider(
                 Component.translatable("config.seamlesssleep.world_acceleration.radius"),
@@ -228,7 +281,9 @@ public final class NeoForgeYaclConfigScreen {
                 () -> uiState.boundDisplayedAccelerationRadius,
                 value -> uiState.boundDisplayedAccelerationRadius = Mth.clamp(value, 1, uiState.simulationDistance),
                 canEditServerConfig && uiState.mode == WorldSleepAccelerationMode.MANUAL,
-                value -> formatRadiusValue(value, uiState.simulationDistance)
+                value -> formatRadiusValue(value, uiState.simulationDistance),
+                session,
+                ServerConfigField.MANUAL_ACCELERATION_RADIUS_CHUNKS
         );
         Option<Integer> speedOption = buildIntSlider(
                 Component.translatable("config.seamlesssleep.world_acceleration.speed"),
@@ -244,7 +299,9 @@ public final class NeoForgeYaclConfigScreen {
                 () -> uiState.boundDisplayedAccelerationSpeedPercent,
                 value -> uiState.boundDisplayedAccelerationSpeedPercent = Mth.clamp(value, 0, 100),
                 canEditServerConfig && uiState.mode == WorldSleepAccelerationMode.MANUAL,
-                NeoForgeYaclConfigScreen::formatPercentValue
+                NeoForgeYaclConfigScreen::formatPercentValue,
+                session,
+                ServerConfigField.MANUAL_ACCELERATION_SPEED_PERCENT
         );
         Option<WorldSleepAccelerationPlayersAffected> playersAffectedOption = buildEnumOption(
                 Component.translatable("config.seamlesssleep.world_acceleration.players_affected"),
@@ -260,7 +317,9 @@ public final class NeoForgeYaclConfigScreen {
                         ? WorldSleepAccelerationPlayersAffected.ALL_PLAYERS
                         : value,
                 canEditServerConfig && uiState.mode == WorldSleepAccelerationMode.MANUAL,
-                value -> enumText("config.seamlesssleep.world_acceleration.players_affected", value)
+                value -> enumText("config.seamlesssleep.world_acceleration.players_affected", value),
+                session,
+                ServerConfigField.WORLD_SLEEP_ACCELERATION_PLAYERS_AFFECTED
         );
         Option<WorldSleepAutomaticMode> automaticModeOption = buildEnumOption(
                 Component.translatable("config.seamlesssleep.world_acceleration.automatic_mode"),
@@ -274,7 +333,9 @@ public final class NeoForgeYaclConfigScreen {
                 () -> uiState.boundAutomaticMode,
                 value -> uiState.boundAutomaticMode = value == null ? WorldSleepAutomaticMode.AGGRESSIVE : value,
                 canEditServerConfig && uiState.mode == WorldSleepAccelerationMode.AUTOMATIC,
-                value -> enumText("config.seamlesssleep.world_acceleration.automatic_mode", value)
+                value -> enumText("config.seamlesssleep.world_acceleration.automatic_mode", value),
+                session,
+                ServerConfigField.WORLD_SLEEP_AUTOMATIC_MODE
         );
         Option<Boolean> grassOption = buildToggle(
                 Component.translatable("config.seamlesssleep.world_acceleration.grass_and_foliage"),
@@ -286,7 +347,9 @@ public final class NeoForgeYaclConfigScreen {
                 true,
                 () -> uiState.boundGrassAndFoliageAccelerationEnabled,
                 value -> uiState.boundGrassAndFoliageAccelerationEnabled = value,
-                canEditServerConfig && uiState.mode != WorldSleepAccelerationMode.OFF
+                canEditServerConfig && uiState.mode != WorldSleepAccelerationMode.OFF,
+                session,
+                ServerConfigField.GRASS_AND_FOLIAGE_ACCELERATION_ENABLED
         );
         Option<Boolean> cropsOption = buildToggle(
                 Component.translatable("config.seamlesssleep.world_acceleration.crops_and_saplings"),
@@ -298,7 +361,9 @@ public final class NeoForgeYaclConfigScreen {
                 true,
                 () -> uiState.boundCropsAndSaplingsAccelerationEnabled,
                 value -> uiState.boundCropsAndSaplingsAccelerationEnabled = value,
-                canEditServerConfig && uiState.mode != WorldSleepAccelerationMode.OFF
+                canEditServerConfig && uiState.mode != WorldSleepAccelerationMode.OFF,
+                session,
+                ServerConfigField.CROPS_AND_SAPLINGS_ACCELERATION_ENABLED
         );
         Option<Boolean> kelpOption = buildToggle(
                 Component.translatable("config.seamlesssleep.world_acceleration.kelp"),
@@ -310,7 +375,9 @@ public final class NeoForgeYaclConfigScreen {
                 false,
                 () -> uiState.boundKelpAccelerationEnabled,
                 value -> uiState.boundKelpAccelerationEnabled = value,
-                canEditServerConfig && uiState.mode != WorldSleepAccelerationMode.OFF
+                canEditServerConfig && uiState.mode != WorldSleepAccelerationMode.OFF,
+                session,
+                ServerConfigField.KELP_ACCELERATION_ENABLED
         );
         Option<Boolean> vanillaOnlyOption = buildToggle(
                 Component.translatable("config.seamlesssleep.world_acceleration.vanilla_only"),
@@ -322,7 +389,9 @@ public final class NeoForgeYaclConfigScreen {
                 WorldSleepAccelerationConfig.DEFAULT_VANILLA_ONLY_ACCELERATION,
                 () -> uiState.boundVanillaOnlyAcceleration,
                 value -> uiState.boundVanillaOnlyAcceleration = value,
-                canEditServerConfig && uiState.mode != WorldSleepAccelerationMode.OFF
+                canEditServerConfig && uiState.mode != WorldSleepAccelerationMode.OFF,
+                session,
+                ServerConfigField.VANILLA_ONLY_ACCELERATION
         );
         Option<Boolean> processesOption = buildToggle(
                 Component.translatable("config.seamlesssleep.world_acceleration.processes_enabled"),
@@ -334,7 +403,9 @@ public final class NeoForgeYaclConfigScreen {
                 true,
                 () -> uiState.boundProcessesAccelerationEnabled,
                 value -> uiState.boundProcessesAccelerationEnabled = value,
-                canEditServerConfig && uiState.mode != WorldSleepAccelerationMode.OFF
+                canEditServerConfig && uiState.mode != WorldSleepAccelerationMode.OFF,
+                session,
+                ServerConfigField.PROCESSES_ACCELERATION_ENABLED
         );
         Option<Integer> processesSpeedOption = buildIntSlider(
                 Component.translatable("config.seamlesssleep.world_acceleration.processes_speed"),
@@ -350,11 +421,13 @@ public final class NeoForgeYaclConfigScreen {
                 () -> uiState.boundProcessesSpeedPercent,
                 value -> uiState.boundProcessesSpeedPercent = Mth.clamp(value, 0, 100),
                 canEditServerConfig && uiState.mode != WorldSleepAccelerationMode.OFF && uiState.processesAccelerationEnabled,
-                NeoForgeYaclConfigScreen::formatPercentValue
+                NeoForgeYaclConfigScreen::formatPercentValue,
+                session,
+                ServerConfigField.PROCESSES_SPEED_PERCENT
         );
 
         Runnable refreshAccelerationOptions = () -> refreshAccelerationOptions(
-                canEditServerConfig,
+                session.canEditServerConfig(),
                 uiState,
                 radiusOption,
                 speedOption,
@@ -368,39 +441,40 @@ public final class NeoForgeYaclConfigScreen {
                 processesSpeedOption
         );
 
-        listen(modeOption, value -> {
+        listenServer(session, ServerConfigField.WORLD_SLEEP_ACCELERATION_MODE, modeOption, value -> {
             uiState.mode = value;
-            refreshAccelerationOptions.run();
+            session.runWithSuppressedDirtyTracking(refreshAccelerationOptions);
         });
-        listen(radiusOption, value -> {
+        listenServer(session, ServerConfigField.MANUAL_ACCELERATION_RADIUS_CHUNKS, radiusOption, value -> {
             if (uiState.mode == WorldSleepAccelerationMode.MANUAL) {
                 uiState.manualAccelerationRadiusChunks = value;
             }
         });
-        listen(speedOption, value -> {
+        listenServer(session, ServerConfigField.MANUAL_ACCELERATION_SPEED_PERCENT, speedOption, value -> {
             if (uiState.mode == WorldSleepAccelerationMode.MANUAL) {
                 uiState.manualAccelerationSpeedPercent = value;
             }
         });
-        listen(playersAffectedOption, value -> {
+        listenServer(session, ServerConfigField.WORLD_SLEEP_ACCELERATION_PLAYERS_AFFECTED, playersAffectedOption, value -> {
             if (uiState.mode == WorldSleepAccelerationMode.MANUAL) {
                 uiState.playersAffected = value;
             }
         });
-        listen(automaticModeOption, value -> {
+        listenServer(session, ServerConfigField.WORLD_SLEEP_AUTOMATIC_MODE, automaticModeOption, value -> {
             uiState.automaticMode = value;
-            refreshAccelerationOptions.run();
+            session.runWithSuppressedDirtyTracking(refreshAccelerationOptions);
         });
-        listen(grassOption, value -> uiState.grassAndFoliageAccelerationEnabled = value);
-        listen(cropsOption, value -> uiState.cropsAndSaplingsAccelerationEnabled = value);
-        listen(kelpOption, value -> uiState.kelpAccelerationEnabled = value);
-        listen(vanillaOnlyOption, value -> uiState.vanillaOnlyAcceleration = value);
-        listen(processesOption, value -> {
+        listenServer(session, ServerConfigField.GRASS_AND_FOLIAGE_ACCELERATION_ENABLED, grassOption, value -> uiState.grassAndFoliageAccelerationEnabled = value);
+        listenServer(session, ServerConfigField.CROPS_AND_SAPLINGS_ACCELERATION_ENABLED, cropsOption, value -> uiState.cropsAndSaplingsAccelerationEnabled = value);
+        listenServer(session, ServerConfigField.KELP_ACCELERATION_ENABLED, kelpOption, value -> uiState.kelpAccelerationEnabled = value);
+        listenServer(session, ServerConfigField.VANILLA_ONLY_ACCELERATION, vanillaOnlyOption, value -> uiState.vanillaOnlyAcceleration = value);
+        listenServer(session, ServerConfigField.PROCESSES_ACCELERATION_ENABLED, processesOption, value -> {
             uiState.processesAccelerationEnabled = value;
-            refreshAccelerationOptions.run();
+            session.runWithSuppressedDirtyTracking(refreshAccelerationOptions);
         });
-        listen(processesSpeedOption, value -> uiState.processesSpeedPercent = value);
-        refreshAccelerationOptions.run();
+        listenServer(session, ServerConfigField.PROCESSES_SPEED_PERCENT, processesSpeedOption, value -> uiState.processesSpeedPercent = value);
+        session.runWithSuppressedDirtyTracking(refreshAccelerationOptions);
+        session.setRefreshers(refreshOverlayTextOptions, refreshAccelerationOptions);
 
         OptionGroup generalGroup = OptionGroup.createBuilder()
                 .name(Component.translatable("config.seamlesssleep.server.group.general"))
@@ -448,9 +522,10 @@ public final class NeoForgeYaclConfigScreen {
 
     private static ConfigCategory buildAdvancedCategory(
             SeamlessSleepClientConfig cfg,
-            ServerConfigUiState uiState,
-            boolean canEditServerConfig
+            RemoteServerConfigScreenSession session
     ) {
+        ServerConfigUiState uiState = session.uiState();
+        boolean canEditServerConfig = session.canEditServerConfig();
         Option<Integer> madeInHeavenChanceOption = buildIntSlider(
                 Component.translatable("config.seamlesssleep.easter_eggs.made_in_heaven_chance"),
                 serverDescription(
@@ -465,9 +540,11 @@ public final class NeoForgeYaclConfigScreen {
                 () -> uiState.boundMadeInHeavenChancePercent,
                 value -> uiState.boundMadeInHeavenChancePercent = value,
                 canEditServerConfig,
-                NeoForgeYaclConfigScreen::formatWeatherChanceValue
+                NeoForgeYaclConfigScreen::formatWeatherChanceValue,
+                session,
+                ServerConfigField.MADE_IN_HEAVEN_CHANCE_PERCENT
         );
-        listen(madeInHeavenChanceOption, value -> uiState.madeInHeavenChancePercent = value);
+        listenServer(session, ServerConfigField.MADE_IN_HEAVEN_CHANCE_PERCENT, madeInHeavenChanceOption, value -> uiState.madeInHeavenChancePercent = value);
 
         OptionGroup easterEggsGroup = OptionGroup.createBuilder()
                 .name(Component.translatable("config.seamlesssleep.server.group.easter_eggs"))
@@ -509,22 +586,6 @@ public final class NeoForgeYaclConfigScreen {
                 .name(Component.translatable("config.seamlesssleep.client.group.overlay"))
                 .description(OptionDescription.of(Component.translatable("config.seamlesssleep.client.group.overlay.desc")))
                 .collapsed(false)
-                .option(buildToggle(
-                        Component.translatable("config.seamlesssleep.overlay.enabled"),
-                        Component.translatable("config.seamlesssleep.overlay.enabled.desc"),
-                        Component.empty(),
-                        true,
-                        () -> cfg.sleepIndicatorMode != SleepIndicatorMode.OFF,
-                        value -> {
-                            cfg.sleepOverlayEnabled = value;
-                            if (!value) {
-                                cfg.sleepIndicatorMode = SleepIndicatorMode.OFF;
-                            } else if (cfg.sleepIndicatorMode == SleepIndicatorMode.OFF) {
-                                cfg.sleepIndicatorMode = SleepIndicatorMode.BIOME_CLOCK;
-                            }
-                        },
-                        true
-                ))
                 .option(buildIntSlider(
                         Component.translatable("config.seamlesssleep.overlay.darkness"),
                         Component.translatable("config.seamlesssleep.overlay.darkness.desc"),
@@ -567,10 +628,7 @@ public final class NeoForgeYaclConfigScreen {
                 SleepIndicatorMode.BIOME_CLOCK,
                 SleepIndicatorMode.class,
                 () -> cfg.sleepIndicatorMode,
-                value -> {
-                    cfg.sleepIndicatorMode = value == null ? SleepIndicatorMode.BIOME_CLOCK : value;
-                    cfg.sleepOverlayEnabled = cfg.sleepIndicatorMode != SleepIndicatorMode.OFF;
-                },
+                value -> cfg.sleepIndicatorMode = value == null ? SleepIndicatorMode.BIOME_CLOCK : value,
                 true,
                 value -> enumText("config.seamlesssleep.sleep_indicator.mode", value)
         );
@@ -615,7 +673,7 @@ public final class NeoForgeYaclConfigScreen {
                     ? SleepIndicatorMode.BIOME_CLOCK
                     : cfg.sleepIndicatorMode;
             boolean indicatorEnabled = mode != SleepIndicatorMode.OFF;
-            if (mode == SleepIndicatorMode.OVERLAY) {
+            if (mode == SleepIndicatorMode.TEXT) {
                 cfg.sleepIndicatorVisibility = SleepIndicatorVisibility.SLEEP;
                 setPendingIfChanged(visibilityOption, SleepIndicatorVisibility.SLEEP);
             }
@@ -626,7 +684,6 @@ public final class NeoForgeYaclConfigScreen {
 
         listen(modeOption, value -> {
             cfg.sleepIndicatorMode = value == null ? SleepIndicatorMode.BIOME_CLOCK : value;
-            cfg.sleepOverlayEnabled = cfg.sleepIndicatorMode != SleepIndicatorMode.OFF;
             refreshIndicatorOptions.run();
         });
         listen(anchorOption, value -> cfg.sleepIndicatorAnchor = value == null ? SleepIndicatorAnchor.TOP_LEFT : value);
@@ -784,12 +841,26 @@ public final class NeoForgeYaclConfigScreen {
                                                     Supplier<String> getter,
                                                     Consumer<String> setter,
                                                     boolean available) {
+        return buildStringOption(name, description, disabledReason, def, getter, setter, available, null, null);
+    }
+
+    private static Option<String> buildStringOption(Component name,
+                                                    Component description,
+                                                    Component disabledReason,
+                                                    String def,
+                                                    Supplier<String> getter,
+                                                    Consumer<String> setter,
+                                                    boolean available,
+                                                    RemoteServerConfigScreenSession session,
+                                                    ServerConfigField field) {
         OptionDescription optionDescription = optionDescription(description, disabledReason, available);
-        Option.Builder<String> builder = Option.<String>createBuilder()
+        Option.Builder<String> builder = withConflictController(Option.<String>createBuilder()
                 .name(name)
-                .description(optionDescription)
-                .binding(def, getter::get, setter::accept)
-                .controller(StringControllerBuilder::create);
+                .description(withConflictDescription(optionDescription, session, field))
+                .binding(def, getter::get, setter::accept),
+                StringControllerBuilder::create,
+                session,
+                field);
         builder.available(available);
         return builder.build();
     }
@@ -809,6 +880,19 @@ public final class NeoForgeYaclConfigScreen {
         option.addEventListener((opt, event) -> {
             if (event == dev.isxander.yacl3.api.OptionEventListener.Event.STATE_CHANGE) {
                 consumer.accept(opt.pendingValue());
+            }
+        });
+    }
+
+    private static <T> void listenServer(RemoteServerConfigScreenSession session,
+                                         ServerConfigField field,
+                                         Option<T> option,
+                                         Consumer<T> consumer) {
+        session.registerOption(field, option);
+        option.addEventListener((opt, event) -> {
+            if (event == dev.isxander.yacl3.api.OptionEventListener.Event.STATE_CHANGE) {
+                consumer.accept(opt.pendingValue());
+                session.markDirty(field, opt.changed(), opt.isPendingValueDefault());
             }
         });
     }
@@ -860,6 +944,28 @@ public final class NeoForgeYaclConfigScreen {
         return OptionDescription.of(description, disabledReason);
     }
 
+    private static OptionDescription withConflictDescription(OptionDescription description,
+                                                             RemoteServerConfigScreenSession session,
+                                                             ServerConfigField field) {
+        if (session == null || field == null) {
+            return description;
+        }
+        return new ConflictAwareOptionDescription(description, () -> session.hasConflict(field), session::conflictVisualRevision);
+    }
+
+    private static <T> Option.Builder<T> withConflictController(Option.Builder<T> builder,
+                                                                Function<Option<T>, ControllerBuilder<T>> controllerFactory,
+                                                                RemoteServerConfigScreenSession session,
+                                                                ServerConfigField field) {
+        if (session == null || field == null) {
+            return builder.controller(controllerFactory);
+        }
+        return builder.customController(option -> new ConflictAwareController<>(
+                controllerFactory.apply(option).build(),
+                () -> session.hasConflict(field)
+        ));
+    }
+
     private static Option<Double> buildDoubleSlider(Component name,
                                                     Component description,
                                                     Component disabledReason,
@@ -871,12 +977,28 @@ public final class NeoForgeYaclConfigScreen {
                                                     Consumer<Double> setter,
                                                     boolean available,
                                                     Function<Double, Component> formatter) {
+        return buildDoubleSlider(name, description, disabledReason, def, min, max, step, getter, setter, available, formatter, null, null);
+    }
+
+    private static Option<Double> buildDoubleSlider(Component name,
+                                                    Component description,
+                                                    Component disabledReason,
+                                                    double def,
+                                                    double min,
+                                                    double max,
+                                                    double step,
+                                                    Supplier<Double> getter,
+                                                    Consumer<Double> setter,
+                                                    boolean available,
+                                                    Function<Double, Component> formatter,
+                                                    RemoteServerConfigScreenSession session,
+                                                    ServerConfigField field) {
         OptionDescription optionDescription = optionDescription(description, disabledReason, available);
-        Option.Builder<Double> builder = Option.<Double>createBuilder()
+        Option.Builder<Double> builder = withConflictController(Option.<Double>createBuilder()
                 .name(name)
-                .description(optionDescription)
-                .binding(def, getter::get, setter::accept)
-                .controller(opt -> {
+                .description(withConflictDescription(optionDescription, session, field))
+                .binding(def, getter::get, setter::accept),
+                opt -> {
                     DoubleSliderControllerBuilder slider = DoubleSliderControllerBuilder.create(opt)
                             .range(min, max)
                             .step(step);
@@ -884,7 +1006,9 @@ public final class NeoForgeYaclConfigScreen {
                         slider = slider.formatValue(formatter::apply);
                     }
                     return slider;
-                });
+                },
+                session,
+                field);
         builder.available(available);
         return builder.build();
     }
@@ -900,14 +1024,30 @@ public final class NeoForgeYaclConfigScreen {
                                                   Consumer<Integer> setter,
                                                   boolean available,
                                                   Function<Integer, Component> formatter) {
+        return buildIntSlider(name, description, disabledReason, def, min, max, step, getter, setter, available, formatter, null, null);
+    }
+
+    private static Option<Integer> buildIntSlider(Component name,
+                                                  Component description,
+                                                  Component disabledReason,
+                                                  int def,
+                                                  int min,
+                                                  int max,
+                                                  int step,
+                                                  Supplier<Integer> getter,
+                                                  Consumer<Integer> setter,
+                                                  boolean available,
+                                                  Function<Integer, Component> formatter,
+                                                  RemoteServerConfigScreenSession session,
+                                                  ServerConfigField field) {
         OptionDescription optionDescription = optionDescription(description, disabledReason, available);
         int safeStep = Math.max(1, step);
         int safeMax = max <= min ? min + safeStep : max;
-        Option.Builder<Integer> builder = Option.<Integer>createBuilder()
+        Option.Builder<Integer> builder = withConflictController(Option.<Integer>createBuilder()
                 .name(name)
-                .description(optionDescription)
-                .binding(def, getter::get, setter::accept)
-                .controller(opt -> {
+                .description(withConflictDescription(optionDescription, session, field))
+                .binding(def, getter::get, setter::accept),
+                opt -> {
                     IntegerSliderControllerBuilder slider = IntegerSliderControllerBuilder.create(opt)
                             .range(min, safeMax)
                             .step(safeStep);
@@ -915,7 +1055,9 @@ public final class NeoForgeYaclConfigScreen {
                         slider = slider.formatValue(formatter::apply);
                     }
                     return slider;
-                });
+                },
+                session,
+                field);
         builder.available(available);
         return builder.build();
     }
@@ -927,12 +1069,26 @@ public final class NeoForgeYaclConfigScreen {
                                                Supplier<Boolean> getter,
                                                Consumer<Boolean> setter,
                                                boolean available) {
+        return buildToggle(name, description, disabledReason, def, getter, setter, available, null, null);
+    }
+
+    private static Option<Boolean> buildToggle(Component name,
+                                               Component description,
+                                               Component disabledReason,
+                                               boolean def,
+                                               Supplier<Boolean> getter,
+                                               Consumer<Boolean> setter,
+                                               boolean available,
+                                               RemoteServerConfigScreenSession session,
+                                               ServerConfigField field) {
         OptionDescription optionDescription = optionDescription(description, disabledReason, available);
-        Option.Builder<Boolean> builder = Option.<Boolean>createBuilder()
+        Option.Builder<Boolean> builder = withConflictController(Option.<Boolean>createBuilder()
                 .name(name)
-                .description(optionDescription)
-                .binding(def, getter::get, setter::accept)
-                .controller(BooleanControllerBuilder::create);
+                .description(withConflictDescription(optionDescription, session, field))
+                .binding(def, getter::get, setter::accept),
+                BooleanControllerBuilder::create,
+                session,
+                field);
         builder.available(available);
         return builder.build();
     }
@@ -946,14 +1102,30 @@ public final class NeoForgeYaclConfigScreen {
                                                                  Consumer<E> setter,
                                                                  boolean available,
                                                                  Function<E, Component> formatter) {
+        return buildEnumOption(name, description, disabledReason, def, enumClass, getter, setter, available, formatter, null, null);
+    }
+
+    private static <E extends Enum<E>> Option<E> buildEnumOption(Component name,
+                                                                 Component description,
+                                                                 Component disabledReason,
+                                                                 E def,
+                                                                 Class<E> enumClass,
+                                                                 Supplier<E> getter,
+                                                                 Consumer<E> setter,
+                                                                 boolean available,
+                                                                 Function<E, Component> formatter,
+                                                                 RemoteServerConfigScreenSession session,
+                                                                 ServerConfigField field) {
         OptionDescription optionDescription = optionDescription(description, disabledReason, available);
-        Option.Builder<E> builder = Option.<E>createBuilder()
+        Option.Builder<E> builder = withConflictController(Option.<E>createBuilder()
                 .name(name)
-                .description(optionDescription)
-                .binding(def, getter::get, setter::accept)
-                .controller(opt -> EnumControllerBuilder.create(opt)
+                .description(withConflictDescription(optionDescription, session, field))
+                .binding(def, getter::get, setter::accept),
+                opt -> EnumControllerBuilder.create(opt)
                         .enumClass(enumClass)
-                        .formatValue(formatter::apply));
+                        .formatValue(formatter::apply),
+                session,
+                field);
         builder.available(available);
         return builder.build();
     }
@@ -1051,8 +1223,455 @@ public final class NeoForgeYaclConfigScreen {
         return Component.literal(String.format(Locale.ROOT, "%.2fx", resolved));
     }
 
+    private static final class ConflictAwareOptionDescription implements OptionDescription {
+        private final OptionDescription delegate;
+        private final Supplier<Boolean> conflictSupplier;
+        private final IntSupplier revisionSupplier;
+        private int observedRevision;
+
+        private ConflictAwareOptionDescription(OptionDescription delegate,
+                                               Supplier<Boolean> conflictSupplier,
+                                               IntSupplier revisionSupplier) {
+            this.delegate = delegate;
+            this.conflictSupplier = conflictSupplier;
+            this.revisionSupplier = revisionSupplier;
+            this.observedRevision = revisionSupplier.getAsInt();
+        }
+
+        @Override
+        public Component text() {
+            if (!conflictSupplier.get()) {
+                return delegate.text();
+            }
+
+            Component warning = Component.translatable("config.seamlesssleep.remote.conflict.option_warning")
+                    .withStyle(ChatFormatting.YELLOW);
+            if (delegate.text().getString().isBlank()) {
+                return warning;
+            }
+            return Component.empty()
+                    .append(delegate.text())
+                    .append("\n\n")
+                    .append(warning);
+        }
+
+        @Override
+        public CompletableFuture<Optional<ImageRenderer>> image() {
+            return delegate.image();
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (this != obj) {
+                return false;
+            }
+            int revision = revisionSupplier.getAsInt();
+            boolean unchanged = observedRevision == revision;
+            observedRevision = revision;
+            return unchanged;
+        }
+
+        @Override
+        public int hashCode() {
+            return System.identityHashCode(this);
+        }
+    }
+
+    private static final class ConflictAwareController<T> implements Controller<T> {
+        private final Controller<T> delegate;
+        private final Supplier<Boolean> conflictSupplier;
+
+        private ConflictAwareController(Controller<T> delegate, Supplier<Boolean> conflictSupplier) {
+            this.delegate = delegate;
+            this.conflictSupplier = conflictSupplier;
+        }
+
+        @Override
+        public Option<T> option() {
+            return delegate.option();
+        }
+
+        @Override
+        public Component formatValue() {
+            return delegate.formatValue();
+        }
+
+        @Override
+        public AbstractWidget provideWidget(YACLScreen screen, Dimension<Integer> widgetDimension) {
+            return new ConflictAwareWidget(delegate, delegate.provideWidget(screen, widgetDimension), widgetDimension, conflictSupplier);
+        }
+    }
+
+    private static final class ConflictAwareWidget extends AbstractWidget {
+        private final Controller<?> controller;
+        private final AbstractWidget delegate;
+        private final Supplier<Boolean> conflictSupplier;
+
+        private ConflictAwareWidget(Controller<?> controller,
+                                    AbstractWidget delegate,
+                                    Dimension<Integer> dimension,
+                                    Supplier<Boolean> conflictSupplier) {
+            super(dimension);
+            this.controller = controller;
+            this.delegate = delegate;
+            this.conflictSupplier = conflictSupplier;
+        }
+
+        @Override
+        public void setDimension(Dimension<Integer> dim) {
+            super.setDimension(dim);
+            delegate.setDimension(dim);
+        }
+
+        @Override
+        public void render(GuiGraphics graphics, int mouseX, int mouseY, float tickDelta) {
+            delegate.render(graphics, mouseX, mouseY, tickDelta);
+            if (!conflictSupplier.get()) {
+                return;
+            }
+
+            Dimension<Integer> dimension = getDimension();
+            Component name = controller.option().name().copy().withStyle(ChatFormatting.YELLOW);
+            if (controller.option().changed()) {
+                name = name.copy().withStyle(ChatFormatting.ITALIC, ChatFormatting.YELLOW);
+            }
+
+            int reservedControlWidth = invokeIntNoArgs(delegate, "getControlWidth", textRenderer.width(controller.formatValue()));
+            int xPadding = invokeIntNoArgs(delegate, "getXPadding", 5);
+            int maxNameWidth = Math.max(20, dimension.width() - reservedControlWidth - xPadding - 7);
+            Component shortenedName = Component.literal(GuiUtils.shortenString(name.getString(), textRenderer, maxNameWidth, "..."))
+                    .setStyle(name.getStyle());
+            int textY = (int) (dimension.y() + dimension.height() / 2f - textRenderer.lineHeight / 2f);
+            graphics.drawString(textRenderer, shortenedName, dimension.x() + xPadding, textY, 0xFFFFFF55, true);
+        }
+
+        private static int invokeIntNoArgs(Object target, String methodName, int fallback) {
+            Class<?> type = target.getClass();
+            while (type != null) {
+                try {
+                    java.lang.reflect.Method method = type.getDeclaredMethod(methodName);
+                    method.setAccessible(true);
+                    return (Integer) method.invoke(target);
+                } catch (ReflectiveOperationException | RuntimeException ignored) {
+                    type = type.getSuperclass();
+                }
+            }
+            return fallback;
+        }
+
+        @Override
+        public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+            return delegate.mouseClicked(event, doubleClick);
+        }
+
+        @Override
+        public boolean mouseReleased(MouseButtonEvent event) {
+            return delegate.mouseReleased(event);
+        }
+
+        @Override
+        public boolean mouseDragged(MouseButtonEvent event, double deltaX, double deltaY) {
+            return delegate.mouseDragged(event, deltaX, deltaY);
+        }
+
+        @Override
+        public boolean mouseScrolled(double mouseX, double mouseY, double horizontal, double vertical) {
+            return delegate.mouseScrolled(mouseX, mouseY, horizontal, vertical);
+        }
+
+        @Override
+        public boolean keyPressed(KeyEvent event) {
+            return delegate.keyPressed(event);
+        }
+
+        @Override
+        public boolean charTyped(CharacterEvent event) {
+            return delegate.charTyped(event);
+        }
+
+        @Override
+        public boolean isMouseOver(double mouseX, double mouseY) {
+            return delegate.isMouseOver(mouseX, mouseY);
+        }
+
+        @Override
+        public boolean canReset() {
+            return delegate.canReset();
+        }
+
+        @Override
+        public void unfocus() {
+            delegate.unfocus();
+        }
+
+        @Override
+        public boolean matchesSearch(String query) {
+            return delegate.matchesSearch(query);
+        }
+
+        @Override
+        public boolean isFocused() {
+            return delegate.isFocused();
+        }
+
+        @Override
+        public void setFocused(boolean focused) {
+            delegate.setFocused(focused);
+        }
+
+        @Override
+        public ComponentPath nextFocusPath(FocusNavigationEvent event) {
+            if (delegate.nextFocusPath(event) == null) {
+                return null;
+            }
+            return !isFocused() ? ComponentPath.leaf(this) : null;
+        }
+
+        @Override
+        public NarrationPriority narrationPriority() {
+            return delegate.narrationPriority();
+        }
+
+        @Override
+        public void updateNarration(NarrationElementOutput builder) {
+            delegate.updateNarration(builder);
+        }
+    }
+
+    private static final class RemoteServerConfigScreenSession implements RemoteServerConfigClientState.Listener {
+        private final boolean remote;
+        private final boolean liveServer;
+        private final ServerConfigUiState uiState;
+        private final ServerConfigUiState baselineState;
+        private final Map<ServerConfigField, Option<?>> options = new EnumMap<>(ServerConfigField.class);
+        private final Set<ServerConfigField> dirtyFields = EnumSet.noneOf(ServerConfigField.class);
+        private final Set<ServerConfigField> conflictFields = EnumSet.noneOf(ServerConfigField.class);
+        private boolean canEditServerConfig;
+        private boolean suppressDirtyTracking;
+        private Runnable refreshOverlayTextOptions = () -> {};
+        private Runnable refreshAccelerationOptions = () -> {};
+        private YACLScreen screen;
+        private int conflictVisualRevision;
+
+        private RemoteServerConfigScreenSession(boolean remote,
+                                                boolean liveServer,
+                                                ServerConfigUiState uiState,
+                                                boolean canEditServerConfig) {
+            this.remote = remote;
+            this.liveServer = liveServer;
+            this.uiState = uiState;
+            this.baselineState = ServerConfigUiState.copyOf(uiState);
+            this.canEditServerConfig = canEditServerConfig;
+        }
+
+        private boolean remote() {
+            return remote;
+        }
+
+        private boolean liveServer() {
+            return liveServer;
+        }
+
+        private ServerConfigUiState uiState() {
+            return uiState;
+        }
+
+        private boolean canEditServerConfig() {
+            return canEditServerConfig;
+        }
+
+        private boolean hasConflict(ServerConfigField field) {
+            return conflictFields.contains(field);
+        }
+
+        private int conflictVisualRevision() {
+            return conflictVisualRevision;
+        }
+
+        private void bumpConflictVisualRevision() {
+            conflictVisualRevision++;
+        }
+
+        private void clearDirtyAndConflicts() {
+            dirtyFields.clear();
+            if (!conflictFields.isEmpty()) {
+                conflictFields.clear();
+                bumpConflictVisualRevision();
+            }
+        }
+
+        private void attachScreen(YACLScreen screen) {
+            this.screen = screen;
+            if (liveServer) {
+                RemoteServerConfigClientState.setActiveListener(this);
+                refreshAvailability();
+            }
+        }
+
+        private void registerOption(ServerConfigField field, Option<?> option) {
+            options.put(field, option);
+        }
+
+        private void setRefreshers(Runnable refreshOverlayTextOptions, Runnable refreshAccelerationOptions) {
+            this.refreshOverlayTextOptions = refreshOverlayTextOptions;
+            this.refreshAccelerationOptions = refreshAccelerationOptions;
+        }
+
+        private void markDirty(ServerConfigField field, boolean changed, boolean pendingDefault) {
+            if (!liveServer || suppressDirtyTracking || !canEditServerConfig) {
+                return;
+            }
+            if (changed) {
+                dirtyFields.add(field);
+            } else {
+                dirtyFields.remove(field);
+                if (conflictFields.remove(field)) {
+                    bumpConflictVisualRevision();
+                }
+                return;
+            }
+
+            if (pendingDefault && conflictFields.remove(field)) {
+                bumpConflictVisualRevision();
+            }
+        }
+
+        private void runWithSuppressedDirtyTracking(Runnable action) {
+            boolean previous = suppressDirtyTracking;
+            suppressDirtyTracking = true;
+            try {
+                action.run();
+            } finally {
+                suppressDirtyTracking = previous;
+            }
+        }
+
+        private void sendPatch() {
+            if (!remote || dirtyFields.isEmpty()) {
+                return;
+            }
+
+            RemoteServerConfigClientState.sendUpdate(createPatchPayload());
+        }
+
+        private void saveLocalPatch(Minecraft client) {
+            if (remote || !liveServer || dirtyFields.isEmpty() || client.getSingleplayerServer() == null) {
+                return;
+            }
+
+            if (ServerConfigMutationService.applyTrustedLocalUpdate(client.getSingleplayerServer(), createPatchPayload())) {
+                clearDirtyAndConflicts();
+                return;
+            }
+        }
+
+        private ServerConfigUpdateC2SPayload createPatchPayload() {
+            EnumMap<ServerConfigField, String> values = new EnumMap<>(ServerConfigField.class);
+            for (ServerConfigField field : dirtyFields) {
+                values.put(field, uiState.serializeField(field));
+            }
+            return new ServerConfigUpdateC2SPayload(
+                    RemoteServerConfigClientState.serverConfigRevision(),
+                    values
+            );
+        }
+
+        @Override
+        public boolean isActive() {
+            return screen != null && (Minecraft.getInstance().screen == screen || screen.popupControllerVisible);
+        }
+
+        @Override
+        public void onServerConfigSnapshotUpdated() {
+            applySnapshotUpdate(true);
+        }
+
+        @Override
+        public void onServerConfigAccessUpdated() {
+            if (!remote) {
+                return;
+            }
+
+            canEditServerConfig = RemoteServerConfigClientState.canEditServerConfig();
+            if (!canEditServerConfig) {
+                clearDirtyAndConflicts();
+                applySnapshotUpdate(false);
+                return;
+            }
+            refreshAvailability();
+        }
+
+        @Override
+        public void onServerConfigUpdateResult(ServerConfigUpdateResultS2CPayload payload) {
+            if (!remote) {
+                return;
+            }
+
+            if (payload.success()) {
+                clearDirtyAndConflicts();
+                applySnapshotUpdate(false);
+                return;
+            }
+
+            if (payload.status() == ServerConfigUpdateStatus.NO_PERMISSION) {
+                canEditServerConfig = false;
+                clearDirtyAndConflicts();
+                applySnapshotUpdate(false);
+                return;
+            }
+        }
+
+        private void applySnapshotUpdate(boolean preserveDirtyFields) {
+            ServerConfigUiState newServerState = ServerConfigUiState.fromSnapshot();
+            EnumMap<ServerConfigField, Object> preservedDirtyValues = new EnumMap<>(ServerConfigField.class);
+            if (preserveDirtyFields) {
+                for (ServerConfigField field : dirtyFields) {
+                    Object oldServerValue = baselineState.fieldValue(field);
+                    Object newServerValue = newServerState.fieldValue(field);
+                    if (!Objects.equals(oldServerValue, newServerValue) && conflictFields.add(field)) {
+                        bumpConflictVisualRevision();
+                    }
+                    preservedDirtyValues.put(field, uiState.fieldValue(field));
+                }
+            }
+
+            suppressDirtyTracking = true;
+            uiState.copyFrom(newServerState);
+            baselineState.copyFrom(newServerState);
+            for (Map.Entry<ServerConfigField, Object> entry : preservedDirtyValues.entrySet()) {
+                uiState.setFieldValue(entry.getKey(), entry.getValue());
+            }
+            syncOptionsFromState();
+            refreshAvailability();
+            suppressDirtyTracking = false;
+        }
+
+        private void syncOptionsFromState() {
+            for (Map.Entry<ServerConfigField, Option<?>> entry : options.entrySet()) {
+                setOptionPending(entry.getValue(), uiState.optionValue(entry.getKey()));
+            }
+        }
+
+        @SuppressWarnings({"unchecked", "rawtypes"})
+        private static void setOptionPending(Option option, Object value) {
+            if (!Objects.equals(option.pendingValue(), value)) {
+                option.requestSet(value);
+            }
+        }
+
+        private void refreshAvailability() {
+            suppressDirtyTracking = true;
+            for (Option<?> option : options.values()) {
+                option.setAvailable(canEditServerConfig);
+            }
+            refreshOverlayTextOptions.run();
+            refreshAccelerationOptions.run();
+            suppressDirtyTracking = false;
+        }
+    }
+
     private static final class ServerConfigUiState {
-        private final int simulationDistance;
+        private int simulationDistance;
 
         private int sleepWeatherClearChancePercent;
         private double sleepAnimationDurationMultiplier;
@@ -1143,6 +1762,35 @@ public final class NeoForgeYaclConfigScreen {
             return state;
         }
 
+        private static ServerConfigUiState copyOf(ServerConfigUiState source) {
+            ServerConfigUiState copy = new ServerConfigUiState(source.simulationDistance);
+            copy.copyFrom(source);
+            return copy;
+        }
+
+        private void copyFrom(ServerConfigUiState source) {
+            this.simulationDistance = source.simulationDistance;
+            this.sleepWeatherClearChancePercent = source.sleepWeatherClearChancePercent;
+            this.sleepAnimationDurationMultiplier = source.sleepAnimationDurationMultiplier;
+            this.fallAsleepDelayTicks = source.fallAsleepDelayTicks;
+            this.overrideOverlayText = source.overrideOverlayText;
+            this.overlayCustomText = source.overlayCustomText;
+            this.sleepEligibility = source.sleepEligibility;
+            this.madeInHeavenChancePercent = source.madeInHeavenChancePercent;
+            this.mode = source.mode;
+            this.automaticMode = source.automaticMode;
+            this.playersAffected = source.playersAffected;
+            this.manualAccelerationRadiusChunks = source.manualAccelerationRadiusChunks;
+            this.manualAccelerationSpeedPercent = source.manualAccelerationSpeedPercent;
+            this.grassAndFoliageAccelerationEnabled = source.grassAndFoliageAccelerationEnabled;
+            this.cropsAndSaplingsAccelerationEnabled = source.cropsAndSaplingsAccelerationEnabled;
+            this.kelpAccelerationEnabled = source.kelpAccelerationEnabled;
+            this.vanillaOnlyAcceleration = source.vanillaOnlyAcceleration;
+            this.processesAccelerationEnabled = source.processesAccelerationEnabled;
+            this.processesSpeedPercent = source.processesSpeedPercent;
+            this.snapshotBoundValues();
+        }
+
         private void snapshotBoundValues() {
             this.boundSleepWeatherClearChancePercent = this.sleepWeatherClearChancePercent;
             this.boundSleepAnimationDurationMultiplier = this.sleepAnimationDurationMultiplier;
@@ -1209,6 +1857,68 @@ public final class NeoForgeYaclConfigScreen {
             return mode == WorldSleepAccelerationMode.AUTOMATIC
                     ? resolveAutomaticSpeedPercent()
                     : Mth.clamp(manualAccelerationSpeedPercent, 0, 100);
+        }
+
+        private Object fieldValue(ServerConfigField field) {
+            return switch (field) {
+                case SLEEP_WEATHER_CLEAR_CHANCE_PERCENT -> sleepWeatherClearChancePercent;
+                case SLEEP_ANIMATION_DURATION_MULTIPLIER -> sleepAnimationDurationMultiplier;
+                case FALL_ASLEEP_DELAY_TICKS -> fallAsleepDelayTicks;
+                case OVERRIDE_OVERLAY_TEXT -> overrideOverlayText;
+                case OVERLAY_CUSTOM_TEXT -> SeamlessSleepServerConfig.sanitizeOverlayText(overlayCustomText);
+                case SLEEP_ELIGIBILITY -> sleepEligibility == null ? SleepEligibilityMode.VANILLA : sleepEligibility;
+                case MADE_IN_HEAVEN_CHANCE_PERCENT -> madeInHeavenChancePercent;
+                case WORLD_SLEEP_ACCELERATION_MODE -> mode == null ? WorldSleepAccelerationMode.AUTOMATIC : mode;
+                case WORLD_SLEEP_AUTOMATIC_MODE -> automaticMode == null ? WorldSleepAutomaticMode.AGGRESSIVE : automaticMode;
+                case WORLD_SLEEP_ACCELERATION_PLAYERS_AFFECTED -> playersAffected == null
+                        ? WorldSleepAccelerationPlayersAffected.ALL_PLAYERS
+                        : playersAffected;
+                case MANUAL_ACCELERATION_RADIUS_CHUNKS -> resolveManualRadius();
+                case MANUAL_ACCELERATION_SPEED_PERCENT -> Mth.clamp(manualAccelerationSpeedPercent, 0, 100);
+                case GRASS_AND_FOLIAGE_ACCELERATION_ENABLED -> grassAndFoliageAccelerationEnabled;
+                case CROPS_AND_SAPLINGS_ACCELERATION_ENABLED -> cropsAndSaplingsAccelerationEnabled;
+                case KELP_ACCELERATION_ENABLED -> kelpAccelerationEnabled;
+                case VANILLA_ONLY_ACCELERATION -> vanillaOnlyAcceleration;
+                case PROCESSES_ACCELERATION_ENABLED -> processesAccelerationEnabled;
+                case PROCESSES_SPEED_PERCENT -> Mth.clamp(processesSpeedPercent, 0, 100);
+            };
+        }
+
+        private Object optionValue(ServerConfigField field) {
+            return switch (field) {
+                case MANUAL_ACCELERATION_RADIUS_CHUNKS -> resolveDisplayedAccelerationRadius();
+                case MANUAL_ACCELERATION_SPEED_PERCENT -> resolveDisplayedAccelerationSpeedPercent();
+                case WORLD_SLEEP_ACCELERATION_PLAYERS_AFFECTED -> resolveDisplayedPlayersAffected();
+                default -> fieldValue(field);
+            };
+        }
+
+        private void setFieldValue(ServerConfigField field, Object value) {
+            switch (field) {
+                case SLEEP_WEATHER_CLEAR_CHANCE_PERCENT -> sleepWeatherClearChancePercent = (Integer) value;
+                case SLEEP_ANIMATION_DURATION_MULTIPLIER -> sleepAnimationDurationMultiplier = (Double) value;
+                case FALL_ASLEEP_DELAY_TICKS -> fallAsleepDelayTicks = (Integer) value;
+                case OVERRIDE_OVERLAY_TEXT -> overrideOverlayText = (Boolean) value;
+                case OVERLAY_CUSTOM_TEXT -> overlayCustomText = (String) value;
+                case SLEEP_ELIGIBILITY -> sleepEligibility = (SleepEligibilityMode) value;
+                case MADE_IN_HEAVEN_CHANCE_PERCENT -> madeInHeavenChancePercent = (Integer) value;
+                case WORLD_SLEEP_ACCELERATION_MODE -> mode = (WorldSleepAccelerationMode) value;
+                case WORLD_SLEEP_AUTOMATIC_MODE -> automaticMode = (WorldSleepAutomaticMode) value;
+                case WORLD_SLEEP_ACCELERATION_PLAYERS_AFFECTED -> playersAffected = (WorldSleepAccelerationPlayersAffected) value;
+                case MANUAL_ACCELERATION_RADIUS_CHUNKS -> manualAccelerationRadiusChunks = (Integer) value;
+                case MANUAL_ACCELERATION_SPEED_PERCENT -> manualAccelerationSpeedPercent = (Integer) value;
+                case GRASS_AND_FOLIAGE_ACCELERATION_ENABLED -> grassAndFoliageAccelerationEnabled = (Boolean) value;
+                case CROPS_AND_SAPLINGS_ACCELERATION_ENABLED -> cropsAndSaplingsAccelerationEnabled = (Boolean) value;
+                case KELP_ACCELERATION_ENABLED -> kelpAccelerationEnabled = (Boolean) value;
+                case VANILLA_ONLY_ACCELERATION -> vanillaOnlyAcceleration = (Boolean) value;
+                case PROCESSES_ACCELERATION_ENABLED -> processesAccelerationEnabled = (Boolean) value;
+                case PROCESSES_SPEED_PERCENT -> processesSpeedPercent = (Integer) value;
+            }
+        }
+
+        private String serializeField(ServerConfigField field) {
+            Object value = fieldValue(field);
+            return value instanceof Enum<?> enumValue ? enumValue.name() : String.valueOf(value);
         }
 
         private void applyTo(SeamlessSleepServerConfig serverCfg) {

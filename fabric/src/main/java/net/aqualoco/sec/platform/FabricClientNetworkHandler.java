@@ -1,10 +1,12 @@
 package net.aqualoco.sec.platform;
 
 import net.aqualoco.sec.client.BedHudMessageManager;
+import net.aqualoco.sec.client.RemoteServerConfigClientState;
 import net.aqualoco.sec.client.SeamlessSleepClientState;
 import net.aqualoco.sec.network.BedHudSleepProgressPayload;
-import net.aqualoco.sec.config.SeamlessSleepServerConfigSnapshot;
+import net.aqualoco.sec.network.ServerConfigAccessS2CPayload;
 import net.aqualoco.sec.network.ServerConfigSyncPayload;
+import net.aqualoco.sec.network.ServerConfigUpdateResultS2CPayload;
 import net.aqualoco.sec.network.SleepAnimationStartPayload;
 import net.aqualoco.sec.network.SleepAnimationStopPayload;
 import net.aqualoco.sec.sleep.SleepAnimationStopReason;
@@ -43,27 +45,19 @@ final class FabricClientNetworkHandler {
         ClientPlayNetworking.registerGlobalReceiver(
                 ServerConfigSyncPayload.ID,
                 (payload, context) -> context.client().execute(
-                        () -> SeamlessSleepServerConfigSnapshot.update(
-                                payload.sleepWeatherClearChancePercent(),
-                                payload.sleepAnimationDurationMultiplier(),
-                                payload.fallAsleepDelayTicks(),
-                                payload.overrideOverlayText(),
-                                payload.overlayCustomText(),
-                                payload.sleepEligibility(),
-                                payload.madeInHeavenChancePercent(),
-                                payload.serverSimulationDistance(),
-                                payload.worldSleepAccelerationMode(),
-                                payload.worldSleepAutomaticMode(),
-                                payload.worldSleepAccelerationPlayersAffected(),
-                                payload.manualAccelerationRadiusChunks(),
-                                payload.manualAccelerationSpeedPercent(),
-                                payload.grassAndFoliageAccelerationEnabled(),
-                                payload.cropsAndSaplingsAccelerationEnabled(),
-                                payload.kelpAccelerationEnabled(),
-                                payload.vanillaOnlyAcceleration(),
-                                payload.processesAccelerationEnabled(),
-                                payload.processesSpeedPercent()
-                        )
+                        () -> RemoteServerConfigClientState.applyServerConfig(payload)
+                )
+        );
+        ClientPlayNetworking.registerGlobalReceiver(
+                ServerConfigAccessS2CPayload.ID,
+                (payload, context) -> context.client().execute(
+                        () -> RemoteServerConfigClientState.applyAccess(payload)
+                )
+        );
+        ClientPlayNetworking.registerGlobalReceiver(
+                ServerConfigUpdateResultS2CPayload.ID,
+                (payload, context) -> context.client().execute(
+                        () -> RemoteServerConfigClientState.applyUpdateResult(payload)
                 )
         );
 

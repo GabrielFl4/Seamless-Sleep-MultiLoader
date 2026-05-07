@@ -29,8 +29,6 @@ public final class SeamlessSleepClientConfig {
     private static final boolean DEFAULT_REPLAY_COMPATIBILITY_ENABLED = true;
     private static final boolean DEFAULT_DEBUG_LOGS_ENABLED = false;
 
-    // Kept only so older config screens and old TOML files have a migration target.
-    public boolean sleepOverlayEnabled = true;
     public double sleepOverlayDarknessMultiplier = DEFAULT_OVERLAY_DARKNESS;
     public boolean leaveBedHintEnabled = DEFAULT_LEAVE_BED_HINT_ENABLED;
     public boolean sleepContextEnabled = DEFAULT_SLEEP_CONTEXT_ENABLED;
@@ -63,7 +61,7 @@ public final class SeamlessSleepClientConfig {
         if (sleepIndicatorVisibility == null) {
             sleepIndicatorVisibility = SleepIndicatorVisibility.SLEEP;
         }
-        if (sleepIndicatorMode == SleepIndicatorMode.OVERLAY) {
+        if (sleepIndicatorMode == SleepIndicatorMode.TEXT) {
             sleepIndicatorVisibility = SleepIndicatorVisibility.SLEEP;
         }
 

@@ -4,6 +4,7 @@ import net.aqualoco.sec.config.SeamlessSleepServerConfig;
 import net.aqualoco.sec.platform.Services;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 
 // Broadcasts the current server config snapshot to every online client.
 public final class ServerConfigSync {
@@ -13,7 +14,24 @@ public final class ServerConfigSync {
 
     public static void sendToAll(MinecraftServer server, SeamlessSleepServerConfig config) {
         config.clamp();
-        ServerConfigSyncPayload payload = new ServerConfigSyncPayload(
+        ServerConfigSyncPayload payload = createPayload(server, config);
+        for (ServerLevel level : server.getAllLevels()) {
+            Services.NETWORK.sendToPlayers(level, payload);
+        }
+    }
+
+    public static void sendToPlayer(ServerPlayer player, SeamlessSleepServerConfig config) {
+        MinecraftServer server = player.level().getServer();
+        if (server == null) {
+            return;
+        }
+
+        config.clamp();
+        Services.NETWORK.sendToPlayer(player, createPayload(server, config));
+    }
+
+    private static ServerConfigSyncPayload createPayload(MinecraftServer server, SeamlessSleepServerConfig config) {
+        return new ServerConfigSyncPayload(
                 config.sleepWeatherClearChancePercent,
                 config.sleepAnimationDurationMultiplier,
                 config.fallAsleepDelayTicks,
@@ -34,8 +52,5 @@ public final class ServerConfigSync {
                 config.worldSleepAcceleration.processesAccelerationEnabled,
                 config.worldSleepAcceleration.processesSpeedPercent
         );
-        for (ServerLevel level : server.getAllLevels()) {
-            Services.NETWORK.sendToPlayers(level, payload);
-        }
     }
 }

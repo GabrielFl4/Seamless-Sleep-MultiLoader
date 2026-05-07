@@ -19,7 +19,7 @@ public record SleepIndicatorConfig(
         SleepIndicatorVisibility visibility = config.sleepIndicatorVisibility == null
                 ? SleepIndicatorVisibility.SLEEP
                 : config.sleepIndicatorVisibility;
-        if (mode == SleepIndicatorMode.OVERLAY) {
+        if (mode == SleepIndicatorMode.TEXT) {
             visibility = SleepIndicatorVisibility.SLEEP;
         }
 

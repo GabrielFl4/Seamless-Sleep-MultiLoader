@@ -1,10 +1,12 @@
 package net.aqualoco.sec.platform;
 
 import net.aqualoco.sec.client.BedHudMessageManager;
+import net.aqualoco.sec.client.RemoteServerConfigClientState;
 import net.aqualoco.sec.client.SeamlessSleepClientState;
 import net.aqualoco.sec.network.BedHudSleepProgressPayload;
-import net.aqualoco.sec.config.SeamlessSleepServerConfigSnapshot;
+import net.aqualoco.sec.network.ServerConfigAccessS2CPayload;
 import net.aqualoco.sec.network.ServerConfigSyncPayload;
+import net.aqualoco.sec.network.ServerConfigUpdateResultS2CPayload;
 import net.aqualoco.sec.network.SleepAnimationStartPayload;
 import net.aqualoco.sec.network.SleepAnimationStopPayload;
 import net.aqualoco.sec.sleep.SleepAnimationStopReason;
@@ -84,27 +86,17 @@ final class NeoForgeClientNetworkHandler implements NeoForgeNetworkHelper.Client
 
     @Override
     public void handleServerConfig(ServerConfigSyncPayload payload) {
-        SeamlessSleepServerConfigSnapshot.update(
-                payload.sleepWeatherClearChancePercent(),
-                payload.sleepAnimationDurationMultiplier(),
-                payload.fallAsleepDelayTicks(),
-                payload.overrideOverlayText(),
-                payload.overlayCustomText(),
-                payload.sleepEligibility(),
-                payload.madeInHeavenChancePercent(),
-                payload.serverSimulationDistance(),
-                payload.worldSleepAccelerationMode(),
-                payload.worldSleepAutomaticMode(),
-                payload.worldSleepAccelerationPlayersAffected(),
-                payload.manualAccelerationRadiusChunks(),
-                payload.manualAccelerationSpeedPercent(),
-                payload.grassAndFoliageAccelerationEnabled(),
-                payload.cropsAndSaplingsAccelerationEnabled(),
-                payload.kelpAccelerationEnabled(),
-                payload.vanillaOnlyAcceleration(),
-                payload.processesAccelerationEnabled(),
-                payload.processesSpeedPercent()
-        );
+        RemoteServerConfigClientState.applyServerConfig(payload);
+    }
+
+    @Override
+    public void handleServerConfigAccess(ServerConfigAccessS2CPayload payload) {
+        RemoteServerConfigClientState.applyAccess(payload);
+    }
+
+    @Override
+    public void handleServerConfigUpdateResult(ServerConfigUpdateResultS2CPayload payload) {
+        RemoteServerConfigClientState.applyUpdateResult(payload);
     }
 
     private static boolean isMatchingOverworld(ClientLevel world, Identifier payloadWorldId) {

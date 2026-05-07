@@ -108,17 +108,14 @@ public final class SeamlessSleepClientConfigManager {
         SeamlessSleepClientConfig cfg = defaultConfig();
 
         Boolean legacySleepOverlayEnabled = readOptionalBoolean(file, List.of("overlay", "sleepOverlayEnabled"), "sleepOverlayEnabled");
-        if (legacySleepOverlayEnabled != null) {
-            cfg.sleepOverlayEnabled = legacySleepOverlayEnabled;
-        }
         cfg.sleepOverlayDarknessMultiplier = readDouble(file, List.of("overlay", "sleepOverlayDarknessMultiplier"), "sleepOverlayDarknessMultiplier", cfg.sleepOverlayDarknessMultiplier);
         cfg.leaveBedHintEnabled = readBoolean(file, List.of("overlay", "leaveBedHintEnabled"), "leaveBedHintEnabled", cfg.leaveBedHintEnabled);
         cfg.sleepContextEnabled = readBoolean(file, List.of("overlay", "sleepContextEnabled"), "sleepContextEnabled", cfg.sleepContextEnabled);
         Object sleepIndicatorModeValue = readRaw(file, List.of("sleep_indicator", "mode"), "sleepIndicatorMode");
         if (sleepIndicatorModeValue != null) {
-            cfg.sleepIndicatorMode = parseEnum(sleepIndicatorModeValue, SleepIndicatorMode.class, cfg.sleepIndicatorMode);
+            cfg.sleepIndicatorMode = parseSleepIndicatorMode(sleepIndicatorModeValue, cfg.sleepIndicatorMode);
         } else if (legacySleepOverlayEnabled != null) {
-            cfg.sleepIndicatorMode = legacySleepOverlayEnabled ? SleepIndicatorMode.OVERLAY : SleepIndicatorMode.OFF;
+            cfg.sleepIndicatorMode = legacySleepOverlayEnabled ? SleepIndicatorMode.TEXT : SleepIndicatorMode.OFF;
             if (legacySleepOverlayEnabled) {
                 cfg.sleepIndicatorAnchor = SleepIndicatorAnchor.TOP_LEFT;
                 cfg.sleepIndicatorVisibility = SleepIndicatorVisibility.SLEEP;
@@ -140,7 +137,6 @@ public final class SeamlessSleepClientConfigManager {
         if (fileConfigVersion > 0 && fileConfigVersion < 3) {
             cfg.sleepChatOpacityMultiplier *= 0.5D;
         }
-        cfg.sleepOverlayEnabled = cfg.sleepIndicatorMode != SleepIndicatorMode.OFF;
         return cfg;
     }
 
@@ -168,7 +164,7 @@ public final class SeamlessSleepClientConfigManager {
         appendSectionGap(sb, 2);
         appendSectionHeader(sb, "sleep_indicator");
         appendEntry(sb,
-                "Sleep indicator renderer. Range: OFF | OVERLAY | BIOME_CLOCK. Default: BIOME_CLOCK",
+                "Sleep indicator renderer. Range: OFF | TEXT | BIOME_CLOCK. Default: BIOME_CLOCK",
                 "mode",
                 toTomlString(cfg.sleepIndicatorMode.name()));
         appendEntry(sb,
@@ -330,6 +326,18 @@ public final class SeamlessSleepClientConfigManager {
         } catch (IllegalArgumentException ignored) {
             return fallback;
         }
+    }
+
+    private static SleepIndicatorMode parseSleepIndicatorMode(Object value, SleepIndicatorMode fallback) {
+        if (!(value instanceof String raw)) {
+            return fallback;
+        }
+
+        String normalized = raw.trim().replace('-', '_').toUpperCase(Locale.ROOT);
+        if ("OVERLAY".equals(normalized)) {
+            return SleepIndicatorMode.TEXT;
+        }
+        return parseEnum(normalized, SleepIndicatorMode.class, fallback);
     }
 
     private static Integer readOptionalInt(CommentedFileConfig file, String key) {

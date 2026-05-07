@@ -32,8 +32,6 @@
   "config.seamlesssleep.client.group.sleep_zzz": "Zzz ao Dormir",
   "config.seamlesssleep.client.group.sleep_zzz.desc": "Zs no mundo exibidos perto de jogadores que estão contando para o sono.",
 
-  "config.seamlesssleep.overlay.enabled": "Overlay Customizado",
-  "config.seamlesssleep.overlay.enabled.desc": "Alterna o indicador que aparece ao dormir.",
   "config.seamlesssleep.overlay.darkness": "Vinheta ao Dormir",
   "config.seamlesssleep.overlay.darkness.desc": "Controla o quão escura a vinheta fica, ao dormir.",
   "config.seamlesssleep.overlay.leave_bed_hint": "Dica ao Deitar",
@@ -79,12 +77,12 @@
   "config.seamlesssleep.sleep.eligibility.vanilla": "Vanilla",
   "config.seamlesssleep.sleep.eligibility.day_included": "Dia Incluso",
   "config.seamlesssleep.sleep.eligibility.always": "Sempre",
-  "config.seamlesssleep.sleep.override_overlay_text": "Sobrescrever Texto do Overlay",
-  "config.seamlesssleep.sleep.override_overlay_text.desc": "Usa um texto global definido pelo servidor para o indicador textual Overlay durante skips normais.",
-  "config.seamlesssleep.sleep.override_overlay_text.command": "/sleep set overrideOverlayText <true | false>",
-  "config.seamlesssleep.sleep.overlay_custom_text": "Texto Custom do Overlay",
-  "config.seamlesssleep.sleep.overlay_custom_text.desc": "Texto global puro exibido pelo indicador textual Overlay quando a sobrescrita esta ativa.",
-  "config.seamlesssleep.sleep.overlay_custom_text.command": "/sleep set overlayCustomText <texto...>",
+  "config.seamlesssleep.sleep.override_overlay_text": "Sobrescrever Indicador de Texto",
+  "config.seamlesssleep.sleep.override_overlay_text.desc": "Usa um texto global definido pelo servidor para o indicador de texto durante skips normais.",
+  "config.seamlesssleep.sleep.override_overlay_text.command": "/sleep set textIndicatorOverride <true | false>",
+  "config.seamlesssleep.sleep.overlay_custom_text": "Texto Custom do Indicador de Texto",
+  "config.seamlesssleep.sleep.overlay_custom_text.desc": "Texto global puro exibido pelo indicador de texto quando a sobrescrita esta ativa.",
+  "config.seamlesssleep.sleep.overlay_custom_text.command": "/sleep set textIndicatorCustomText <texto...>",
   "config.seamlesssleep.server_controlled": "Controlado pelo servidor",
   "config.seamlesssleep.server_command": "\nComando: %s",
 
@@ -155,7 +153,7 @@
   "config.seamlesssleep.sleep_indicator.mode": "Modo do Indicador",
   "config.seamlesssleep.sleep_indicator.mode.desc": "Seleciona o renderer ativo do sleep indicator.",
   "config.seamlesssleep.sleep_indicator.mode.off": "OFF",
-  "config.seamlesssleep.sleep_indicator.mode.overlay": "Overlay",
+  "config.seamlesssleep.sleep_indicator.mode.text": "Texto",
   "config.seamlesssleep.sleep_indicator.mode.biome_clock": "Relogio de Bioma",
   "config.seamlesssleep.sleep_indicator.anchor": "Ancora do Indicador",
   "config.seamlesssleep.sleep_indicator.anchor.desc": "Ancora de tela usada no posicionamento do indicador.",
@@ -207,5 +205,6 @@
   "screen.seamlesssleep.forge_config.hint": "Edite o arquivo de config na pasta config para alterações de servidor e cliente.",
   "screen.seamlesssleep.config.open_folder": "Abrir Pasta",
   "screen.seamlesssleep.missing_yacl.notice": "\u00A7eYACL\u00A7r não encontrado",
-  "screen.seamlesssleep.missing_yacl.hint": "Instale o YetAnotherConfigLib v3 para editar configurações."
+  "screen.seamlesssleep.missing_yacl.hint": "Instale o YetAnotherConfigLib v3 para editar configurações.",
+  "config.seamlesssleep.remote.conflict.option_warning": "⚠ Alterado no servidor enquanto você editava. Salvar irá sobrescrever o valor do servidor."
 }
