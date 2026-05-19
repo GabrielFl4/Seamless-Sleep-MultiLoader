@@ -48,13 +48,13 @@ public final class BiomeClockBiomeResolver {
 
     private static BiomeClockCategory resolveExact(String rawId) {
         return switch (rawId) {
-            case "minecraft:snowy_plains",
-                 "minecraft:ice_spikes",
-                 "minecraft:snowy_taiga",
+            case "minecraft:snowy_plains" -> BiomeClockCategory.SNOW_PLAINS;
+            case "minecraft:ice_spikes" -> BiomeClockCategory.ICE_PLAINS;
+            case "minecraft:snowy_taiga",
                  "minecraft:snowy_slopes",
                  "minecraft:grove",
                  "minecraft:jagged_peaks",
-                 "minecraft:frozen_peaks" -> BiomeClockCategory.SNOW;
+                 "minecraft:frozen_peaks" -> BiomeClockCategory.SNOW_PLAINS;
             case "minecraft:desert" -> BiomeClockCategory.DESERT;
             case "minecraft:badlands",
                  "minecraft:wooded_badlands",
@@ -75,34 +75,45 @@ public final class BiomeClockBiomeResolver {
             case "minecraft:river" -> BiomeClockCategory.RIVER;
             case "minecraft:frozen_river" -> BiomeClockCategory.RIVER_FROZEN;
             case "minecraft:stony_peaks" -> BiomeClockCategory.STONY_PEAKS;
-            case "minecraft:ocean",
-                 "minecraft:deep_ocean",
-                 "minecraft:cold_ocean",
-                 "minecraft:deep_cold_ocean",
+            case "minecraft:windswept_hills",
+                 "minecraft:windswept_gravelly_hills" -> BiomeClockCategory.WINDSWEPT;
+            case "minecraft:frozen_ocean",
+                 "minecraft:deep_frozen_ocean" -> BiomeClockCategory.OCEAN_FROZEN;
+            case "minecraft:warm_ocean",
                  "minecraft:lukewarm_ocean",
-                 "minecraft:deep_lukewarm_ocean",
-                 "minecraft:warm_ocean",
-                 "minecraft:frozen_ocean",
-                 "minecraft:deep_frozen_ocean" -> BiomeClockCategory.OCEAN;
-            case "minecraft:forest",
-                 "minecraft:flower_forest",
-                 "minecraft:birch_forest",
-                 "minecraft:old_growth_birch_forest",
-                 "minecraft:dark_forest",
-                 "minecraft:taiga",
+                 "minecraft:deep_lukewarm_ocean" -> BiomeClockCategory.OCEAN_WARM;
+            case "minecraft:deep_ocean",
+                 "minecraft:deep_cold_ocean" -> BiomeClockCategory.OCEAN_DEEP;
+            case "minecraft:ocean",
+                 "minecraft:cold_ocean" -> BiomeClockCategory.OCEAN;
+            case "minecraft:birch_forest",
+                 "minecraft:old_growth_birch_forest" -> BiomeClockCategory.FOREST_BIRCH;
+            case "minecraft:dark_forest" -> BiomeClockCategory.FOREST_DARK;
+            case "minecraft:taiga",
                  "minecraft:old_growth_pine_taiga",
-                 "minecraft:old_growth_spruce_taiga" -> BiomeClockCategory.FOREST;
+                 "minecraft:old_growth_spruce_taiga" -> BiomeClockCategory.FOREST_TAIGA;
+            case "minecraft:forest",
+                 "minecraft:flower_forest" -> BiomeClockCategory.FOREST;
             case "minecraft:plains",
                  "minecraft:sunflower_plains" -> BiomeClockCategory.PLAINS;
             case "minecraft:meadow" -> BiomeClockCategory.MEADOW;
-            case "minecraft:beach",
-                 "minecraft:stony_shore" -> BiomeClockCategory.BEACH;
+            case "minecraft:stony_shore" -> BiomeClockCategory.STONY_SHORES;
+            case "minecraft:beach" -> BiomeClockCategory.BEACH;
             default -> BiomeClockCategory.DEFAULT;
         };
     }
 
     private static BiomeClockCategory resolvePath(String path) {
         String normalizedPath = path == null ? "" : path.toLowerCase(Locale.ROOT);
+        if (containsAny(normalizedPath, "frozen_ocean", "ocean_frozen")) {
+            return BiomeClockCategory.OCEAN_FROZEN;
+        }
+        if (containsAny(normalizedPath, "warm_ocean", "lukewarm_ocean", "ocean_warm", "ocean_lukewarm")) {
+            return BiomeClockCategory.OCEAN_WARM;
+        }
+        if (containsAny(normalizedPath, "deep_ocean", "ocean_deep")) {
+            return BiomeClockCategory.OCEAN_DEEP;
+        }
         if (containsAny(normalizedPath, "ocean")) {
             return BiomeClockCategory.OCEAN;
         }
@@ -136,17 +147,35 @@ public final class BiomeClockBiomeResolver {
         if ("stony_peaks".equals(normalizedPath)) {
             return BiomeClockCategory.STONY_PEAKS;
         }
+        if (containsAny(normalizedPath, "ice_plains", "ice_spikes")) {
+            return BiomeClockCategory.ICE_PLAINS;
+        }
+        if (containsAny(normalizedPath, "snowy_plains", "snow_plains")) {
+            return BiomeClockCategory.SNOW_PLAINS;
+        }
         if (containsAny(normalizedPath, "snow", "frozen", "ice", "cold", "peak", "grove")) {
-            return BiomeClockCategory.SNOW;
+            return BiomeClockCategory.SNOW_PLAINS;
         }
         if (containsAny(normalizedPath, "badlands", "mesa")) {
             return BiomeClockCategory.BADLANDS;
+        }
+        if (containsAny(normalizedPath, "stony_shore", "stony_shores")) {
+            return BiomeClockCategory.STONY_SHORES;
         }
         if (containsAny(normalizedPath, "beach", "shore")) {
             return BiomeClockCategory.BEACH;
         }
         if (containsAny(normalizedPath, "desert", "dunes")) {
             return BiomeClockCategory.DESERT;
+        }
+        if (containsAny(normalizedPath, "birch")) {
+            return BiomeClockCategory.FOREST_BIRCH;
+        }
+        if (containsAny(normalizedPath, "dark_forest", "forest_dark")) {
+            return BiomeClockCategory.FOREST_DARK;
+        }
+        if (containsAny(normalizedPath, "taiga", "forest_taiga")) {
+            return BiomeClockCategory.FOREST_TAIGA;
         }
         if (containsAny(normalizedPath, "forest", "wood", "birch", "taiga")) {
             return BiomeClockCategory.FOREST;

@@ -4,6 +4,9 @@ import net.aqualoco.sec.Constants;
 import net.aqualoco.sec.client.sleepindicator.biomeclock.BiomeClockCategory;
 import net.aqualoco.sec.client.sleepindicator.biomeclock.BiomeClockLightningSignal;
 import net.aqualoco.sec.client.sleepindicator.biomeclock.BiomeClockLightningState;
+import net.aqualoco.sec.client.sleepindicator.biomeclock.BiomeClockSceneKind;
+import net.aqualoco.sec.client.sleepindicator.biomeclock.BiomeClockSceneResolver;
+import net.aqualoco.sec.client.sleepindicator.biomeclock.BiomeClockSceneState;
 import net.aqualoco.sec.client.sleepindicator.biomeclock.BiomeClockTransitionState;
 import net.aqualoco.sec.client.sleepindicator.biomeclock.BiomeClockWeatherKind;
 import net.aqualoco.sec.client.sleepindicator.biomeclock.BiomeClockWeatherResolver;
@@ -62,6 +65,7 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
     private static final double SNOW_ANIMATION_FPS = 6.0D;
     private static final double SANDSTORM_ANIMATION_FPS = RAIN_ANIMATION_FPS;
     private static final double ZZZ_ANIMATION_FPS = 4.0D;
+    private static final double CAVERN_ANIMATION_FPS = 5.0D;
     private static final long ZZZ_FADE_NANOS = 120_000_000L;
     private static final float ZZZ_SKIP_SPEED_THRESHOLD = 1.0F;
     private static final float SANDSTORM_RAIN_ALPHA_MULTIPLIER = 0.60F;
@@ -119,6 +123,11 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
             texture("zzz/zzz_1.png"),
             texture("zzz/zzz_2.png"),
             texture("zzz/zzz_3.png")
+    };
+    private static final Identifier[] CAVERNS = new Identifier[] {
+            texture("scenes/caverns/caverns_1.png"),
+            texture("scenes/caverns/caverns_2.png"),
+            texture("scenes/caverns/caverns_3.png")
     };
     private static final Identifier[] RAIN = new Identifier[] {
             texture("weather/rain/rain_1.png"),
@@ -179,6 +188,7 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
     private final BiomeClockTransitionState biomeTransition = new BiomeClockTransitionState();
     private final BiomeClockWeatherVisualState weatherVisualState = new BiomeClockWeatherVisualState();
     private final BiomeClockLightningState lightningState = new BiomeClockLightningState();
+    private final BiomeClockSceneState sceneState = new BiomeClockSceneState();
 
     @Override
     public String id() {
@@ -198,6 +208,13 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
     @Override
     public void render(GuiGraphics graphics, SleepIndicatorContext context, float tickDelta) {
         long nowNanos = System.nanoTime();
+        BiomeClockSceneKind scene = this.sceneState.update(BiomeClockSceneResolver.resolve(context), transitionTimeMs());
+        if (scene == BiomeClockSceneKind.CAVERNS) {
+            renderCavernsScene(graphics, context, nowNanos);
+            drawFullTexture(graphics, FRAME_CIRCLE, whiteWithAlpha(context.alpha()));
+            return;
+        }
+
         BiomeClockWeatherKind weatherKind = BiomeClockWeatherResolver.resolve(context);
         this.weatherVisualState.update(weatherKind, nowNanos);
 
@@ -310,6 +327,11 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
         renderLightning(graphics, context, lightningFrame);
         drawFullTexture(graphics, FRAME_CIRCLE, textureAlphaColor);
         renderZzzLayer(graphics, context, nowNanos);
+    }
+
+    private void renderCavernsScene(GuiGraphics graphics, SleepIndicatorContext context, long nowNanos) {
+        int frameIndex = animationFrame(nowNanos, CAVERN_ANIMATION_FPS, CAVERNS.length);
+        drawFullTexture(graphics, CAVERNS[frameIndex], whiteWithAlpha(context.alpha()));
     }
 
     private void renderSkyFromClient(GuiGraphics graphics, SleepIndicatorContext context) {
