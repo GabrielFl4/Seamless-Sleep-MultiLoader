@@ -6,6 +6,7 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
+import net.minecraft.world.level.Level;
 
 import java.util.Locale;
 
@@ -18,6 +19,8 @@ public final class TimestampSleepIndicatorRenderer implements SleepIndicatorRend
     private static final long MIN_DAY_ANIMATION_DURATION_MS = 80L;
     private static final long MAX_DAY_ANIMATION_DURATION_MS = 300L;
     private static final double DAY_ANIMATION_BASE_MS = 300.0D;
+    private static final double DIMENSION_TIME_RANDOMIZATION_FPS = 12.0D;
+    private static final int DIMENSION_TIME_RANDOMIZATION_SEED = 0x51EE9;
 
     private String previousDayString = "";
     private String currentDayString = "";
@@ -57,11 +60,34 @@ public final class TimestampSleepIndicatorRenderer implements SleepIndicatorRend
         }
 
         TimestampText text = state.text();
+        int randomizationStep = state.randomizeTime() ? timeRandomizationStep(System.nanoTime()) : 0;
         int x = 0;
-        x += drawString(graphics, font, text.prefix(), x, 0, color, state.shadow());
+        x += drawString(
+                graphics,
+                font,
+                text.prefix(),
+                x,
+                0,
+                color,
+                state.shadow(),
+                state.randomizeTime(),
+                randomizationStep,
+                DIMENSION_TIME_RANDOMIZATION_SEED
+        );
         drawDayDigits(graphics, font, state, x, context.alpha());
         x += font.width(textComponent(text.dayDigits()));
-        drawString(graphics, font, text.suffix(), x, 0, color, state.shadow());
+        drawString(
+                graphics,
+                font,
+                text.suffix(),
+                x,
+                0,
+                color,
+                state.shadow(),
+                state.randomizeTime(),
+                randomizationStep,
+                DIMENSION_TIME_RANDOMIZATION_SEED + 97
+        );
     }
 
     private TimestampRenderState resolveState(SleepIndicatorContext context) {
@@ -72,7 +98,12 @@ public final class TimestampSleepIndicatorRenderer implements SleepIndicatorRend
         updateDayAnimation(latest.dayString(), System.nanoTime() / 1_000_000L, context.sleepDayTimeSpeedPerTick());
         int rgb = config.timestampColor & 0x00FFFFFF;
         boolean defaultWhite = rgb == SeamlessSleepClientConfig.DEFAULT_TIMESTAMP_COLOR;
-        return new TimestampRenderState(latest.toText(style), rgb, defaultWhite);
+        return new TimestampRenderState(
+                latest.toText(style),
+                rgb,
+                defaultWhite,
+                shouldRandomizeTime(context)
+        );
     }
 
     private void updateDayAnimation(String nextDayString, long nowMs, float speedPerTick) {
@@ -169,19 +200,68 @@ public final class TimestampSleepIndicatorRenderer implements SleepIndicatorRend
             int x,
             int y,
             int color,
-            boolean shadow
+            boolean shadow,
+            boolean randomizeTime,
+            int randomizationStep,
+            int seed
     ) {
         if (text.isEmpty()) {
             return 0;
         }
 
-        Component component = textComponent(text);
+        Component component = textComponent(randomizeTime
+                ? randomizeTimeText(text, randomizationStep, seed)
+                : text);
         graphics.drawString(font, component, x, y, color, shadow);
         return font.width(component);
     }
 
     private static Component textComponent(String text) {
         return Component.literal(text);
+    }
+
+    private static String randomizeTimeText(String text, int randomizationStep, int seed) {
+        StringBuilder randomized = new StringBuilder(text.length());
+        for (int i = 0; i < text.length(); i++) {
+            char character = text.charAt(i);
+            if (Character.isDigit(character)) {
+                randomized.append(randomDigit(randomizationStep, seed + i * 31));
+            } else if (isAmPmTokenStart(text, i)) {
+                randomized.append((randomizationStep & 1) == 0 ? "AM" : "PM");
+                i++;
+            } else {
+                randomized.append(character);
+            }
+        }
+        return randomized.toString();
+    }
+
+    private static char randomDigit(int randomizationStep, int seed) {
+        return (char) ('0' + Math.floorMod(hash(randomizationStep ^ seed), 10));
+    }
+
+    private static boolean isAmPmTokenStart(String text, int index) {
+        if (index < 0 || index + 1 >= text.length()) {
+            return false;
+        }
+
+        char current = Character.toUpperCase(text.charAt(index));
+        return (current == 'A' || current == 'P')
+                && Character.toUpperCase(text.charAt(index + 1)) == 'M'
+                && isTokenBoundary(text, index - 1)
+                && isTokenBoundary(text, index + 2);
+    }
+
+    private static boolean isTokenBoundary(String text, int index) {
+        return index < 0
+                || index >= text.length()
+                || !Character.isLetterOrDigit(text.charAt(index));
+    }
+
+    private static boolean shouldRandomizeTime(SleepIndicatorContext context) {
+        return context.level() != null
+                && (Level.NETHER.equals(context.level().dimension())
+                        || Level.END.equals(context.level().dimension()));
     }
 
     private static int withAlpha(float alpha, int rgb) {
@@ -201,7 +281,26 @@ public final class TimestampSleepIndicatorRenderer implements SleepIndicatorRend
         return Mth.clamp(Math.round(duration), MIN_DAY_ANIMATION_DURATION_MS, MAX_DAY_ANIMATION_DURATION_MS);
     }
 
-    private record TimestampRenderState(TimestampText text, int rgb, boolean shadow) {
+    private static int timeRandomizationStep(long nowNanos) {
+        if (DIMENSION_TIME_RANDOMIZATION_FPS <= 0.0D) {
+            return 0;
+        }
+
+        long step = (long) Math.floor(nowNanos / 1_000_000_000.0D * DIMENSION_TIME_RANDOMIZATION_FPS);
+        return (int) step;
+    }
+
+    private static int hash(int value) {
+        int mixed = value;
+        mixed ^= mixed >>> 16;
+        mixed *= 0x7FEB352D;
+        mixed ^= mixed >>> 15;
+        mixed *= 0x846CA68B;
+        mixed ^= mixed >>> 16;
+        return mixed;
+    }
+
+    private record TimestampRenderState(TimestampText text, int rgb, boolean shadow, boolean randomizeTime) {
     }
 
     private record TimestampText(String prefix, String dayDigits, String suffix) {

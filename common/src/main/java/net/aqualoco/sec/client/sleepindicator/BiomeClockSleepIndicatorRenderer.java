@@ -65,9 +65,41 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
     private static final double SNOW_ANIMATION_FPS = 6.0D;
     private static final double SANDSTORM_ANIMATION_FPS = RAIN_ANIMATION_FPS;
     private static final double ZZZ_ANIMATION_FPS = 4.0D;
-    private static final double CAVERN_ANIMATION_FPS = 5.0D;
+    private static final double CAVERN_ANIMATION_FPS = 2.0D;
+    private static final float NETHER_SCENE_OPACITY = 0.70F;
+    private static final float END_SCENE_OPACITY = 0.70F;
+    private static final double NETHER_BACKGROUND_FPS = 4.0D;
+    private static final double END_BACKGROUND_FPS = 3.5D;
+    private static final double NOISE_ANIMATION_FPS = 8.0D;
+    private static final double NOISE_VERTICAL_SCROLL_PX_PER_SECOND = 4.0D;
+    private static final double NOISE_JITTER_FPS = 2.0D;
+    private static final int NOISE_JITTER_MIN_Y = -1;
+    private static final int NOISE_JITTER_MAX_Y = 0;
+    private static final double GLITCH_SUN_OFFSET_FPS = 8.0D;
+    private static final double GLITCH_SUN_FLICKER_FPS = 12.0D;
     private static final long ZZZ_FADE_NANOS = 120_000_000L;
     private static final float ZZZ_SKIP_SPEED_THRESHOLD = 1.0F;
+    private static final int NOISE_TEXTURE_WIDTH = 66;
+    private static final int NOISE_TEXTURE_HEIGHT = 132;
+    private static final int NOISE_WINDOW_HEIGHT = 66;
+    private static final int NOISE_MAX_SOURCE_Y = NOISE_TEXTURE_HEIGHT - NOISE_WINDOW_HEIGHT;
+    private static final float NOISE_DESTINATION_SUBPIXEL_OFFSET_SCALE = 0.50F;
+    private static final float NETHER_NOISE_BASE_ALPHA = 0.90F;
+    private static final float NETHER_NOISE_SPIKE_ALPHA = 1.0F;
+    private static final float END_NOISE_BASE_ALPHA = 0.90F;
+    private static final float END_NOISE_SPIKE_ALPHA = 1.0F;
+    private static final int GLITCH_SUN_SOURCE_SIZE = 36;
+    private static final int GLITCH_SUN_RENDER_SIZE = 24;
+    private static final int GLITCH_SUN_BASE_X = 21;
+    private static final int GLITCH_SUN_BASE_Y = 8;
+    private static final int GLITCH_SUN_MIN_OFFSET_X = -1;
+    private static final int GLITCH_SUN_MAX_OFFSET_X = 1;
+    private static final int GLITCH_SUN_MIN_OFFSET_Y = -1;
+    private static final int GLITCH_SUN_MAX_OFFSET_Y = 1;
+    private static final int NETHER_GLITCH_SEED = 0x4E377;
+    private static final int END_GLITCH_SEED = 0xE4D19;
+    private static final int UNKNOWN_GLITCH_SEED = 0x51A7E;
+    private static final int UNKNOWN_DIMENSION_BACKGROUND_RGB = 0x050509;
     private static final float SANDSTORM_RAIN_ALPHA_MULTIPLIER = 0.60F;
     private static final float SANDSTORM_THUNDER_ALPHA_MULTIPLIER = 1.0F;
     private static final float SANDSTORM_NIGHT_ALPHA_REDUCTION = 0.25F;
@@ -128,6 +160,44 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
             texture("scenes/caverns/caverns_1.png"),
             texture("scenes/caverns/caverns_2.png"),
             texture("scenes/caverns/caverns_3.png")
+    };
+    private static final Identifier[] NETHER = new Identifier[] {
+            texture("scenes/nether/nether_1.png"),
+            texture("scenes/nether/nether_2.png"),
+            texture("scenes/nether/nether_3.png"),
+            texture("scenes/nether/nether_4.png"),
+            texture("scenes/nether/nether_5.png"),
+            texture("scenes/nether/nether_6.png"),
+            texture("scenes/nether/nether_7.png"),
+            texture("scenes/nether/nether_8.png"),
+            texture("scenes/nether/nether_9.png"),
+            texture("scenes/nether/nether_10.png")
+    };
+    private static final Identifier NETHER_SUN = texture("scenes/nether/nether_sun.png");
+    private static final Identifier[] END = new Identifier[] {
+            texture("scenes/end/end_1.png"),
+            texture("scenes/end/end_2.png"),
+            texture("scenes/end/end_3.png"),
+            texture("scenes/end/end_4.png"),
+            texture("scenes/end/end_5.png"),
+            texture("scenes/end/end_6.png"),
+            texture("scenes/end/end_7.png"),
+            texture("scenes/end/end_8.png"),
+            texture("scenes/end/end_9.png"),
+            texture("scenes/end/end_10.png")
+    };
+    private static final Identifier END_SUN = texture("scenes/end/end_sun.png");
+    private static final Identifier[] NOISE = new Identifier[] {
+            texture("scenes/noise/noise_1.png"),
+            texture("scenes/noise/noise_2.png"),
+            texture("scenes/noise/noise_3.png"),
+            texture("scenes/noise/noise_4.png"),
+            texture("scenes/noise/noise_5.png"),
+            texture("scenes/noise/noise_6.png"),
+            texture("scenes/noise/noise_7.png"),
+            texture("scenes/noise/noise_8.png"),
+            texture("scenes/noise/noise_9.png"),
+            texture("scenes/noise/noise_10.png")
     };
     private static final Identifier[] RAIN = new Identifier[] {
             texture("weather/rain/rain_1.png"),
@@ -208,13 +278,42 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
     @Override
     public void render(GuiGraphics graphics, SleepIndicatorContext context, float tickDelta) {
         long nowNanos = System.nanoTime();
-        BiomeClockSceneKind scene = this.sceneState.update(BiomeClockSceneResolver.resolve(context), transitionTimeMs());
-        if (scene == BiomeClockSceneKind.CAVERNS) {
-            renderCavernsScene(graphics, context, nowNanos);
-            drawFullTexture(graphics, FRAME_CIRCLE, whiteWithAlpha(context.alpha()));
-            return;
+        this.sceneState.update(BiomeClockSceneResolver.resolve(context), nowNanos);
+
+        float normalAlpha = this.sceneState.alphaFor(BiomeClockSceneKind.NORMAL, nowNanos);
+        if (normalAlpha > 0.001F) {
+            renderNormalClockContent(graphics, context.withAlphaMultiplier(normalAlpha), nowNanos, true);
         }
 
+        float cavernsAlpha = this.sceneState.alphaFor(BiomeClockSceneKind.CAVERNS, nowNanos);
+        if (cavernsAlpha > 0.001F) {
+            renderCavernsScene(graphics, context.withAlphaMultiplier(cavernsAlpha), nowNanos);
+        }
+
+        float netherAlpha = this.sceneState.alphaFor(BiomeClockSceneKind.NETHER, nowNanos);
+        if (netherAlpha > 0.001F) {
+            renderNetherScene(graphics, context.withAlphaMultiplier(netherAlpha * NETHER_SCENE_OPACITY), nowNanos);
+        }
+
+        float endAlpha = this.sceneState.alphaFor(BiomeClockSceneKind.END, nowNanos);
+        if (endAlpha > 0.001F) {
+            renderEndScene(graphics, context.withAlphaMultiplier(endAlpha * END_SCENE_OPACITY), nowNanos);
+        }
+
+        float unknownAlpha = this.sceneState.alphaFor(BiomeClockSceneKind.UNKNOWN_DIMENSION, nowNanos);
+        if (unknownAlpha > 0.001F) {
+            renderUnknownDimensionScene(graphics, context.withAlphaMultiplier(unknownAlpha), nowNanos);
+        }
+
+        drawFullTexture(graphics, FRAME_CIRCLE, whiteWithAlpha(context.alpha()));
+    }
+
+    private void renderNormalClockContent(
+            GuiGraphics graphics,
+            SleepIndicatorContext context,
+            long nowNanos,
+            boolean drawZzz
+    ) {
         BiomeClockWeatherKind weatherKind = BiomeClockWeatherResolver.resolve(context);
         this.weatherVisualState.update(weatherKind, nowNanos);
 
@@ -273,7 +372,6 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
 
         OrbitPosition sunOrbit = orbitPosition(context.sunAngleRadians(), SUN_SIZE);
         OrbitPosition moonOrbit = orbitPosition(context.moonAngleRadians(), MOON_SIZE);
-        int textureAlphaColor = whiteWithAlpha(context.alpha());
         int celestialColor = celestialTintColor(context);
         drawCircularTextureScaled(
                 graphics,
@@ -325,13 +423,140 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
         renderPrecipitation(graphics, context, visualWeatherKind, nowNanos, biomeDarkeningAlpha);
         renderWeatherClouds(graphics, context, visualWeatherKind);
         renderLightning(graphics, context, lightningFrame);
-        drawFullTexture(graphics, FRAME_CIRCLE, textureAlphaColor);
-        renderZzzLayer(graphics, context, nowNanos);
+        if (drawZzz) {
+            renderZzzLayer(graphics, context, nowNanos);
+        }
     }
 
     private void renderCavernsScene(GuiGraphics graphics, SleepIndicatorContext context, long nowNanos) {
         int frameIndex = animationFrame(nowNanos, CAVERN_ANIMATION_FPS, CAVERNS.length);
-        drawFullTexture(graphics, CAVERNS[frameIndex], whiteWithAlpha(context.alpha()));
+        drawCircularFullTexture(graphics, CAVERNS[frameIndex], whiteWithAlpha(context.alpha()));
+    }
+
+    private void renderNetherScene(GuiGraphics graphics, SleepIndicatorContext context, long nowNanos) {
+        int frameIndex = animationFrame(nowNanos, NETHER_BACKGROUND_FPS, NETHER.length);
+        drawCircularFullTexture(graphics, NETHER[frameIndex], whiteWithAlpha(context.alpha()));
+        renderGlitchedSun(graphics, NETHER_SUN, context, nowNanos, NETHER_GLITCH_SEED);
+        renderNoiseLayer(graphics, context, nowNanos, NETHER_NOISE_BASE_ALPHA, NETHER_NOISE_SPIKE_ALPHA, NETHER_GLITCH_SEED);
+    }
+
+    private void renderEndScene(GuiGraphics graphics, SleepIndicatorContext context, long nowNanos) {
+        int frameIndex = animationFrame(nowNanos, END_BACKGROUND_FPS, END.length);
+        drawCircularFullTexture(graphics, END[frameIndex], whiteWithAlpha(context.alpha()));
+        renderGlitchedSun(graphics, END_SUN, context, nowNanos, END_GLITCH_SEED);
+        renderNoiseLayer(graphics, context, nowNanos, END_NOISE_BASE_ALPHA, END_NOISE_SPIKE_ALPHA, END_GLITCH_SEED);
+    }
+
+    private void renderUnknownDimensionScene(GuiGraphics graphics, SleepIndicatorContext context, long nowNanos) {
+        int flickerStep = temporalStep(nowNanos, NOISE_JITTER_FPS);
+        float backgroundPulse = random01(flickerStep, UNKNOWN_GLITCH_SEED + 7) * 0.05F;
+        int backgroundColor = colorWithAlpha(
+                context.alpha() * (0.92F + backgroundPulse),
+                UNKNOWN_DIMENSION_BACKGROUND_RGB
+        );
+        fillCircularColor(graphics, backgroundColor);
+        renderNoiseLayer(graphics, context, nowNanos, 0.36F, 0.60F, UNKNOWN_GLITCH_SEED);
+    }
+
+    private void renderGlitchedSun(
+            GuiGraphics graphics,
+            Identifier texture,
+            SleepIndicatorContext context,
+            long nowNanos,
+            int seed
+    ) {
+        int offsetStep = temporalStep(nowNanos, GLITCH_SUN_OFFSET_FPS);
+        int flickerStep = temporalStep(nowNanos, GLITCH_SUN_FLICKER_FPS);
+        int offsetX = randomInt(offsetStep, seed + 1, GLITCH_SUN_MIN_OFFSET_X, GLITCH_SUN_MAX_OFFSET_X);
+        int offsetY = randomInt(offsetStep, seed + 2, GLITCH_SUN_MIN_OFFSET_Y, GLITCH_SUN_MAX_OFFSET_Y);
+        float alpha = 0.70F + random01(flickerStep, seed + 3) * 0.30F;
+        if (random01(flickerStep, seed + 4) > 0.86F) {
+            alpha = Math.min(1.0F, alpha + 0.16F);
+        }
+
+        drawCircularTextureScaled(
+                graphics,
+                texture,
+                GLITCH_SUN_BASE_X + offsetX,
+                GLITCH_SUN_BASE_Y + offsetY,
+                GLITCH_SUN_RENDER_SIZE,
+                GLITCH_SUN_RENDER_SIZE,
+                GLITCH_SUN_SOURCE_SIZE,
+                GLITCH_SUN_SOURCE_SIZE,
+                CLOCK_SIZE,
+                whiteWithAlpha(context.alpha() * alpha)
+        );
+    }
+
+    private void renderNoiseLayer(
+            GuiGraphics graphics,
+            SleepIndicatorContext context,
+            long nowNanos,
+            float baseAlpha,
+            float spikeAlpha,
+            int seed
+    ) {
+        int step = temporalStep(nowNanos, NOISE_ANIMATION_FPS);
+        int frameIndex = Math.floorMod(step, NOISE.length);
+        int sourceY = noiseSourceY(nowNanos, seed);
+        float alpha = baseAlpha + random01(step, seed + 12) * 0.07F;
+        if (random01(step, seed + 13) > 0.82F) {
+            alpha = spikeAlpha;
+        }
+
+        float destinationOffsetY = noiseDestinationOffsetY(nowNanos);
+        if (destinationOffsetY != 0.0F) {
+            graphics.pose().pushMatrix();
+            graphics.pose().translate(0.0F, destinationOffsetY);
+            try {
+                drawNoiseTexture(graphics, frameIndex, sourceY, whiteWithAlpha(context.alpha() * alpha));
+            } finally {
+                graphics.pose().popMatrix();
+            }
+            return;
+        }
+
+        drawNoiseTexture(graphics, frameIndex, sourceY, whiteWithAlpha(context.alpha() * alpha));
+    }
+
+    private static int noiseSourceY(long nowNanos, int seed) {
+        if (NOISE_MAX_SOURCE_Y <= 0 || NOISE_VERTICAL_SCROLL_PX_PER_SECOND <= 0.0D) {
+            return 0;
+        }
+
+        long scrolledPixels = (long) Math.floor(
+                nowNanos / 1_000_000_000.0D * NOISE_VERTICAL_SCROLL_PX_PER_SECOND
+        );
+        int wrappedY = (int) Math.floorMod(scrolledPixels, NOISE_MAX_SOURCE_Y + 1L);
+        int jitterStep = temporalStep(nowNanos, NOISE_JITTER_FPS);
+        int jitterY = randomInt(jitterStep, seed + 11, NOISE_JITTER_MIN_Y, NOISE_JITTER_MAX_Y);
+        return Mth.clamp(wrappedY + jitterY, 0, NOISE_MAX_SOURCE_Y);
+    }
+
+    private static float noiseDestinationOffsetY(long nowNanos) {
+        if (NOISE_VERTICAL_SCROLL_PX_PER_SECOND <= 0.0D || NOISE_DESTINATION_SUBPIXEL_OFFSET_SCALE <= 0.0F) {
+            return 0.0F;
+        }
+
+        double scrolledPixels = nowNanos / 1_000_000_000.0D * NOISE_VERTICAL_SCROLL_PX_PER_SECOND;
+        double fractionalPixel = scrolledPixels - Math.floor(scrolledPixels);
+        return (float) (-fractionalPixel * NOISE_DESTINATION_SUBPIXEL_OFFSET_SCALE);
+    }
+
+    private static void drawNoiseTexture(GuiGraphics graphics, int frameIndex, int sourceY, int color) {
+        drawCircularTexture(
+                graphics,
+                NOISE[frameIndex],
+                0,
+                0,
+                0,
+                sourceY,
+                CLOCK_SIZE,
+                CLOCK_SIZE,
+                NOISE_TEXTURE_WIDTH,
+                NOISE_TEXTURE_HEIGHT,
+                color
+        );
     }
 
     private void renderSkyFromClient(GuiGraphics graphics, SleepIndicatorContext context) {
@@ -766,6 +991,33 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
         return Math.floorMod(frame, frameCount);
     }
 
+    private static int temporalStep(long nowNanos, double fps) {
+        if (fps <= 0.0D) {
+            return 0;
+        }
+        long step = (long) Math.floor(nowNanos / 1_000_000_000.0D * fps);
+        return (int) step;
+    }
+
+    private static int randomInt(int step, int seed, int min, int max) {
+        int range = Math.max(1, max - min + 1);
+        return min + Math.floorMod(hash(step ^ seed), range);
+    }
+
+    private static float random01(int step, int seed) {
+        return (hash(step ^ seed) >>> 8) / (float) 0x01000000;
+    }
+
+    private static int hash(int value) {
+        int mixed = value;
+        mixed ^= mixed >>> 16;
+        mixed *= 0x7FEB352D;
+        mixed ^= mixed >>> 15;
+        mixed *= 0x846CA68B;
+        mixed ^= mixed >>> 16;
+        return mixed;
+    }
+
     private static int whiteWithAlpha(float alpha) {
         return colorWithAlpha(alpha, 0xFFFFFF);
     }
@@ -832,6 +1084,23 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
                 CLOCK_SIZE,
                 CLOCK_SIZE,
                 color
+        );
+    }
+
+    private static void fillCircularColor(GuiGraphics graphics, int color) {
+        if ((color >>> 24) <= 0) {
+            return;
+        }
+
+        forEachCircularSlice(
+                (sliceX, sliceY, sliceWidth, ignoredU, ignoredV) ->
+                        graphics.fill(sliceX, sliceY, sliceX + sliceWidth, sliceY + 1, color),
+                0,
+                0,
+                0,
+                0,
+                CLOCK_SIZE,
+                CLOCK_SIZE
         );
     }
 
