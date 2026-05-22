@@ -17,7 +17,7 @@ public record SleepIndicatorConfig(
                 ? SleepIndicatorAnchor.TOP_LEFT
                 : config.sleepIndicatorAnchor;
         SleepIndicatorVisibility visibility = config.sleepIndicatorVisibility == null
-                ? SleepIndicatorVisibility.SLEEP
+                ? SleepIndicatorVisibility.BED
                 : config.sleepIndicatorVisibility;
         if (mode == SleepIndicatorMode.TEXT) {
             visibility = SleepIndicatorVisibility.SLEEP;

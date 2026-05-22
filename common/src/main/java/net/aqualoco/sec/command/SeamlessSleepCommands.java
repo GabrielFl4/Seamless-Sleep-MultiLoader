@@ -10,6 +10,7 @@ import net.aqualoco.sec.acceleration.WorldSleepAccelerationGovernorSnapshot;
 import net.aqualoco.sec.acceleration.WorldSleepAccelerationManager;
 import net.aqualoco.sec.acceleration.WorldSleepAccelerationModuleStatus;
 import net.aqualoco.sec.acceleration.WorldSleepAccelerationStatus;
+import net.aqualoco.sec.Constants;
 import net.aqualoco.sec.SeamlessSleepCommon;
 import net.aqualoco.sec.bed.BedRestingHelper;
 import net.aqualoco.sec.config.ServerConfigMutationService;
@@ -19,15 +20,20 @@ import net.aqualoco.sec.config.SleepEligibilityMode;
 import net.aqualoco.sec.config.WorldSleepAccelerationMode;
 import net.aqualoco.sec.config.WorldSleepAccelerationPlayersAffected;
 import net.aqualoco.sec.config.WorldSleepAutomaticMode;
+import net.aqualoco.sec.diagnostic.IntegrityHealth;
+import net.aqualoco.sec.diagnostic.IntegrityReport;
+import net.aqualoco.sec.diagnostic.SeamlessSleepIntegrityReporter;
 import net.aqualoco.sec.network.SleepAnimationNetworking;
 import net.aqualoco.sec.sleep.SleepAnimationMode;
 import net.aqualoco.sec.sleep.SleepAnimationPhase;
 import net.aqualoco.sec.sleep.SleepAnimationSoundMode;
 import net.aqualoco.sec.sleep.SleepAnimationState;
 import net.aqualoco.sec.sleep.SleepAnimationVisualContext;
+import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.permissions.Permissions;
@@ -47,31 +53,60 @@ public final class SeamlessSleepCommands {
                         .requires(source -> source.permissions().hasPermission(Permissions.COMMANDS_ADMIN))
                         .then(Commands.literal("reload")
                                 .executes(SeamlessSleepCommands::reload))
+                        .then(Commands.literal("integrity")
+                                .executes(SeamlessSleepCommands::integrity))
                         .then(Commands.literal("timelapse")
                                 .then(Commands.literal("stop")
                                         .executes(SeamlessSleepCommands::stopTimelapse))
                                 .then(Commands.argument("days", IntegerArgumentType.integer(1, 30))
                                         .then(Commands.argument("seconds", IntegerArgumentType.integer(1, 300))
+                                                .executes(ctx -> startTimelapse(
+                                                        ctx,
+                                                        IntegerArgumentType.getInteger(ctx, "days"),
+                                                        IntegerArgumentType.getInteger(ctx, "seconds"),
+                                                        SleepAnimationSoundMode.DEFAULT
+                                                ))
+                                                .then(Commands.literal("muted")
+                                                        .executes(ctx -> startTimelapse(
+                                                                ctx,
+                                                                IntegerArgumentType.getInteger(ctx, "days"),
+                                                                IntegerArgumentType.getInteger(ctx, "seconds"),
+                                                                SleepAnimationSoundMode.MUTED
+                                                        )))
+                                                .then(Commands.literal("default")
+                                                        .executes(ctx -> startTimelapse(
+                                                                ctx,
+                                                                IntegerArgumentType.getInteger(ctx, "days"),
+                                                                IntegerArgumentType.getInteger(ctx, "seconds"),
+                                                                SleepAnimationSoundMode.DEFAULT
+                                                        )))
+                                                .then(Commands.literal("epic")
+                                                        .executes(ctx -> startTimelapse(
+                                                                ctx,
+                                                                IntegerArgumentType.getInteger(ctx, "days"),
+                                                                IntegerArgumentType.getInteger(ctx, "seconds"),
+                                                                SleepAnimationSoundMode.EPIC
+                                                        )))
                                                 .then(Commands.literal("none")
                                                         .executes(ctx -> startTimelapse(
                                                                 ctx,
                                                                 IntegerArgumentType.getInteger(ctx, "days"),
                                                                 IntegerArgumentType.getInteger(ctx, "seconds"),
-                                                                SleepAnimationSoundMode.NONE
+                                                                SleepAnimationSoundMode.MUTED
                                                         )))
                                                 .then(Commands.literal("sfx")
                                                         .executes(ctx -> startTimelapse(
                                                                 ctx,
                                                                 IntegerArgumentType.getInteger(ctx, "days"),
                                                                 IntegerArgumentType.getInteger(ctx, "seconds"),
-                                                                SleepAnimationSoundMode.SFX
+                                                                SleepAnimationSoundMode.DEFAULT
                                                         )))
                                                 .then(Commands.literal("music")
                                                         .executes(ctx -> startTimelapse(
                                                                 ctx,
                                                                 IntegerArgumentType.getInteger(ctx, "days"),
                                                                 IntegerArgumentType.getInteger(ctx, "seconds"),
-                                                                SleepAnimationSoundMode.MUSIC
+                                                                SleepAnimationSoundMode.EPIC
                                                         ))))))
                         .then(Commands.literal("set")
                                 .then(Commands.literal("sleepClearsWeather")
@@ -256,18 +291,69 @@ public final class SeamlessSleepCommands {
     }
 
     private static int reload(CommandContext<CommandSourceStack> context) {
-        SeamlessSleepServerConfigManager.ReloadResult result = SeamlessSleepServerConfigManager.reloadWithStatus();
+        int oldRevision = ServerConfigMutationService.currentRevision();
+        SeamlessSleepServerConfigManager.ReloadReport report = SeamlessSleepServerConfigManager.reloadWithReport();
         SeamlessSleepServerConfig config = SeamlessSleepServerConfigManager.get();
         ServerConfigMutationService.syncAfterMutation(context.getSource().getServer(), config);
+        int newRevision = ServerConfigMutationService.currentRevision();
 
-        String message = switch (result) {
-            case SUCCESS -> "Server config reloaded.";
-            case CREATED -> "Config not found. Default created and loaded.";
-            case ERROR -> "Failed to read config. Defaults loaded.";
+        Constants.LOG.info(
+                "[Seamless Sleep Reload] status={}, path={}, loadedDefaults={}, createdFile={}, savedCanonicalFile={}, revision={} -> {}, activeSleepSessionPresent={}, worldAccelerationStatePreserved={}.",
+                report.status(),
+                report.path(),
+                report.loadedDefaults(),
+                report.createdFile(),
+                report.savedCanonicalFile(),
+                oldRevision,
+                newRevision,
+                SeamlessSleepCommon.OVERWORLD_SLEEP_ANIMATION.isActive(),
+                true
+        );
+
+        String messageKey = switch (report.status()) {
+            case SUCCESS -> "command.seamlesssleep.reload.success";
+            case CREATED -> "command.seamlesssleep.reload.created";
+            case ERROR -> "command.seamlesssleep.reload.error";
         };
-        context.getSource().sendSuccess(() -> Component.literal(message), true);
-        context.getSource().sendSuccess(() -> Component.literal("All clients synchronized with the server."), true);
-        return result == SeamlessSleepServerConfigManager.ReloadResult.ERROR ? 0 : 1;
+        sendCommandFeedback(context, Component.translatable(messageKey));
+        return report.status() == SeamlessSleepServerConfigManager.ReloadResult.ERROR ? 0 : 1;
+    }
+
+    private static int integrity(CommandContext<CommandSourceStack> context) {
+        IntegrityReport report = SeamlessSleepIntegrityReporter.create(context.getSource().getServer());
+        String messageKey = switch (report.health()) {
+            case STABLE -> "command.seamlesssleep.integrity.result.stable";
+            case WARN -> "command.seamlesssleep.integrity.result.warn";
+            case FATAL -> "command.seamlesssleep.integrity.result.fatal";
+        };
+        sendCommandFeedback(context, Component.translatable(messageKey, integrityHealthComponent(report.health())));
+        return report.health() == IntegrityHealth.FATAL ? 0 : 1;
+    }
+
+    private static MutableComponent seamlessPrefix() {
+        return Component.literal("[")
+                .withStyle(ChatFormatting.LIGHT_PURPLE)
+                .append(Component.literal("Seamless Sleep").withStyle(ChatFormatting.LIGHT_PURPLE, ChatFormatting.BOLD))
+                .append(Component.literal("] ").withStyle(ChatFormatting.LIGHT_PURPLE));
+    }
+
+    private static MutableComponent commandFeedback(Component body) {
+        return seamlessPrefix().append(body.copy().withStyle(ChatFormatting.WHITE));
+    }
+
+    private static void sendCommandFeedback(CommandContext<CommandSourceStack> context, Component body) {
+        context.getSource().sendSuccess(() -> commandFeedback(body), false);
+    }
+
+    private static MutableComponent integrityHealthComponent(IntegrityHealth health) {
+        return switch (health) {
+            case STABLE -> Component.translatable("command.seamlesssleep.integrity.health.stable")
+                    .withStyle(ChatFormatting.GREEN, ChatFormatting.BOLD);
+            case WARN -> Component.translatable("command.seamlesssleep.integrity.health.warn")
+                    .withStyle(ChatFormatting.YELLOW, ChatFormatting.BOLD);
+            case FATAL -> Component.translatable("command.seamlesssleep.integrity.health.fatal")
+                    .withStyle(ChatFormatting.RED, ChatFormatting.BOLD);
+        };
     }
 
     private static int getSleepClearsWeather(CommandContext<CommandSourceStack> context) {
@@ -444,7 +530,9 @@ public final class SeamlessSleepCommands {
         long currentTime = overworld.getDayTime();
         long targetTime = currentTime + days * 24000L;
         int durationTicks = seconds * 20;
-        SleepAnimationSoundMode resolvedSoundMode = soundMode == null ? SleepAnimationSoundMode.NONE : soundMode;
+        SleepAnimationSoundMode resolvedSoundMode = SleepAnimationSoundMode.canonical(
+                soundMode == null ? SleepAnimationSoundMode.DEFAULT : soundMode
+        );
         if (!state.startExplicit(
                 overworld,
                 currentTime,
@@ -460,9 +548,9 @@ public final class SeamlessSleepCommands {
 
         WorldSleepAccelerationManager.refreshForLevelTick(overworld);
         SleepAnimationNetworking.sendStart(overworld, state);
-        String soundNote = resolvedSoundMode == SleepAnimationSoundMode.NONE
-                ? ""
-                : " Sound mode " + resolvedSoundMode.name() + " is accepted as a placeholder.";
+        String soundNote = resolvedSoundMode.isMuted()
+                ? " Sound profile muted."
+                : " Sound profile " + resolvedSoundMode.name().toLowerCase(Locale.ROOT) + " selected.";
         context.getSource().sendSuccess(
                 () -> Component.literal("Started timelapse for " + days + " day(s) over " + seconds + " second(s)." + soundNote),
                 true

@@ -4,11 +4,14 @@ import net.aqualoco.sec.network.BedHudSleepProgressPayload;
 import net.aqualoco.sec.network.BedLookNetworking;
 import net.aqualoco.sec.network.BedLookSyncPayload;
 import net.aqualoco.sec.config.ServerConfigMutationService;
+import net.aqualoco.sec.handshake.ServerSeamlessClientPresenceManager;
+import net.aqualoco.sec.network.ClientHelloC2SPayload;
 import net.aqualoco.sec.network.ServerConfigAccessRequestC2SPayload;
 import net.aqualoco.sec.network.ServerConfigAccessS2CPayload;
 import net.aqualoco.sec.network.ServerConfigSyncPayload;
 import net.aqualoco.sec.network.ServerConfigUpdateC2SPayload;
 import net.aqualoco.sec.network.ServerConfigUpdateResultS2CPayload;
+import net.aqualoco.sec.network.ServerHelloS2CPayload;
 import net.aqualoco.sec.network.SleepAnimationStartPayload;
 import net.aqualoco.sec.network.SleepAnimationStopPayload;
 import net.aqualoco.sec.platform.services.INetworkHelper;
@@ -25,7 +28,9 @@ import java.lang.reflect.Method;
 public class FabricNetworkHelper implements INetworkHelper {
 
     private static Method seamlesssleep$clientSendMethod;
+    private static Method seamlesssleep$clientCanSendMethod;
     private static boolean seamlesssleep$clientSendResolved;
+    private static boolean seamlesssleep$clientCanSendResolved;
 
     @Override
     public void registerPayloads() {
@@ -53,6 +58,14 @@ public class FabricNetworkHelper implements INetworkHelper {
                 BedHudSleepProgressPayload.ID,
                 BedHudSleepProgressPayload.CODEC
         );
+        PayloadTypeRegistry.playS2C().register(
+                ServerHelloS2CPayload.ID,
+                ServerHelloS2CPayload.CODEC
+        );
+        PayloadTypeRegistry.playC2S().register(
+                ClientHelloC2SPayload.ID,
+                ClientHelloC2SPayload.CODEC
+        );
         PayloadTypeRegistry.playC2S().register(
                 ServerConfigAccessRequestC2SPayload.ID,
                 ServerConfigAccessRequestC2SPayload.CODEC
@@ -69,6 +82,12 @@ public class FabricNetworkHelper implements INetworkHelper {
                 BedLookSyncPayload.ID,
                 (payload, context) -> context.server().execute(
                         () -> BedLookNetworking.handleServer(context.player(), payload)
+                )
+        );
+        ServerPlayNetworking.registerGlobalReceiver(
+                ClientHelloC2SPayload.ID,
+                (payload, context) -> context.server().execute(
+                        () -> ServerSeamlessClientPresenceManager.handleClientHello(context.player(), payload)
                 )
         );
         ServerPlayNetworking.registerGlobalReceiver(
@@ -116,6 +135,26 @@ public class FabricNetworkHelper implements INetworkHelper {
         }
     }
 
+    @Override
+    public boolean canSendToPlayer(ServerPlayer player, CustomPacketPayload.Type<?> type) {
+        return player != null && type != null && ServerPlayNetworking.canSend(player, type);
+    }
+
+    @Override
+    public boolean canSendToServer(CustomPacketPayload.Type<?> type) {
+        Method canSendMethod = seamlesssleep$resolveClientCanSendMethod();
+        if (canSendMethod == null || type == null) {
+            return false;
+        }
+
+        try {
+            Object result = canSendMethod.invoke(null, type);
+            return result instanceof Boolean bool && bool;
+        } catch (IllegalAccessException | InvocationTargetException exception) {
+            return false;
+        }
+    }
+
     private static Method seamlesssleep$resolveClientSendMethod() {
         if (seamlesssleep$clientSendResolved) {
             return seamlesssleep$clientSendMethod;
@@ -130,5 +169,21 @@ public class FabricNetworkHelper implements INetworkHelper {
         }
 
         return seamlesssleep$clientSendMethod;
+    }
+
+    private static Method seamlesssleep$resolveClientCanSendMethod() {
+        if (seamlesssleep$clientCanSendResolved) {
+            return seamlesssleep$clientCanSendMethod;
+        }
+
+        seamlesssleep$clientCanSendResolved = true;
+        try {
+            Class<?> clientNetworkingClass = Class.forName("net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking");
+            seamlesssleep$clientCanSendMethod = clientNetworkingClass.getMethod("canSend", CustomPacketPayload.Type.class);
+        } catch (ClassNotFoundException | NoSuchMethodException ignored) {
+            seamlesssleep$clientCanSendMethod = null;
+        }
+
+        return seamlesssleep$clientCanSendMethod;
     }
 }

@@ -1,6 +1,8 @@
 package net.aqualoco.sec.mixin.client.ui;
 
 import net.aqualoco.sec.client.SeamlessSleepClientState;
+import net.aqualoco.sec.client.sound.SleepSoundManager;
+import net.aqualoco.sec.handshake.ClientHandshakeState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.world.level.Level;
@@ -16,14 +18,17 @@ public abstract class MinecraftSleepAnimationCleanupMixin {
     @Inject(method = "tick", at = @At("HEAD"))
     private void seamlesssleep$cleanupSleepAnimationWorldState(CallbackInfo ci) {
         Minecraft client = (Minecraft) (Object) this;
+        ClientHandshakeState.tick(client);
         ClientLevel world = client.level;
         if (world == null) {
             SeamlessSleepClientState.SLEEP_ANIMATION.resetForWorldExit("world_null");
+            SleepSoundManager.reset("world_null");
             return;
         }
 
         if (!world.dimension().equals(Level.OVERWORLD)) {
             SeamlessSleepClientState.SLEEP_ANIMATION.resetForWorldExit("non_overworld");
+            SleepSoundManager.reset("non_overworld");
             return;
         }
 

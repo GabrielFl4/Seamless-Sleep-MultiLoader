@@ -23,8 +23,24 @@ public final class SeamlessSleepServerConfigManager {
         ERROR
     }
 
+    public record ReloadReport(ReloadResult status,
+                               Path path,
+                               boolean loadedDefaults,
+                               boolean createdFile,
+                               boolean savedCanonicalFile,
+                               String message) {
+    }
+
     private static SeamlessSleepServerConfig config = defaultConfig();
     private static Path configPath;
+    private static ReloadReport lastReloadReport = new ReloadReport(
+            ReloadResult.SUCCESS,
+            null,
+            false,
+            false,
+            false,
+            "Server config has not been reloaded during this run."
+    );
 
     private SeamlessSleepServerConfigManager() {
     }
@@ -55,12 +71,35 @@ public final class SeamlessSleepServerConfigManager {
     }
 
     public static ReloadResult reloadWithStatus() {
+        return reloadWithReport().status();
+    }
+
+    public static ReloadReport reloadWithReport() {
         if (configPath == null) {
             configPath = Services.PLATFORM.getConfigDir().resolve(FILE_NAME);
         }
         LoadResult result = loadOrCreate(configPath);
         config = result.config;
-        return result.status;
+        lastReloadReport = new ReloadReport(
+                result.status,
+                configPath,
+                result.status == ReloadResult.ERROR || result.status == ReloadResult.CREATED,
+                result.status == ReloadResult.CREATED,
+                true,
+                reloadMessage(result.status)
+        );
+        return lastReloadReport;
+    }
+
+    public static ReloadReport lastReloadReport() {
+        return lastReloadReport;
+    }
+
+    public static Path configPath() {
+        if (configPath == null) {
+            configPath = Services.PLATFORM.getConfigDir().resolve(FILE_NAME);
+        }
+        return configPath;
     }
 
     private static LoadResult loadOrCreate(Path path) {
@@ -108,6 +147,14 @@ public final class SeamlessSleepServerConfigManager {
 
     private static SeamlessSleepServerConfig defaultConfig() {
         return new SeamlessSleepServerConfig();
+    }
+
+    private static String reloadMessage(ReloadResult result) {
+        return switch (result) {
+            case SUCCESS -> "Server config reloaded and canonical TOML was written.";
+            case CREATED -> "Server config was missing; defaults were created and loaded.";
+            case ERROR -> "Server config failed to load; defaults were loaded and written.";
+        };
     }
 
     private static CommentedFileConfig openConfig(Path path) {

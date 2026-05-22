@@ -282,7 +282,7 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
 
         float normalAlpha = this.sceneState.alphaFor(BiomeClockSceneKind.NORMAL, nowNanos);
         if (normalAlpha > 0.001F) {
-            renderNormalClockContent(graphics, context.withAlphaMultiplier(normalAlpha), nowNanos, true);
+            renderNormalClockContent(graphics, context.withAlphaMultiplier(normalAlpha), nowNanos);
         }
 
         float cavernsAlpha = this.sceneState.alphaFor(BiomeClockSceneKind.CAVERNS, nowNanos);
@@ -306,13 +306,15 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
         }
 
         drawFullTexture(graphics, FRAME_CIRCLE, whiteWithAlpha(context.alpha()));
+        if (normalAlpha > 0.001F) {
+            renderZzzLayer(graphics, context.withAlphaMultiplier(normalAlpha), nowNanos);
+        }
     }
 
     private void renderNormalClockContent(
             GuiGraphics graphics,
             SleepIndicatorContext context,
-            long nowNanos,
-            boolean drawZzz
+            long nowNanos
     ) {
         BiomeClockWeatherKind weatherKind = BiomeClockWeatherResolver.resolve(context);
         this.weatherVisualState.update(weatherKind, nowNanos);
@@ -423,9 +425,6 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
         renderPrecipitation(graphics, context, visualWeatherKind, nowNanos, biomeDarkeningAlpha);
         renderWeatherClouds(graphics, context, visualWeatherKind);
         renderLightning(graphics, context, lightningFrame);
-        if (drawZzz) {
-            renderZzzLayer(graphics, context, nowNanos);
-        }
     }
 
     private void renderCavernsScene(GuiGraphics graphics, SleepIndicatorContext context, long nowNanos) {

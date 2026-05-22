@@ -650,10 +650,10 @@ public final class NeoForgeYaclConfigScreen {
                 Component.translatable("config.seamlesssleep.sleep_indicator.visibility"),
                 Component.translatable("config.seamlesssleep.sleep_indicator.visibility.desc"),
                 Component.empty(),
-                SleepIndicatorVisibility.SLEEP,
+                SleepIndicatorVisibility.BED,
                 SleepIndicatorVisibility.class,
                 () -> cfg.sleepIndicatorVisibility,
-                value -> cfg.sleepIndicatorVisibility = value == null ? SleepIndicatorVisibility.SLEEP : value,
+                value -> cfg.sleepIndicatorVisibility = value == null ? SleepIndicatorVisibility.BED : value,
                 true,
                 value -> enumText("config.seamlesssleep.sleep_indicator.visibility", value)
         );
@@ -714,7 +714,7 @@ public final class NeoForgeYaclConfigScreen {
             refreshIndicatorOptions.run();
         });
         listen(anchorOption, value -> cfg.sleepIndicatorAnchor = value == null ? SleepIndicatorAnchor.TOP_LEFT : value);
-        listen(visibilityOption, value -> cfg.sleepIndicatorVisibility = value == null ? SleepIndicatorVisibility.SLEEP : value);
+        listen(visibilityOption, value -> cfg.sleepIndicatorVisibility = value == null ? SleepIndicatorVisibility.BED : value);
         listen(scaleOption, value -> cfg.sleepIndicatorScale = value);
         listen(timestampStyleOption, value -> cfg.timestampStyle = value == null ? TimestampStyle.DAY_FIRST : value);
         listen(timestampColorOption, value -> cfg.timestampColor = value == null

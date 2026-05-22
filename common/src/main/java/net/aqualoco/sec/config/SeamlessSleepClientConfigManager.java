@@ -175,7 +175,7 @@ public final class SeamlessSleepClientConfigManager {
                 "anchor",
                 toTomlString(cfg.sleepIndicatorAnchor.name()));
         appendEntry(sb,
-                "Sleep indicator visibility. Range: BED | SLEEP | ALWAYS. Default: SLEEP",
+                "Sleep indicator visibility. Range: BED | SLEEP | ALWAYS. Default: BED",
                 "visibility",
                 toTomlString(cfg.sleepIndicatorVisibility.name()));
         appendEntry(sb,

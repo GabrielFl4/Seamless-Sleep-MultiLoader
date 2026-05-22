@@ -4,14 +4,19 @@ import net.aqualoco.sec.SeamlessSleep;
 import net.aqualoco.sec.network.BedLookNetworking;
 import net.aqualoco.sec.network.BedLookSyncPayload;
 import net.aqualoco.sec.config.ServerConfigMutationService;
+import net.aqualoco.sec.handshake.ServerSeamlessClientPresenceManager;
 import net.aqualoco.sec.network.BedHudSleepProgressPayload;
+import net.aqualoco.sec.network.ClientHelloC2SPayload;
 import net.aqualoco.sec.network.ServerConfigAccessRequestC2SPayload;
 import net.aqualoco.sec.network.ServerConfigAccessS2CPayload;
 import net.aqualoco.sec.network.ServerConfigSyncPayload;
 import net.aqualoco.sec.network.ServerConfigUpdateC2SPayload;
 import net.aqualoco.sec.network.ServerConfigUpdateResultS2CPayload;
+import net.aqualoco.sec.network.ServerHelloS2CPayload;
 import net.aqualoco.sec.network.SleepAnimationStartPayload;
 import net.aqualoco.sec.network.SleepAnimationStopPayload;
+import net.minecraft.client.Minecraft;
+import net.minecraft.network.ConnectionProtocol;
 import net.aqualoco.sec.platform.services.INetworkHelper;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.server.level.ServerLevel;
@@ -21,6 +26,7 @@ import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
+import net.neoforged.neoforge.network.registration.NetworkRegistry;
 
 // NeoForge networking bridge that registers payload handlers and dispatches to clients.
 public class NeoForgeNetworkHelper implements INetworkHelper {
@@ -33,6 +39,7 @@ public class NeoForgeNetworkHelper implements INetworkHelper {
         void handleServerConfig(ServerConfigSyncPayload payload);
         void handleServerConfigAccess(ServerConfigAccessS2CPayload payload);
         void handleServerConfigUpdateResult(ServerConfigUpdateResultS2CPayload payload);
+        void handleServerHello(ServerHelloS2CPayload payload);
     }
 
     private static boolean registered;
@@ -80,6 +87,16 @@ public class NeoForgeNetworkHelper implements INetworkHelper {
                 ServerConfigUpdateResultS2CPayload.CODEC.cast(),
                 NeoForgeNetworkHelper::handleServerConfigUpdateResult
         );
+        registrar.playToClient(
+                ServerHelloS2CPayload.ID,
+                ServerHelloS2CPayload.CODEC.cast(),
+                NeoForgeNetworkHelper::handleServerHello
+        );
+        registrar.playToServer(
+                ClientHelloC2SPayload.ID,
+                ClientHelloC2SPayload.CODEC.cast(),
+                NeoForgeNetworkHelper::handleClientHello
+        );
         registrar.playToServer(
                 ServerConfigAccessRequestC2SPayload.ID,
                 ServerConfigAccessRequestC2SPayload.CODEC.cast(),
@@ -117,6 +134,22 @@ public class NeoForgeNetworkHelper implements INetworkHelper {
     @Override
     public void sendToServer(CustomPacketPayload payload) {
         ClientPacketDistributor.sendToServer(payload);
+    }
+
+    @Override
+    public boolean canSendToPlayer(ServerPlayer player, CustomPacketPayload.Type<?> type) {
+        return player != null
+                && player.connection != null
+                && type != null
+                && NetworkRegistry.hasChannel(player.connection.getConnection(), ConnectionProtocol.PLAY, type.id());
+    }
+
+    @Override
+    public boolean canSendToServer(CustomPacketPayload.Type<?> type) {
+        Minecraft client = Minecraft.getInstance();
+        return client.getConnection() != null
+                && type != null
+                && NetworkRegistry.hasChannel(client.getConnection().getConnection(), ConnectionProtocol.PLAY, type.id());
     }
 
     private static void handleBedHudSleepProgress(BedHudSleepProgressPayload payload, IPayloadContext context) {
@@ -169,6 +202,23 @@ public class NeoForgeNetworkHelper implements INetworkHelper {
             ClientHandler handler = clientHandler;
             if (handler != null) {
                 handler.handleServerConfigUpdateResult(payload);
+            }
+        });
+    }
+
+    private static void handleServerHello(ServerHelloS2CPayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            ClientHandler handler = clientHandler;
+            if (handler != null) {
+                handler.handleServerHello(payload);
+            }
+        });
+    }
+
+    private static void handleClientHello(ClientHelloC2SPayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            if (context.player() instanceof ServerPlayer serverPlayer) {
+                ServerSeamlessClientPresenceManager.handleClientHello(serverPlayer, payload);
             }
         });
     }

@@ -27,7 +27,7 @@ public final class ClientSleepAnimationState {
     private SleepAnimationMode mode = SleepAnimationMode.NORMAL_SLEEP;
     private SleepAnimationPhase phase = SleepAnimationPhase.IDLE;
     private SleepAnimationVisualContext visualContext = SleepAnimationVisualContext.NIGHT;
-    private SleepAnimationSoundMode soundMode = SleepAnimationSoundMode.NONE;
+    private SleepAnimationSoundMode soundMode = SleepAnimationSoundMode.MUTED;
     private long startTimeOfDay;
     private long endTimeOfDay;
     private int durationTicks;
@@ -204,7 +204,7 @@ public final class ClientSleepAnimationState {
         this.mode = mode == null ? SleepAnimationMode.NORMAL_SLEEP : mode;
         this.phase = phase == null ? SleepAnimationPhase.RUNNING : phase;
         this.visualContext = visualContext == null ? SleepAnimationVisualContext.NIGHT : visualContext;
-        this.soundMode = soundMode == null ? SleepAnimationSoundMode.NONE : soundMode;
+        this.soundMode = SleepAnimationSoundMode.canonical(soundMode);
         this.startTimeOfDay = startTimeOfDay;
         this.endTimeOfDay = endTimeOfDay;
         this.durationTicks = Math.max(1, durationTicks);

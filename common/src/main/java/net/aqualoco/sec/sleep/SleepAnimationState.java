@@ -26,7 +26,7 @@ public final class SleepAnimationState {
     private SleepAnimationPhase phase = SleepAnimationPhase.IDLE;
     private SleepAnimationMode mode = SleepAnimationMode.NORMAL_SLEEP;
     private SleepAnimationVisualContext visualContext = SleepAnimationVisualContext.NIGHT;
-    private SleepAnimationSoundMode soundMode = SleepAnimationSoundMode.NONE;
+    private SleepAnimationSoundMode soundMode = SleepAnimationSoundMode.MUTED;
     private long startTimeOfDay;
     private long endTimeOfDay;
     private int durationTicks;
@@ -55,7 +55,7 @@ public final class SleepAnimationState {
                 startGameTime,
                 mode,
                 visualContext,
-                SleepAnimationSoundMode.NONE,
+                SleepAnimationSoundMode.MUTED,
                 -1,
                 true
         );
@@ -68,7 +68,7 @@ public final class SleepAnimationState {
                 UNSET_START_GAME_TIME,
                 SleepAnimationMode.NORMAL_SLEEP,
                 SleepAnimationVisualContext.NIGHT,
-                SleepAnimationSoundMode.NONE,
+                SleepAnimationSoundMode.MUTED,
                 -1,
                 true
         );
@@ -107,7 +107,7 @@ public final class SleepAnimationState {
         this.phase = SleepAnimationPhase.RUNNING;
         this.mode = SleepAnimationMode.MADE_IN_HEAVEN_BED;
         this.visualContext = SleepAnimationVisualContext.MADE_IN_HEAVEN;
-        this.soundMode = SleepAnimationSoundMode.NONE;
+        this.soundMode = SleepAnimationSoundMode.MUTED;
         this.startTimeOfDay = currentTime;
         this.endTimeOfDay = targetTime;
         this.durationTicks = MADE_IN_HEAVEN_ACCELERATION_TICKS;
@@ -259,7 +259,7 @@ public final class SleepAnimationState {
         this.phase = SleepAnimationPhase.RUNNING;
         this.mode = animationMode == null ? SleepAnimationMode.NORMAL_SLEEP : animationMode;
         this.visualContext = resolveVisualContext(this.mode, animationVisualContext);
-        this.soundMode = animationSoundMode == null ? SleepAnimationSoundMode.NONE : animationSoundMode;
+        this.soundMode = SleepAnimationSoundMode.canonical(animationSoundMode);
         this.startTimeOfDay = currentTime;
         this.endTimeOfDay = targetTime;
         this.serverStartGameTime = startGameTime;

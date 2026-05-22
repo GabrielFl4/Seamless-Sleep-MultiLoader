@@ -68,8 +68,8 @@ public record SleepAnimationStartPayload(
                 SleepAnimationVisualContext.NIGHT
         );
         SleepAnimationSoundMode soundMode = buf.readableBytes() == LEGACY_REMAINING_BYTES_AFTER_PHASE
-                ? SleepAnimationSoundMode.NONE
-                : readEnum(buf, SleepAnimationSoundMode.class, SleepAnimationSoundMode.NONE);
+                ? SleepAnimationSoundMode.MUTED
+                : SleepAnimationSoundMode.canonical(readEnum(buf, SleepAnimationSoundMode.class, SleepAnimationSoundMode.MUTED));
         long startTime = buf.readLong();
         long endTime = buf.readLong();
         int duration = buf.readInt();
@@ -116,7 +116,7 @@ public record SleepAnimationStartPayload(
                 mode,
                 phase,
                 visualContext,
-                SleepAnimationSoundMode.NONE,
+                SleepAnimationSoundMode.MUTED,
                 startTime,
                 endTime,
                 duration,

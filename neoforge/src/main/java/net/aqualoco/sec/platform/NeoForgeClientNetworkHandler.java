@@ -3,10 +3,13 @@ package net.aqualoco.sec.platform;
 import net.aqualoco.sec.client.BedHudMessageManager;
 import net.aqualoco.sec.client.RemoteServerConfigClientState;
 import net.aqualoco.sec.client.SeamlessSleepClientState;
+import net.aqualoco.sec.client.sound.SleepSoundManager;
+import net.aqualoco.sec.handshake.ClientHandshakeState;
 import net.aqualoco.sec.network.BedHudSleepProgressPayload;
 import net.aqualoco.sec.network.ServerConfigAccessS2CPayload;
 import net.aqualoco.sec.network.ServerConfigSyncPayload;
 import net.aqualoco.sec.network.ServerConfigUpdateResultS2CPayload;
+import net.aqualoco.sec.network.ServerHelloS2CPayload;
 import net.aqualoco.sec.network.SleepAnimationStartPayload;
 import net.aqualoco.sec.network.SleepAnimationStopPayload;
 import net.aqualoco.sec.sleep.SleepAnimationStopReason;
@@ -44,9 +47,11 @@ final class NeoForgeClientNetworkHandler implements NeoForgeNetworkHelper.Client
         ClientLevel world = client.level;
         if (!isMatchingOverworld(world, payload.worldId())) {
             SeamlessSleepClientState.SLEEP_ANIMATION.resetForWorldExit("start_payload_world_mismatch");
+            SleepSoundManager.reset("start_payload_world_mismatch");
             return;
         }
 
+        SleepSoundManager.onSleepStart(payload);
         SeamlessSleepClientState.SLEEP_ANIMATION.start(
                 world,
                 payload.sessionId(),
@@ -70,6 +75,7 @@ final class NeoForgeClientNetworkHandler implements NeoForgeNetworkHelper.Client
         ClientLevel world = client.level;
         if (!isMatchingOverworld(world, payload.worldId())) {
             SeamlessSleepClientState.SLEEP_ANIMATION.resetForWorldExit("stop_payload_world_mismatch");
+            SleepSoundManager.reset("stop_payload_world_mismatch");
             return;
         }
 
@@ -82,6 +88,7 @@ final class NeoForgeClientNetworkHandler implements NeoForgeNetworkHelper.Client
                 payload.finalDayTime(),
                 payload.reason()
         );
+        SleepSoundManager.onSleepStop(payload);
     }
 
     @Override
@@ -97,6 +104,11 @@ final class NeoForgeClientNetworkHandler implements NeoForgeNetworkHelper.Client
     @Override
     public void handleServerConfigUpdateResult(ServerConfigUpdateResultS2CPayload payload) {
         RemoteServerConfigClientState.applyUpdateResult(payload);
+    }
+
+    @Override
+    public void handleServerHello(ServerHelloS2CPayload payload) {
+        ClientHandshakeState.handleServerHello(payload);
     }
 
     private static boolean isMatchingOverworld(ClientLevel world, Identifier payloadWorldId) {

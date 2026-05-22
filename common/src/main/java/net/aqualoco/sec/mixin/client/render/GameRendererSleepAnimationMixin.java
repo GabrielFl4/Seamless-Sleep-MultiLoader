@@ -2,6 +2,7 @@ package net.aqualoco.sec.mixin.client.render;
 
 import net.aqualoco.sec.client.ClientBedWorkflow;
 import net.aqualoco.sec.client.SeamlessSleepClientState;
+import net.aqualoco.sec.client.sound.SleepSoundManager;
 import net.aqualoco.sec.network.SleepAnimationNetworking;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
@@ -34,11 +35,13 @@ public abstract class GameRendererSleepAnimationMixin {
         ClientLevel world = client.level;
         if (world == null) {
             SeamlessSleepClientState.SLEEP_ANIMATION.resetForWorldExit("render_world_null");
+            SleepSoundManager.reset("render_world_null");
             return;
         }
 
         if (!world.dimension().equals(Level.OVERWORLD)) {
             SeamlessSleepClientState.SLEEP_ANIMATION.resetForWorldExit("render_non_overworld");
+            SleepSoundManager.reset("render_non_overworld");
             return;
         }
 

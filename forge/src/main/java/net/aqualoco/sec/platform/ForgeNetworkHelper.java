@@ -4,15 +4,19 @@ import net.aqualoco.sec.network.BedLookNetworking;
 import net.aqualoco.sec.network.BedLookSyncPayload;
 import net.aqualoco.sec.Constants;
 import net.aqualoco.sec.config.ServerConfigMutationService;
+import net.aqualoco.sec.handshake.ServerSeamlessClientPresenceManager;
 import net.aqualoco.sec.network.BedHudSleepProgressPayload;
+import net.aqualoco.sec.network.ClientHelloC2SPayload;
 import net.aqualoco.sec.network.ServerConfigAccessRequestC2SPayload;
 import net.aqualoco.sec.network.ServerConfigAccessS2CPayload;
 import net.aqualoco.sec.network.ServerConfigSyncPayload;
 import net.aqualoco.sec.network.ServerConfigUpdateC2SPayload;
 import net.aqualoco.sec.network.ServerConfigUpdateResultS2CPayload;
+import net.aqualoco.sec.network.ServerHelloS2CPayload;
 import net.aqualoco.sec.network.SleepAnimationStartPayload;
 import net.aqualoco.sec.network.SleepAnimationStopPayload;
 import net.aqualoco.sec.platform.services.INetworkHelper;
+import net.minecraft.client.Minecraft;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
@@ -33,6 +37,7 @@ public class ForgeNetworkHelper implements INetworkHelper {
         void handleServerConfig(ServerConfigSyncPayload payload);
         void handleServerConfigAccess(ServerConfigAccessS2CPayload payload);
         void handleServerConfigUpdateResult(ServerConfigUpdateResultS2CPayload payload);
+        void handleServerHello(ServerHelloS2CPayload payload);
     }
 
     private static final Identifier CHANNEL_ID =
@@ -83,7 +88,17 @@ public class ForgeNetworkHelper implements INetworkHelper {
                         ServerConfigUpdateResultS2CPayload.CODEC.cast(),
                         ForgeNetworkHelper::handleServerConfigUpdateResult
                 )
+                .addMain(
+                        ServerHelloS2CPayload.ID,
+                        ServerHelloS2CPayload.CODEC.cast(),
+                        ForgeNetworkHelper::handleServerHello
+                )
                 .serverbound()
+                .addMain(
+                        ClientHelloC2SPayload.ID,
+                        ClientHelloC2SPayload.CODEC.cast(),
+                        ForgeNetworkHelper::handleClientHello
+                )
                 .addMain(
                         ServerConfigAccessRequestC2SPayload.ID,
                         ServerConfigAccessRequestC2SPayload.CODEC.cast(),
@@ -136,6 +151,23 @@ public class ForgeNetworkHelper implements INetworkHelper {
         }
 
         channel.send(payload, PacketDistributor.SERVER.noArg());
+    }
+
+    @Override
+    public boolean canSendToPlayer(ServerPlayer player, CustomPacketPayload.Type<?> type) {
+        return channel != null
+                && player != null
+                && player.connection != null
+                && channel.isRemotePresent(player.connection.getConnection());
+    }
+
+    @Override
+    public boolean canSendToServer(CustomPacketPayload.Type<?> type) {
+        Minecraft client = Minecraft.getInstance();
+        return channel != null
+                && type != null
+                && client.getConnection() != null
+                && channel.isRemotePresent(client.getConnection().getConnection());
     }
 
     private static void handleStart(SleepAnimationStartPayload payload, CustomPayloadEvent.Context context) {
@@ -212,6 +244,32 @@ public class ForgeNetworkHelper implements INetworkHelper {
             ClientHandler handler = clientHandler;
             if (handler != null) {
                 handler.handleServerConfigUpdateResult(payload);
+            }
+        });
+    }
+
+    private static void handleServerHello(ServerHelloS2CPayload payload, CustomPayloadEvent.Context context) {
+        if (!context.isClientSide()) {
+            return;
+        }
+
+        context.enqueueWork(() -> {
+            ClientHandler handler = clientHandler;
+            if (handler != null) {
+                handler.handleServerHello(payload);
+            }
+        });
+    }
+
+    private static void handleClientHello(ClientHelloC2SPayload payload, CustomPayloadEvent.Context context) {
+        if (context.isClientSide()) {
+            return;
+        }
+
+        context.enqueueWork(() -> {
+            ServerPlayer player = context.getSender();
+            if (player != null) {
+                ServerSeamlessClientPresenceManager.handleClientHello(player, payload);
             }
         });
     }

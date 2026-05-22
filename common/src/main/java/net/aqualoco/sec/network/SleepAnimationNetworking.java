@@ -2,9 +2,11 @@ package net.aqualoco.sec.network;
 
 import net.aqualoco.sec.Constants;
 import net.aqualoco.sec.SeamlessSleepCommon;
+import net.aqualoco.sec.handshake.ServerSeamlessClientPresenceManager;
 import net.aqualoco.sec.platform.Services;
 import net.aqualoco.sec.sleep.SleepAnimationState;
 import net.aqualoco.sec.sleep.SleepAnimationStopReason;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -13,28 +15,38 @@ import net.minecraft.world.level.Level;
 
 // Small helper around sleep animation packet flow.
 public final class SleepAnimationNetworking {
+    private static boolean commonInitialized;
+    private static boolean clientInitialized;
 
     private SleepAnimationNetworking() {
     }
 
     public static void initCommon() {
+        if (commonInitialized) {
+            return;
+        }
+        commonInitialized = true;
         Services.NETWORK.registerPayloads();
-        Constants.info("Registered sleep animation payload types (S2C).");
+        Constants.info("Registered Seamless Sleep payload types.");
     }
 
     public static void initClient() {
+        if (clientInitialized) {
+            return;
+        }
+        clientInitialized = true;
         Services.NETWORK.registerClientHandlers();
         Constants.info("Registered client handlers for sleep animation.");
     }
 
     public static void sendStart(ServerLevel world, SleepAnimationState state) {
         SleepAnimationStartPayload payload = createStartPayload(world, state);
-        Services.NETWORK.sendToPlayers(world, payload);
+        int sent = sendToConfirmedPlayers(world, payload);
 
         Constants.debug(
                 "Sent sleep animation payload (start session {}) to {} players ({} -> {}, {} ticks)",
                 state.getSessionId(),
-                world.players().size(),
+                sent,
                 state.getStartTimeOfDay(),
                 state.getEndTimeOfDay(),
                 state.getDurationTicks()
@@ -42,12 +54,17 @@ public final class SleepAnimationNetworking {
     }
 
     public static void sendSnapshotToPlayer(ServerPlayer player, ServerLevel world, SleepAnimationState state) {
+        if (!ServerSeamlessClientPresenceManager.isConfirmed(player)) {
+            return;
+        }
         if (!state.isActive() || !player.level().dimension().equals(world.dimension())) {
             return;
         }
 
         SleepAnimationStartPayload payload = createStartPayload(world, state);
-        Services.NETWORK.sendToPlayer(player, payload);
+        if (!Services.NETWORK.sendToPlayerIfSupported(player, payload)) {
+            return;
+        }
 
         Constants.debug(
                 "Sent sleep animation snapshot (session {}) to {}",
@@ -104,13 +121,24 @@ public final class SleepAnimationNetworking {
         Identifier worldId = world.dimension().identifier();
         SleepAnimationStopPayload payload = new SleepAnimationStopPayload(worldId, sessionId, finalDayTime, reason);
 
-        Services.NETWORK.sendToPlayers(world, payload);
+        int sent = sendToConfirmedPlayers(world, payload);
 
         Constants.debug(
                 "Sent sleep animation payload ({} session {}) to {} players",
                 reason,
                 sessionId,
-                world.players().size()
+                sent
         );
+    }
+
+    private static int sendToConfirmedPlayers(ServerLevel world, CustomPacketPayload payload) {
+        int sent = 0;
+        for (ServerPlayer player : world.players()) {
+            if (ServerSeamlessClientPresenceManager.isConfirmed(player)
+                    && Services.NETWORK.sendToPlayerIfSupported(player, payload)) {
+                sent++;
+            }
+        }
+        return sent;
     }
 }

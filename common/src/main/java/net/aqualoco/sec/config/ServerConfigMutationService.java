@@ -6,6 +6,7 @@ import net.aqualoco.sec.network.ServerConfigSync;
 import net.aqualoco.sec.network.ServerConfigUpdateC2SPayload;
 import net.aqualoco.sec.network.ServerConfigUpdateResultS2CPayload;
 import net.aqualoco.sec.network.ServerConfigUpdateStatus;
+import net.aqualoco.sec.handshake.ServerSeamlessClientPresenceManager;
 import net.aqualoco.sec.platform.Services;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -34,7 +35,11 @@ public final class ServerConfigMutationService {
     }
 
     public static void sendAccessToPlayer(ServerPlayer player) {
-        Services.NETWORK.sendToPlayer(player, new ServerConfigAccessS2CPayload(
+        if (!ServerSeamlessClientPresenceManager.isConfirmed(player)) {
+            return;
+        }
+
+        Services.NETWORK.sendToPlayerIfSupported(player, new ServerConfigAccessS2CPayload(
                 canEditServerConfig(player),
                 REQUIRED_PERMISSION_LEVEL,
                 serverConfigRevision
@@ -63,6 +68,9 @@ public final class ServerConfigMutationService {
         if (player == null) {
             return;
         }
+        if (!ServerSeamlessClientPresenceManager.requireConfirmed(player, "server_config_access_request")) {
+            return;
+        }
 
         ServerConfigSync.sendToPlayer(player, SeamlessSleepServerConfigManager.get());
         sendAccessToPlayer(player);
@@ -70,6 +78,9 @@ public final class ServerConfigMutationService {
 
     public static void handleRemoteUpdate(ServerPlayer player, ServerConfigUpdateC2SPayload payload) {
         if (player == null) {
+            return;
+        }
+        if (!ServerSeamlessClientPresenceManager.requireConfirmed(player, "server_config_update")) {
             return;
         }
 
@@ -141,7 +152,7 @@ public final class ServerConfigMutationService {
                                          boolean success,
                                          ServerConfigUpdateStatus status,
                                          String message) {
-        Services.NETWORK.sendToPlayer(player, new ServerConfigUpdateResultS2CPayload(
+        Services.NETWORK.sendToPlayerIfSupported(player, new ServerConfigUpdateResultS2CPayload(
                 success,
                 serverConfigRevision,
                 status,

@@ -3,7 +3,6 @@ package net.aqualoco.sec;
 import net.aqualoco.sec.config.SeamlessSleepClientConfigManager;
 import net.aqualoco.sec.config.SeamlessSleepServerConfigManager;
 import net.aqualoco.sec.network.SleepAnimationNetworking;
-import net.aqualoco.sec.registry.ModBlocks;
 import net.aqualoco.sec.sleep.SleepAnimationState;
 
 // Common bootstrap that wires configs, networking, and shared registries.
@@ -18,7 +17,6 @@ public final class SeamlessSleepCommon {
         SeamlessSleepClientConfigManager.init();
         SeamlessSleepServerConfigManager.init();
         SleepAnimationNetworking.initCommon();
-        ModBlocks.registerModBlocks();
-        Constants.info("Initialized. Sleep animation and sleep_barrier block are registered.");
+        Constants.info("Initialized. Sleep animation networking is registered.");
     }
 }

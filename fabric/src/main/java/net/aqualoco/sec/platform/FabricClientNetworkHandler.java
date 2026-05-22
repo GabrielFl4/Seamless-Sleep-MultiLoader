@@ -3,10 +3,13 @@ package net.aqualoco.sec.platform;
 import net.aqualoco.sec.client.BedHudMessageManager;
 import net.aqualoco.sec.client.RemoteServerConfigClientState;
 import net.aqualoco.sec.client.SeamlessSleepClientState;
+import net.aqualoco.sec.client.sound.SleepSoundManager;
+import net.aqualoco.sec.handshake.ClientHandshakeState;
 import net.aqualoco.sec.network.BedHudSleepProgressPayload;
 import net.aqualoco.sec.network.ServerConfigAccessS2CPayload;
 import net.aqualoco.sec.network.ServerConfigSyncPayload;
 import net.aqualoco.sec.network.ServerConfigUpdateResultS2CPayload;
+import net.aqualoco.sec.network.ServerHelloS2CPayload;
 import net.aqualoco.sec.network.SleepAnimationStartPayload;
 import net.aqualoco.sec.network.SleepAnimationStopPayload;
 import net.aqualoco.sec.sleep.SleepAnimationStopReason;
@@ -26,6 +29,13 @@ final class FabricClientNetworkHandler {
     }
 
     static void register() {
+        ClientPlayNetworking.registerGlobalReceiver(
+                ServerHelloS2CPayload.ID,
+                (payload, context) -> context.client().execute(
+                        () -> ClientHandshakeState.handleServerHello(payload)
+                )
+        );
+
         ClientPlayNetworking.registerGlobalReceiver(
                 SleepAnimationStartPayload.ID,
                 (payload, context) -> {
@@ -88,9 +98,11 @@ final class FabricClientNetworkHandler {
         ClientLevel world = client.level;
         if (!isMatchingOverworld(world, payload.worldId())) {
             SeamlessSleepClientState.SLEEP_ANIMATION.resetForWorldExit("start_payload_world_mismatch");
+            SleepSoundManager.reset("start_payload_world_mismatch");
             return;
         }
 
+        SleepSoundManager.onSleepStart(payload);
         SeamlessSleepClientState.SLEEP_ANIMATION.start(
                 world,
                 payload.sessionId(),
@@ -112,6 +124,7 @@ final class FabricClientNetworkHandler {
         ClientLevel world = client.level;
         if (!isMatchingOverworld(world, payload.worldId())) {
             SeamlessSleepClientState.SLEEP_ANIMATION.resetForWorldExit("stop_payload_world_mismatch");
+            SleepSoundManager.reset("stop_payload_world_mismatch");
             return;
         }
 
@@ -124,6 +137,7 @@ final class FabricClientNetworkHandler {
                 payload.finalDayTime(),
                 payload.reason()
         );
+        SleepSoundManager.onSleepStop(payload);
     }
 
     private static boolean isMatchingOverworld(ClientLevel world, Identifier payloadWorldId) {

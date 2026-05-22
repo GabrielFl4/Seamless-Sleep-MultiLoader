@@ -36,7 +36,7 @@ public final class SeamlessSleepClientConfig {
     public boolean sleepContextEnabled = DEFAULT_SLEEP_CONTEXT_ENABLED;
     public SleepIndicatorMode sleepIndicatorMode = SleepIndicatorMode.BIOME_CLOCK;
     public SleepIndicatorAnchor sleepIndicatorAnchor = SleepIndicatorAnchor.TOP_LEFT;
-    public SleepIndicatorVisibility sleepIndicatorVisibility = SleepIndicatorVisibility.SLEEP;
+    public SleepIndicatorVisibility sleepIndicatorVisibility = SleepIndicatorVisibility.BED;
     public double sleepIndicatorScale = DEFAULT_SLEEP_INDICATOR_SCALE;
     public TimestampStyle timestampStyle = TimestampStyle.DAY_FIRST;
     public int timestampColor = DEFAULT_TIMESTAMP_COLOR;
@@ -63,7 +63,7 @@ public final class SeamlessSleepClientConfig {
             sleepIndicatorAnchor = SleepIndicatorAnchor.TOP_LEFT;
         }
         if (sleepIndicatorVisibility == null) {
-            sleepIndicatorVisibility = SleepIndicatorVisibility.SLEEP;
+            sleepIndicatorVisibility = SleepIndicatorVisibility.BED;
         }
         if (timestampStyle == null) {
             timestampStyle = TimestampStyle.DAY_FIRST;
