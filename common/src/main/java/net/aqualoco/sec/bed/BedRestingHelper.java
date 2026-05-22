@@ -1,10 +1,11 @@
 package net.aqualoco.sec.bed;
 
-import net.aqualoco.sec.SeamlessSleepCommon;
 import net.aqualoco.sec.config.SeamlessSleepServerConfig;
 import net.aqualoco.sec.config.SeamlessSleepServerConfigManager;
 import net.aqualoco.sec.config.SleepEligibilityMode;
 import net.aqualoco.sec.network.BedHudNetworking;
+import net.aqualoco.sec.sleep.SleepAnimationStates;
+import net.aqualoco.sec.sleep.SleepDimensionSupport;
 import net.aqualoco.sec.sleep.SleepStatusUpdateSuppression;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -21,7 +22,6 @@ import net.minecraft.world.level.block.BedBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.minecraft.world.attribute.EnvironmentAttributes;
 import org.jspecify.annotations.Nullable;
 
 // Centralizes the bed workflow rules shared by mixins and client helpers.
@@ -59,16 +59,36 @@ public final class BedRestingHelper {
     }
 
     public static boolean isOverworldWorkflow(Player player) {
-        return player.level().dimension().equals(Level.OVERWORLD);
+        return player != null && Level.OVERWORLD.equals(player.level().dimension());
+    }
+
+    public static boolean isManagedBedWorkflowSupported(Player player) {
+        if (player == null) {
+            return false;
+        }
+        if (Level.OVERWORLD.equals(player.level().dimension())) {
+            return true;
+        }
+        return SleepDimensionSupport.supportsManagedBedWorkflow(player, getRestingBedPos(player));
+    }
+
+    public static boolean isManagedBedWorkflowSupported(Player player, @Nullable BlockPos bedPos) {
+        return player != null && SleepDimensionSupport.supportsManagedBedWorkflow(player, bedPos);
     }
 
     public static boolean isManagedBedState(Player player) {
-        return isOverworldWorkflow(player) && player.isSleeping();
+        return isManagedBedWorkflowSupported(player) && player.isSleeping();
     }
 
     public static boolean isPreAnimationBedStateServer(Player player) {
-        return isManagedBedState(player)
-                && !SeamlessSleepCommon.OVERWORLD_SLEEP_ANIMATION.isActive();
+        if (!isManagedBedState(player)) {
+            return false;
+        }
+        if (player.level() instanceof ServerLevel serverLevel) {
+            var state = SleepAnimationStates.getIfPresent(serverLevel);
+            return state == null || !state.isActive();
+        }
+        return true;
     }
 
     public static boolean isManagedBedStateServer(Player player) {
@@ -192,10 +212,7 @@ public final class BedRestingHelper {
         }
 
         SleepEligibilityMode eligibility = SeamlessSleepServerConfigManager.get().sleepEligibility;
-        boolean bedRuleAllowsSleep = player.level()
-                .environmentAttributes()
-                .getValue(EnvironmentAttributes.BED_RULE, bedPos)
-                .canSleep(player.level());
+        boolean bedRuleAllowsSleep = SleepDimensionSupport.canCountForSleepNow(player, bedPos);
         if (!bedRuleAllowsSleep && !eligibility.allowsDaySleep()) {
             return false;
         }

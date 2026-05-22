@@ -4,12 +4,12 @@ import net.aqualoco.sec.client.ClientBedWorkflow;
 import net.aqualoco.sec.client.SeamlessSleepClientState;
 import net.aqualoco.sec.client.sound.SleepSoundManager;
 import net.aqualoco.sec.network.SleepAnimationNetworking;
+import net.aqualoco.sec.sleep.SleepDimensionSupport;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.GameRenderer;
-import net.minecraft.world.level.Level;
 import org.joml.Matrix4f;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
@@ -39,9 +39,9 @@ public abstract class GameRendererSleepAnimationMixin {
             return;
         }
 
-        if (!world.dimension().equals(Level.OVERWORLD)) {
-            SeamlessSleepClientState.SLEEP_ANIMATION.resetForWorldExit("render_non_overworld");
-            SleepSoundManager.reset("render_non_overworld");
+        if (!SleepDimensionSupport.supportsClientSleepAnimation(world)) {
+            SeamlessSleepClientState.SLEEP_ANIMATION.resetForWorldExit("render_unsupported_dimension");
+            SleepSoundManager.reset("render_unsupported_dimension");
             return;
         }
 

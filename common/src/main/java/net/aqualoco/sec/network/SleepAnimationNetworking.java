@@ -1,17 +1,16 @@
 package net.aqualoco.sec.network;
 
 import net.aqualoco.sec.Constants;
-import net.aqualoco.sec.SeamlessSleepCommon;
 import net.aqualoco.sec.handshake.ServerSeamlessClientPresenceManager;
 import net.aqualoco.sec.platform.Services;
+import net.aqualoco.sec.sleep.SleepAnimationStates;
+import net.aqualoco.sec.sleep.SleepDimensionSupport;
 import net.aqualoco.sec.sleep.SleepAnimationState;
 import net.aqualoco.sec.sleep.SleepAnimationStopReason;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
-import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.level.Level;
 
 // Small helper around sleep animation packet flow.
 public final class SleepAnimationNetworking {
@@ -74,20 +73,18 @@ public final class SleepAnimationNetworking {
     }
 
     public static void sendActiveSnapshotToPlayer(ServerPlayer player) {
-        if (!player.level().dimension().equals(Level.OVERWORLD)) {
+        if (!(player.level() instanceof ServerLevel world)) {
             return;
         }
-        MinecraftServer server = player.level().getServer();
-        if (server == null) {
+        SleepAnimationState state = SleepAnimationStates.getIfPresent(world);
+        if (state == null || !state.isActive()) {
+            return;
+        }
+        if (!SleepDimensionSupport.supportsSleepAnimation(world)) {
             return;
         }
 
-        ServerLevel overworld = server.getLevel(Level.OVERWORLD);
-        if (overworld == null) {
-            return;
-        }
-
-        sendSnapshotToPlayer(player, overworld, SeamlessSleepCommon.OVERWORLD_SLEEP_ANIMATION);
+        sendSnapshotToPlayer(player, world, state);
     }
 
     private static SleepAnimationStartPayload createStartPayload(ServerLevel world, SleepAnimationState state) {

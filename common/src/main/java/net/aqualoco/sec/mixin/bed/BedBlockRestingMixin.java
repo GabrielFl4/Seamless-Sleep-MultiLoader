@@ -27,7 +27,8 @@ public abstract class BedBlockRestingMixin {
             )
     )
     private Either<Player.BedSleepingProblem, Unit> seamlesssleep$startManagedSleep(Player player, BlockPos bedPos, BlockState state, Level level, BlockPos pos, Player ignoredPlayer, BlockHitResult hitResult) {
-        if (!(player instanceof ServerPlayer serverPlayer) || !BedRestingHelper.isOverworldWorkflow(player)) {
+        if (!(player instanceof ServerPlayer serverPlayer)
+                || !BedRestingHelper.isManagedBedWorkflowSupported(player, bedPos)) {
             return player.startSleepInBed(bedPos);
         }
 

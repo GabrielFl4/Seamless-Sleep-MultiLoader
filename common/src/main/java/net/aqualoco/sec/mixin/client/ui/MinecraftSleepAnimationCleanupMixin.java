@@ -3,9 +3,9 @@ package net.aqualoco.sec.mixin.client.ui;
 import net.aqualoco.sec.client.SeamlessSleepClientState;
 import net.aqualoco.sec.client.sound.SleepSoundManager;
 import net.aqualoco.sec.handshake.ClientHandshakeState;
+import net.aqualoco.sec.sleep.SleepDimensionSupport;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.world.level.Level;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -26,9 +26,9 @@ public abstract class MinecraftSleepAnimationCleanupMixin {
             return;
         }
 
-        if (!world.dimension().equals(Level.OVERWORLD)) {
-            SeamlessSleepClientState.SLEEP_ANIMATION.resetForWorldExit("non_overworld");
-            SleepSoundManager.reset("non_overworld");
+        if (!SleepDimensionSupport.supportsClientSleepAnimation(world)) {
+            SeamlessSleepClientState.SLEEP_ANIMATION.resetForWorldExit("unsupported_dimension");
+            SleepSoundManager.reset("unsupported_dimension");
             return;
         }
 

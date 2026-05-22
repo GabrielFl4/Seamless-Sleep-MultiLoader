@@ -20,8 +20,7 @@ public abstract class LivingEntityBedRestingMixin {
     )
     private void seamlesssleep$keepSleepingPitchWhenLookingAround(LivingEntity livingEntity, float xRot) {
         if (livingEntity instanceof Player player
-                && BedRestingHelper.isOverworldWorkflow(player)
-                && player.isSleeping()
+                && BedRestingHelper.isManagedBedState(player)
                 && xRot == 0.0F) {
             return;
         }

@@ -17,6 +17,9 @@ public final class BedHudMessageRenderer {
     private static GuiGraphics seamlesssleep$lastRenderedGraphics;
     private static long seamlesssleep$lastRenderNanos;
 
+
+
+
     private BedHudMessageRenderer() {
     }
 

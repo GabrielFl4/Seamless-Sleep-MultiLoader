@@ -2,13 +2,14 @@ package net.aqualoco.sec.mixin.sleep;
 
 import net.aqualoco.sec.acceleration.WorldSleepAccelerationManager;
 import net.aqualoco.sec.Constants;
-import net.aqualoco.sec.SeamlessSleepCommon;
 import net.aqualoco.sec.bed.BedRestingHelper;
 import net.aqualoco.sec.compat.FlashbackReplayServerCompat;
 import net.aqualoco.sec.config.SeamlessSleepServerConfigManager;
 import net.aqualoco.sec.config.SleepEligibilityMode;
 import net.aqualoco.sec.network.BedHudNetworking;
 import net.aqualoco.sec.network.SleepAnimationNetworking;
+import net.aqualoco.sec.sleep.SleepAnimationStates;
+import net.aqualoco.sec.sleep.SleepDimensionSupport;
 import net.aqualoco.sec.sleep.SleepAnimationMode;
 import net.aqualoco.sec.sleep.SleepAnimationPhase;
 import net.aqualoco.sec.sleep.SleepAnimationState;
@@ -18,7 +19,6 @@ import net.aqualoco.sec.sleep.SleepAnimationVisualContext;
 import net.aqualoco.sec.sleep.SleepRequirement;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.gamerules.GameRules;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
@@ -30,7 +30,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.function.BooleanSupplier;
 
-// Swaps instant overworld sleep skip for a timed transition.
+// Swaps instant managed sleep skip for a timed transition.
 @Mixin(ServerLevel.class)
 public abstract class ServerWorldSleepAnimationMixin {
     @Unique
@@ -58,11 +58,11 @@ public abstract class ServerWorldSleepAnimationMixin {
     @Inject(method = "tick", at = @At("HEAD"))
     private void seamlesssleep$prepareWorldAcceleration(BooleanSupplier shouldKeepTicking, CallbackInfo ci) {
         ServerLevel self = (ServerLevel) (Object) this;
-        if (!self.dimension().equals(Level.OVERWORLD)) {
+        if (!SleepDimensionSupport.supportsWorldAcceleration(self)) {
             return;
         }
         if (seamlesssleep$isFlashbackReplayServer(self)) {
-            seamlesssleep$clearReplayServerSleepState();
+            seamlesssleep$clearReplayServerSleepState(self);
             return;
         }
         WorldSleepAccelerationManager.prepareForLevelTick(self);
@@ -76,17 +76,20 @@ public abstract class ServerWorldSleepAnimationMixin {
             )
     )
     private void seamlesssleep$redirectSetTimeOfDay(ServerLevel world, long newTime) {
-        if (!world.dimension().equals(Level.OVERWORLD)) {
-            world.setDayTime(newTime);
-            return;
-        }
         if (seamlesssleep$isFlashbackReplayServer(world)) {
-            seamlesssleep$clearReplayServerSleepState();
+            seamlesssleep$clearReplayServerSleepState(world);
             world.setDayTime(newTime);
             return;
         }
 
-        SleepAnimationState state = SeamlessSleepCommon.OVERWORLD_SLEEP_ANIMATION;
+        SleepAnimationState existingState = SleepAnimationStates.getIfPresent(world);
+        if (!SleepDimensionSupport.supportsSleepAnimation(world)
+                && (existingState == null || !existingState.isActive())) {
+            world.setDayTime(newTime);
+            return;
+        }
+
+        SleepAnimationState state = existingState == null ? SleepAnimationStates.getOrCreate(world) : existingState;
         if (state.isActive()) {
             return;
         }
@@ -112,7 +115,8 @@ public abstract class ServerWorldSleepAnimationMixin {
             )
     )
     private void seamlesssleep$redirectWakeSleepingPlayers(ServerLevel world) {
-        if (world.dimension().equals(Level.OVERWORLD)
+        SleepAnimationState state = SleepAnimationStates.getIfPresent(world);
+        if ((SleepDimensionSupport.supportsSleepAnimation(world) || (state != null && state.isActive()))
                 && this.seamlesssleep$sleepAnimationWakePlayers) {
             return;
         }
@@ -128,7 +132,8 @@ public abstract class ServerWorldSleepAnimationMixin {
             )
     )
     private void seamlesssleep$redirectResetWeather(ServerLevel world) {
-        if (world.dimension().equals(Level.OVERWORLD)
+        SleepAnimationState state = SleepAnimationStates.getIfPresent(world);
+        if ((SleepDimensionSupport.supportsSleepAnimation(world) || (state != null && state.isActive()))
                 && this.seamlesssleep$sleepAnimationWakePlayers) {
             return;
         }
@@ -140,15 +145,18 @@ public abstract class ServerWorldSleepAnimationMixin {
     private void seamlesssleep$tickSleepAnimation(BooleanSupplier shouldKeepTicking, CallbackInfo ci) {
         ServerLevel self = (ServerLevel) (Object) this;
 
-        if (!self.dimension().equals(Level.OVERWORLD)) {
-            return;
-        }
         if (seamlesssleep$isFlashbackReplayServer(self)) {
-            seamlesssleep$clearReplayServerSleepState();
+            seamlesssleep$clearReplayServerSleepState(self);
             return;
         }
 
-        SleepAnimationState state = SeamlessSleepCommon.OVERWORLD_SLEEP_ANIMATION;
+        SleepAnimationState existingState = SleepAnimationStates.getIfPresent(self);
+        if (!SleepDimensionSupport.supportsSleepAnimation(self)
+                && (existingState == null || !existingState.isActive())) {
+            return;
+        }
+
+        SleepAnimationState state = existingState == null ? SleepAnimationStates.getOrCreate(self) : existingState;
         if (!state.isActive()) {
             seamlesssleep$tryStartCustomBedSleep(self, state);
             if (!state.isActive()) {
@@ -330,9 +338,9 @@ public abstract class ServerWorldSleepAnimationMixin {
     }
 
     @Unique
-    private static void seamlesssleep$clearReplayServerSleepState() {
-        SleepAnimationState state = SeamlessSleepCommon.OVERWORLD_SLEEP_ANIMATION;
-        if (state.isActive()) {
+    private static void seamlesssleep$clearReplayServerSleepState(ServerLevel world) {
+        SleepAnimationState state = SleepAnimationStates.getIfPresent(world);
+        if (state != null && state.isActive()) {
             state.cancel();
         }
     }
@@ -444,11 +452,14 @@ public abstract class ServerWorldSleepAnimationMixin {
     @Inject(method = "updateSleepingPlayerList", at = @At("TAIL"))
     private void seamlesssleep$syncBedHudSleepProgress(CallbackInfo ci) {
         ServerLevel self = (ServerLevel) (Object) this;
-        if (!self.dimension().equals(Level.OVERWORLD)) {
+        SleepAnimationState state = SleepAnimationStates.getIfPresent(self);
+        if (!SleepDimensionSupport.supportsSleepAnimation(self)
+                && (state == null || !state.isActive())) {
+            BedHudNetworking.syncSleepProgress(self);
             return;
         }
         if (seamlesssleep$isFlashbackReplayServer(self)) {
-            seamlesssleep$clearReplayServerSleepState();
+            seamlesssleep$clearReplayServerSleepState(self);
             return;
         }
         if (SleepStatusUpdateSuppression.isNaturalFinishWakeSuppressed()) {

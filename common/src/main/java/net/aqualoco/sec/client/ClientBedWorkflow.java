@@ -77,7 +77,7 @@ public final class ClientBedWorkflow {
     }
 
     public static boolean shouldControlSleepOverlay(LocalPlayer player) {
-        return BedRestingHelper.isOverworldWorkflow(player)
+        return BedRestingHelper.isManagedBedWorkflowSupported(player)
                 && (player.isSleeping()
                 || player.getSleepTimer() > 0
                 || seamlesssleep$overlayFadeOutActive
@@ -87,7 +87,7 @@ public final class ClientBedWorkflow {
     public static float getSleepOverlayAlpha(LocalPlayer player) {
         SeamlessSleepClientConfig cfg = SeamlessSleepClientConfigManager.get();
         boolean animationActive = SeamlessSleepClientState.SLEEP_ANIMATION.isActive();
-        if (!BedRestingHelper.isOverworldWorkflow(player)) {
+        if (!BedRestingHelper.isManagedBedWorkflowSupported(player)) {
             seamlesssleep$overlayAlpha = 0.0F;
             seamlesssleep$overlayFadeOutActive = false;
             seamlesssleep$overlaySuppressedUntilWake = false;
@@ -159,7 +159,7 @@ public final class ClientBedWorkflow {
 
     public static boolean isAnimationLookDamped(LocalPlayer player) {
         return player.isSleeping()
-                && BedRestingHelper.isOverworldWorkflow(player)
+                && BedRestingHelper.isManagedBedWorkflowSupported(player)
                 && SeamlessSleepClientState.SLEEP_ANIMATION.isActive();
     }
 

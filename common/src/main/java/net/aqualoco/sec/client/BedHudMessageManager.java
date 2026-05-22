@@ -137,7 +137,7 @@ public final class BedHudMessageManager {
         }
 
         LocalPlayer player = Minecraft.getInstance().player;
-        boolean managedBedState = player != null && BedRestingHelper.isOverworldWorkflow(player) && ClientBedWorkflow.isManagedBedState(player);
+        boolean managedBedState = player != null && BedRestingHelper.isManagedBedWorkflowSupported(player) && ClientBedWorkflow.isManagedBedState(player);
         boolean pendingDirectSleepContext = seamlesssleep$hasPendingDirectSleepContext();
         String key = contents.getKey();
 
@@ -154,7 +154,7 @@ public final class BedHudMessageManager {
         }
 
         if ("seamlesssleep.text.leave_bed".equals(key)) {
-            if (player != null && BedRestingHelper.isOverworldWorkflow(player) && !managedBedState) {
+            if (player != null && BedRestingHelper.isManagedBedWorkflowSupported(player) && !managedBedState) {
                 seamlesssleep$reserveDirectSleepContext();
             }
             showHintMessage(message);
@@ -181,7 +181,7 @@ public final class BedHudMessageManager {
             return false;
         }
 
-        if (player == null || !BedRestingHelper.isOverworldWorkflow(player)) {
+        if (player == null || !BedRestingHelper.isManagedBedWorkflowSupported(player)) {
             return false;
         }
 
@@ -235,7 +235,7 @@ public final class BedHudMessageManager {
     public static void handleSleepProgressPayload(int sleepingPlayers, int sleepersNeeded, boolean active) {
         seamlesssleep$pruneDisabledMessages();
         LocalPlayer player = Minecraft.getInstance().player;
-        if (player == null || !BedRestingHelper.isOverworldWorkflow(player)) {
+        if (player == null || !BedRestingHelper.isManagedBedWorkflowSupported(player)) {
             clearAll();
             return;
         }

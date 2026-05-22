@@ -3,6 +3,7 @@ package net.aqualoco.sec.network;
 import net.aqualoco.sec.bed.BedRestingHelper;
 import net.aqualoco.sec.handshake.ServerSeamlessClientPresenceManager;
 import net.aqualoco.sec.platform.Services;
+import net.aqualoco.sec.sleep.SleepDimensionSupport;
 import net.aqualoco.sec.sleep.SleepRequirement;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.resources.Identifier;
@@ -36,7 +37,7 @@ public final class BedHudNetworking {
     }
 
     public static void syncSleepProgress(ServerLevel world) {
-        if (!world.canSleepThroughNights()) {
+        if (!SleepDimensionSupport.supportsSleepAnimation(world) || !world.canSleepThroughNights()) {
             clearSleepProgress(world);
             return;
         }

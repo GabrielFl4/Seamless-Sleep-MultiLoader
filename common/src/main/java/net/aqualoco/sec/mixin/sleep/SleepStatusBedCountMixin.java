@@ -2,6 +2,7 @@ package net.aqualoco.sec.mixin.sleep;
 
 import net.aqualoco.sec.bed.BedRestingHelper;
 import net.aqualoco.sec.config.SeamlessSleepServerConfigManager;
+import net.aqualoco.sec.sleep.SleepDimensionSupport;
 import net.aqualoco.sec.sleep.SleepRequirement;
 import net.aqualoco.sec.sleep.SleepStatusUpdateSuppression;
 import net.minecraft.server.level.ServerPlayer;
@@ -26,6 +27,10 @@ public abstract class SleepStatusBedCountMixin {
 
     @Inject(method = "update", at = @At("HEAD"), cancellable = true)
     private void seamlesssleep$countOnlyManagedSleepers(List<ServerPlayer> players, CallbackInfoReturnable<Boolean> cir) {
+        if (!SleepDimensionSupport.shouldUseManagedSleepStatus(players)) {
+            return;
+        }
+
         int previousActivePlayers = this.activePlayers;
         int previousSleepingPlayers = this.sleepingPlayers;
         this.activePlayers = 0;
@@ -56,6 +61,10 @@ public abstract class SleepStatusBedCountMixin {
     private void seamlesssleep$countOnlyDeepManagedSleepers(int requiredSleepPercentage,
                                                             List<ServerPlayer> players,
                                                             CallbackInfoReturnable<Boolean> cir) {
+        if (!SleepDimensionSupport.shouldUseManagedSleepStatus(players)) {
+            return;
+        }
+
         int deepSleepers = (int) players.stream()
                 .filter(player -> BedRestingHelper.hasSleptLongEnough(
                         player,

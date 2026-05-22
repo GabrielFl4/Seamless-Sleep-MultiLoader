@@ -12,6 +12,7 @@ import net.aqualoco.sec.network.ServerConfigUpdateResultS2CPayload;
 import net.aqualoco.sec.network.ServerHelloS2CPayload;
 import net.aqualoco.sec.network.SleepAnimationStartPayload;
 import net.aqualoco.sec.network.SleepAnimationStopPayload;
+import net.aqualoco.sec.sleep.SleepDimensionSupport;
 import net.aqualoco.sec.sleep.SleepAnimationStopReason;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
@@ -19,7 +20,6 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.resources.Identifier;
-import net.minecraft.world.level.Level;
 
 // Fabric client packet handlers that start/stop animation and apply synced server config.
 @Environment(EnvType.CLIENT)
@@ -96,7 +96,7 @@ final class FabricClientNetworkHandler {
 
     private static void handleStartPayload(Minecraft client, SleepAnimationStartPayload payload) {
         ClientLevel world = client.level;
-        if (!isMatchingOverworld(world, payload.worldId())) {
+        if (!isMatchingSupportedWorld(world, payload.worldId())) {
             SeamlessSleepClientState.SLEEP_ANIMATION.resetForWorldExit("start_payload_world_mismatch");
             SleepSoundManager.reset("start_payload_world_mismatch");
             return;
@@ -122,7 +122,7 @@ final class FabricClientNetworkHandler {
 
     private static void handleStopPayload(Minecraft client, SleepAnimationStopPayload payload) {
         ClientLevel world = client.level;
-        if (!isMatchingOverworld(world, payload.worldId())) {
+        if (!isMatchingSupportedWorld(world, payload.worldId())) {
             SeamlessSleepClientState.SLEEP_ANIMATION.resetForWorldExit("stop_payload_world_mismatch");
             SleepSoundManager.reset("stop_payload_world_mismatch");
             return;
@@ -140,12 +140,12 @@ final class FabricClientNetworkHandler {
         SleepSoundManager.onSleepStop(payload);
     }
 
-    private static boolean isMatchingOverworld(ClientLevel world, Identifier payloadWorldId) {
+    private static boolean isMatchingSupportedWorld(ClientLevel world, Identifier payloadWorldId) {
         if (world == null) {
             return false;
         }
 
         Identifier worldId = world.dimension().identifier();
-        return worldId.equals(payloadWorldId) && world.dimension().equals(Level.OVERWORLD);
+        return worldId.equals(payloadWorldId) && SleepDimensionSupport.supportsClientSleepAnimation(world);
     }
 }

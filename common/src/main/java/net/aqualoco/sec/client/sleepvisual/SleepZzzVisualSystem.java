@@ -4,6 +4,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import net.aqualoco.sec.bed.BedRestingHelper;
 import net.aqualoco.sec.client.ClientBedWorkflow;
 import net.aqualoco.sec.client.ReplayPlaybackCompat;
+import net.aqualoco.sec.sleep.SleepDimensionSupport;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Camera;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -13,7 +14,6 @@ import net.minecraft.client.renderer.state.CameraRenderState;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.Level;
 
 import java.util.HashSet;
 import java.util.Iterator;
@@ -91,7 +91,7 @@ public final class SleepZzzVisualSystem {
 
     private static void tickInternal(Minecraft client, boolean replay, int ticksToAdvance) {
         ClientLevel level = client.level;
-        if (level == null || !level.dimension().equals(Level.OVERWORLD)) {
+        if (level == null || !SleepDimensionSupport.supportsClientSleepAnimation(level)) {
             clear();
             activeLevel = null;
             resetReplayClock();
@@ -188,7 +188,9 @@ public final class SleepZzzVisualSystem {
     }
 
     private static boolean isReplaySleepingCandidate(Player player) {
-        return player != null && (player.isSleeping() || player.getPose() == Pose.SLEEPING);
+        return player != null
+                && (player.isSleeping() || player.getPose() == Pose.SLEEPING)
+                && SleepDimensionSupport.supportsManagedBedWorkflow(player, player.getSleepingPos().orElse(null));
     }
 
     private static float resolveRenderPartialTick(Minecraft client) {
