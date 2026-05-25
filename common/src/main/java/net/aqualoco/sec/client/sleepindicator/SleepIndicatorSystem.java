@@ -13,12 +13,15 @@ import net.minecraft.client.player.LocalPlayer;
 public final class SleepIndicatorSystem {
     private static final int DEFAULT_MARGIN = 8;
     private static final long DUPLICATE_RENDER_WINDOW_NANOS = 1_000_000L;
+    private static final long VISUAL_RENDERER_EXIT_LINGER_MS = 600L;
+    private static final long POST_SLEEP_LINGER_WINDOW_MS = 2500L;
     private static final SleepIndicatorRenderer OVERLAY_RENDERER = new OverlaySleepIndicatorRenderer();
     private static final SleepIndicatorRenderer BIOME_CLOCK_RENDERER = new BiomeClockSleepIndicatorRenderer();
     private static final SleepIndicatorRenderer TIMESTAMP_RENDERER = new TimestampSleepIndicatorRenderer();
     private static final SleepIndicatorPresentationState PRESENTATION = new SleepIndicatorPresentationState();
     private static GuiGraphics lastRenderedGraphics;
     private static long lastRenderNanos;
+    private static long lastSleepAnimationVisibleMs = Long.MIN_VALUE;
 
     private SleepIndicatorSystem() {
     }
@@ -38,8 +41,12 @@ public final class SleepIndicatorSystem {
         SleepIndicatorConfig config = SleepIndicatorConfig.from(SeamlessSleepClientConfigManager.get());
         SleepIndicatorRenderer renderer = rendererFor(config.mode());
         boolean targetVisible = renderer != null && shouldRender(config, player, sleepAnimation);
+        long nowMs = presentationTimeMs();
+        if (sleepAnimation != null && sleepAnimation.isVisualOverlayActive()) {
+            lastSleepAnimationVisibleMs = nowMs;
+        }
         if (renderer == null) {
-            PRESENTATION.update(false, config.anchor(), presentationTimeMs());
+            PRESENTATION.update(false, config.anchor(), nowMs);
             return;
         }
 
@@ -47,7 +54,7 @@ public final class SleepIndicatorSystem {
             return;
         }
 
-        PRESENTATION.update(targetVisible, config.anchor(), presentationTimeMs());
+        PRESENTATION.update(targetVisible, config.anchor(), nowMs, exitLingerMs(config.mode(), nowMs));
         if (!PRESENTATION.shouldRender()) {
             return;
         }
@@ -106,6 +113,18 @@ public final class SleepIndicatorSystem {
             case BIOME_CLOCK -> BIOME_CLOCK_RENDERER;
             case TIMESTAMP -> TIMESTAMP_RENDERER;
         };
+    }
+
+    private static long exitLingerMs(SleepIndicatorMode mode, long nowMs) {
+        if (mode != SleepIndicatorMode.TIMESTAMP && mode != SleepIndicatorMode.BIOME_CLOCK) {
+            return 0L;
+        }
+        if (lastSleepAnimationVisibleMs == Long.MIN_VALUE) {
+            return 0L;
+        }
+        return nowMs - lastSleepAnimationVisibleMs <= POST_SLEEP_LINGER_WINDOW_MS
+                ? VISUAL_RENDERER_EXIT_LINGER_MS
+                : 0L;
     }
 
     private static boolean skipDuplicateRender(GuiGraphics graphics) {

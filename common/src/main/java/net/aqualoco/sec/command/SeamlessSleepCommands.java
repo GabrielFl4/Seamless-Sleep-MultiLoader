@@ -12,7 +12,6 @@ import net.aqualoco.sec.acceleration.WorldSleepAccelerationModuleStatus;
 import net.aqualoco.sec.acceleration.WorldSleepAccelerationStatus;
 import net.aqualoco.sec.Constants;
 import net.aqualoco.sec.SeamlessSleepCommon;
-import net.aqualoco.sec.bed.BedRestingHelper;
 import net.aqualoco.sec.config.ServerConfigMutationService;
 import net.aqualoco.sec.config.SeamlessSleepServerConfig;
 import net.aqualoco.sec.config.SeamlessSleepServerConfigManager;
@@ -35,7 +34,6 @@ import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.permissions.Permissions;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.gamerules.GameRules;
@@ -382,8 +380,11 @@ public final class SeamlessSleepCommands {
     private static int getSleepDurationMultiplier(CommandContext<CommandSourceStack> context) {
         SeamlessSleepServerConfig config = SeamlessSleepServerConfigManager.get();
         context.getSource().sendSuccess(
-                () -> Component.literal(
-                        "Animation Duration is at " + formatMultiplier(config.sleepAnimationDurationMultiplier) + " (valid: 0.25x to 8.00x)."
+                () -> Component.translatable(
+                        "command.seamlesssleep.set.sleep_duration.current",
+                        formatMultiplier(config.sleepAnimationDurationMultiplier),
+                        "0.25x",
+                        "8.00x"
                 ),
                 false
         );
@@ -396,7 +397,12 @@ public final class SeamlessSleepCommands {
         return saveAndSyncConfig(
                 context,
                 config,
-                "Animation Duration updated to " + formatMultiplier(config.sleepAnimationDurationMultiplier) + " (valid: 0.25x to 8.00x)."
+                Component.translatable(
+                        "command.seamlesssleep.set.sleep_duration.updated",
+                        formatMultiplier(config.sleepAnimationDurationMultiplier),
+                        "0.25x",
+                        "8.00x"
+                )
         );
     }
 
@@ -512,18 +518,13 @@ public final class SeamlessSleepCommands {
                                       SleepAnimationSoundMode soundMode) {
         ServerLevel overworld = context.getSource().getServer().getLevel(Level.OVERWORLD);
         if (overworld == null) {
-            context.getSource().sendFailure(Component.literal("Overworld is unavailable."));
+            context.getSource().sendFailure(Component.translatable("command.seamlesssleep.timelapse.error.overworld_unavailable"));
             return 0;
         }
 
         SleepAnimationState state = SeamlessSleepCommon.OVERWORLD_SLEEP_ANIMATION;
         if (state.isActive()) {
-            context.getSource().sendFailure(Component.literal("A sleep animation is already active."));
-            return 0;
-        }
-
-        if (hasManagedBedPlayers(overworld)) {
-            context.getSource().sendFailure(Component.literal("Cannot start timelapse while players are in managed bed state."));
+            context.getSource().sendFailure(Component.translatable("command.seamlesssleep.timelapse.error.animation_active"));
             return 0;
         }
 
@@ -542,17 +543,14 @@ public final class SeamlessSleepCommands {
                 SleepAnimationVisualContext.MADE_IN_HEAVEN,
                 resolvedSoundMode
         )) {
-            context.getSource().sendFailure(Component.literal("Failed to start timelapse."));
+            context.getSource().sendFailure(Component.translatable("command.seamlesssleep.timelapse.error.start_failed"));
             return 0;
         }
 
         WorldSleepAccelerationManager.refreshForLevelTick(overworld);
         SleepAnimationNetworking.sendStart(overworld, state);
-        String soundNote = resolvedSoundMode.isMuted()
-                ? " Sound profile muted."
-                : " Sound profile " + resolvedSoundMode.name().toLowerCase(Locale.ROOT) + " selected.";
         context.getSource().sendSuccess(
-                () -> Component.literal("Started timelapse for " + days + " day(s) over " + seconds + " second(s)." + soundNote),
+                () -> timelapseStartedMessage(days, seconds, resolvedSoundMode),
                 true
         );
         return 1;
@@ -561,29 +559,38 @@ public final class SeamlessSleepCommands {
     private static int stopTimelapse(CommandContext<CommandSourceStack> context) {
         ServerLevel overworld = context.getSource().getServer().getLevel(Level.OVERWORLD);
         if (overworld == null) {
-            context.getSource().sendFailure(Component.literal("Overworld is unavailable."));
+            context.getSource().sendFailure(Component.translatable("command.seamlesssleep.timelapse.error.overworld_unavailable"));
             return 0;
         }
 
         SleepAnimationState state = SeamlessSleepCommon.OVERWORLD_SLEEP_ANIMATION;
         if (!state.isActive() || state.getMode() != SleepAnimationMode.COMMAND_TIMELAPSE) {
-            context.getSource().sendSuccess(() -> Component.literal("No command timelapse is active right now."), false);
+            context.getSource().sendSuccess(
+                    () -> Component.translatable("command.seamlesssleep.timelapse.stop.none"),
+                    false
+            );
             return 0;
         }
 
         if (state.getPhase() == SleepAnimationPhase.BRAKING) {
-            context.getSource().sendSuccess(() -> Component.literal("The command timelapse is already stopping."), false);
+            context.getSource().sendSuccess(
+                    () -> Component.translatable("command.seamlesssleep.timelapse.stop.already_stopping"),
+                    false
+            );
             return 1;
         }
 
         if (!state.startCommandTimelapseStopBraking(overworld)) {
-            context.getSource().sendFailure(Component.literal("Failed to stop the command timelapse smoothly."));
+            context.getSource().sendFailure(Component.translatable("command.seamlesssleep.timelapse.stop.failed"));
             return 0;
         }
 
         WorldSleepAccelerationManager.refreshForLevelTick(overworld);
         SleepAnimationNetworking.sendStart(overworld, state);
-        context.getSource().sendSuccess(() -> Component.literal("Command timelapse is stopping smoothly."), true);
+        context.getSource().sendSuccess(
+                () -> Component.translatable("command.seamlesssleep.timelapse.stop.started"),
+                true
+        );
         return 1;
     }
 
@@ -1001,19 +1008,32 @@ public final class SeamlessSleepCommands {
     private static int saveAndSyncConfig(CommandContext<CommandSourceStack> context,
                                          SeamlessSleepServerConfig config,
                                          String message) {
+        return saveAndSyncConfig(context, config, Component.literal(message));
+    }
+
+    private static int saveAndSyncConfig(CommandContext<CommandSourceStack> context,
+                                         SeamlessSleepServerConfig config,
+                                         Component message) {
         config.clamp();
         ServerConfigMutationService.saveAndSync(context.getSource().getServer(), config);
-        context.getSource().sendSuccess(() -> Component.literal(message), true);
+        context.getSource().sendSuccess(() -> message, true);
         return 1;
     }
 
-    private static boolean hasManagedBedPlayers(ServerLevel level) {
-        for (ServerPlayer player : level.players()) {
-            if (BedRestingHelper.isManagedBedStateServer(player)) {
-                return true;
-            }
+    private static Component timelapseStartedMessage(int days, int seconds, SleepAnimationSoundMode soundMode) {
+        if (soundMode.isMuted()) {
+            return Component.translatable(
+                    "command.seamlesssleep.timelapse.started.muted",
+                    days,
+                    seconds
+            );
         }
-        return false;
+        return Component.translatable(
+                "command.seamlesssleep.timelapse.started.profile",
+                days,
+                seconds,
+                Component.translatable("command.seamlesssleep.sound_profile." + soundMode.name().toLowerCase(Locale.ROOT))
+        );
     }
 
     private static String formatPercent(double value) {

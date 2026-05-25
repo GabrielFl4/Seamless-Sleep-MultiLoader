@@ -116,8 +116,7 @@ public abstract class ServerWorldSleepAnimationMixin {
     )
     private void seamlesssleep$redirectWakeSleepingPlayers(ServerLevel world) {
         SleepAnimationState state = SleepAnimationStates.getIfPresent(world);
-        if ((SleepDimensionSupport.supportsSleepAnimation(world) || (state != null && state.isActive()))
-                && this.seamlesssleep$sleepAnimationWakePlayers) {
+        if (seamlesssleep$shouldSuppressVanillaSleepCompletion(world, state)) {
             return;
         }
 
@@ -133,12 +132,21 @@ public abstract class ServerWorldSleepAnimationMixin {
     )
     private void seamlesssleep$redirectResetWeather(ServerLevel world) {
         SleepAnimationState state = SleepAnimationStates.getIfPresent(world);
-        if ((SleepDimensionSupport.supportsSleepAnimation(world) || (state != null && state.isActive()))
-                && this.seamlesssleep$sleepAnimationWakePlayers) {
+        if (seamlesssleep$shouldSuppressVanillaSleepCompletion(world, state)) {
             return;
         }
 
         this.seamlesssleep$invokeResetWeather();
+    }
+
+    @Unique
+    private boolean seamlesssleep$shouldSuppressVanillaSleepCompletion(ServerLevel world, SleepAnimationState state) {
+        if (!SleepDimensionSupport.supportsSleepAnimation(world)
+                && (state == null || !state.isActive())) {
+            return false;
+        }
+        return this.seamlesssleep$sleepAnimationWakePlayers
+                || (state != null && state.isActive() && state.getMode() == SleepAnimationMode.COMMAND_TIMELAPSE);
     }
 
     @Inject(method = "tick", at = @At("TAIL"))

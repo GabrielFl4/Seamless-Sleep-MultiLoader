@@ -31,7 +31,12 @@ public final class SleepIndicatorPresentationState {
     private float scaleMultiplier = 1.0F;
 
     public void update(boolean shouldBeVisible, SleepIndicatorAnchor anchor, long nowMs) {
+        update(shouldBeVisible, anchor, nowMs, 0L);
+    }
+
+    public void update(boolean shouldBeVisible, SleepIndicatorAnchor anchor, long nowMs, long exitLingerMs) {
         SleepIndicatorAnchor safeAnchor = anchor == null ? SleepIndicatorAnchor.TOP_LEFT : anchor;
+        long safeExitLingerMs = Math.max(0L, exitLingerMs);
         advance(nowMs);
 
         if (shouldBeVisible) {
@@ -45,7 +50,7 @@ public final class SleepIndicatorPresentationState {
                 this.exitPending = true;
                 this.exitPendingSinceMs = nowMs;
             }
-            if (nowMs - this.exitPendingSinceMs >= VISIBILITY_DEBOUNCE_MS) {
+            if (nowMs - this.exitPendingSinceMs >= VISIBILITY_DEBOUNCE_MS + safeExitLingerMs) {
                 this.targetVisible = false;
                 this.exitPending = false;
                 beginExiting(safeAnchor, nowMs);
