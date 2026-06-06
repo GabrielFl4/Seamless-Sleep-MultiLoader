@@ -22,24 +22,20 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.Level;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.util.Locale;
 
 public final class SleepSoundManager {
     private static final long DAY_TICKS = 24000L;
     private static final long SUN_OVERHEAD_TICKS = 6000L;
+    private static final double TICKS_PER_SECOND = 20.0D;
     private static final int WIND_FADE_TICKS = 24;
     private static final int WIND_STOP_FADE_TICKS = 34;
     private static final int MADE_IN_HEAVEN_TIME_ACCEL_DELAY_TICKS = 12;
     private static final int MADE_IN_HEAVEN_MAIN_TECH_FADE_IN_TICKS = 2;
     private static final int TIME_ACCEL_AUDIBLE_TICKS = 57;
     private static final int TIME_DECEL_AUDIBLE_TICKS = 72;
-    private static final int MADE_IN_HEAVEN_NATURAL_DECEL_TAIL_PAD_TICKS = 8;
-    private static final int MADE_IN_HEAVEN_NATURAL_DECEL_MAX_DELAY_TICKS = 40;
-    private static final int MADE_IN_HEAVEN_BELL_LEAD_TICKS = 6;
+    private static final double MADE_IN_HEAVEN_BELL_SYNC_SECONDS = 3.52D;
+    private static final int MADE_IN_HEAVEN_BELL_DROP_TICKS = (int) Math.round(MADE_IN_HEAVEN_BELL_SYNC_SECONDS * TICKS_PER_SECOND);
     private static final int MADE_IN_HEAVEN_CANCEL_DECEL_DELAY_TICKS = 6;
     private static final int MADE_IN_HEAVEN_MAIN_FADE_OUT_NATURAL_TICKS = 48;
     private static final int MADE_IN_HEAVEN_MAIN_FADE_OUT_CANCEL_TICKS = 16;
@@ -63,9 +59,6 @@ public final class SleepSoundManager {
     private static final double WIND_TAIL_FULL_PROGRESS = 0.80D;
     private static final double WIND_TAIL_FADE_START_PROGRESS = 0.88D;
     private static final double WIND_TAIL_FADE_END_PROGRESS = 0.995D;
-    private static final boolean AUDIO_DEBUG_LOG_ENABLED = true; // TODO audio-debug-remove: remove temporary audio runtime logger.
-    private static final int AUDIO_DEBUG_LOG_INTERVAL_TICKS = 5; // TODO audio-debug-remove: remove temporary audio runtime logger.
-    private static final Path AUDIO_DEBUG_LOG_PATH = Path.of("seamless_sleep_audio_runtime_debug.txt"); // TODO audio-debug-remove: remove temporary audio runtime logger.
 
     private static long activeSessionId = -1L;
     private static long activeSequenceId = -1L;
@@ -80,9 +73,6 @@ public final class SleepSoundManager {
     private static long astroPassTrackingSessionId = -1L;
     private static long lastAstroPassVisualDayTime = Long.MIN_VALUE;
     private static int astroPassSunPassesSeen;
-    private static long audioDebugTickCounter; // TODO audio-debug-remove: remove temporary audio runtime logger.
-    private static long audioDebugLastSessionId = Long.MIN_VALUE; // TODO audio-debug-remove: remove temporary audio runtime logger.
-    private static long audioDebugLastSequenceId = Long.MIN_VALUE; // TODO audio-debug-remove: remove temporary audio runtime logger.
     private static long madeInHeavenStopPlayedSessionId = -1L;
     private static long madeInHeavenIntroScheduledSessionId = -1L;
     private static long madeInHeavenIntroStartedSessionId = -1L;
@@ -90,7 +80,6 @@ public final class SleepSoundManager {
     private static long madeInHeavenTimeDecelScheduledSessionId = -1L;
     private static int madeInHeavenTimeDecelDelayTicks = -1;
     private static boolean madeInHeavenDelayedDecelIsCancel;
-    private static int madeInHeavenBellDelayTicks = -1;
     private static boolean madeInHeavenNaturalBrakeActive;
     private static boolean madeInHeavenCancelBrakeActive;
     private static float madeInHeavenBrakeWindStartVolume;
@@ -207,11 +196,9 @@ public final class SleepSoundManager {
 
         updateMadeInHeavenDelayedIntroStart(client);
         updateMadeInHeavenDelayedTimeDecel(client);
-        updateMadeInHeavenBellTimer(client);
         updateWindLoop(client, level, player, sleepState);
         updateAstroPassSound(client, sleepState);
         updateTimelapseEpicDecel(client, sleepState);
-        debugAudioRuntime(client, level, player, sleepState); // TODO audio-debug-remove: remove temporary audio runtime logger.
     }
 
     public static void reset(String reason) {
@@ -751,7 +738,6 @@ public final class SleepSoundManager {
         madeInHeavenNaturalBrakeActive = true;
         madeInHeavenCancelBrakeActive = false;
         madeInHeavenDelayedDecelIsCancel = false;
-        madeInHeavenBellDelayTicks = -1;
         madeInHeavenBrakeWindStartVolume = 0.0F;
         madeInHeavenMainFadeOutMode = "NONE";
         madeInHeavenTimeDecelScheduledSessionId = activeSessionId;
@@ -762,7 +748,6 @@ public final class SleepSoundManager {
         madeInHeavenNaturalBrakeActive = false;
         madeInHeavenCancelBrakeActive = true;
         madeInHeavenDelayedDecelIsCancel = true;
-        madeInHeavenBellDelayTicks = -1;
         madeInHeavenBrakeWindStartVolume = getCurrentWindVolumeSafely();
         stopMadeInHeavenMainSound(MADE_IN_HEAVEN_MAIN_FADE_OUT_CANCEL_TICKS);
         madeInHeavenMainFadeOutMode = "CANCEL";
@@ -772,10 +757,7 @@ public final class SleepSoundManager {
     }
 
     private static int computeMadeInHeavenNaturalDecelDelayTicks() {
-        int delay = Math.max(1, activeDurationTicks)
-                - TIME_DECEL_AUDIBLE_TICKS
-                - MADE_IN_HEAVEN_NATURAL_DECEL_TAIL_PAD_TICKS;
-        return clampInt(delay, 0, MADE_IN_HEAVEN_NATURAL_DECEL_MAX_DELAY_TICKS);
+        return Math.max(0, Math.max(1, activeDurationTicks) - MADE_IN_HEAVEN_BELL_DROP_TICKS);
     }
 
     private static double computeMadeInHeavenNaturalWindFadeStartProgress() {
@@ -821,37 +803,11 @@ public final class SleepSoundManager {
         stopMadeInHeavenMainSound(MADE_IN_HEAVEN_MAIN_FADE_OUT_NATURAL_TICKS);
         madeInHeavenMainFadeOutMode = "NATURAL";
         playTimeDecelOnce(client, config);
-        madeInHeavenBellDelayTicks = Math.max(0, TIME_DECEL_AUDIBLE_TICKS - MADE_IN_HEAVEN_BELL_LEAD_TICKS);
+        playBellOnce(client, config);
     }
 
     private static void playMadeInHeavenCancelDecelNow(Minecraft client, SeamlessSleepClientConfig config) {
         playTimeDecelOnce(client, config);
-        madeInHeavenBellDelayTicks = -1;
-    }
-
-    private static void updateMadeInHeavenBellTimer(Minecraft client) {
-        if (activeMode != SleepAnimationMode.MADE_IN_HEAVEN_BED
-                || !madeInHeavenNaturalBrakeActive
-                || madeInHeavenBellDelayTicks < 0
-                || bellPlayedSessionId == activeSessionId) {
-            return;
-        }
-
-        if (activePhase != SleepAnimationPhase.BRAKING) {
-            madeInHeavenBellDelayTicks = -1;
-            return;
-        }
-
-        if (madeInHeavenBellDelayTicks > 0) {
-            madeInHeavenBellDelayTicks--;
-            return;
-        }
-
-        SeamlessSleepClientConfig config = SeamlessSleepClientConfigManager.get();
-        madeInHeavenBellDelayTicks = -1;
-        if (config.soundtrackVolumePercent > 0) {
-            playBellOnce(client, config);
-        }
     }
 
     private static void playTimeAccelOnce(Minecraft client, SeamlessSleepClientConfig config) {
@@ -931,101 +887,6 @@ public final class SleepSoundManager {
         return (float) clamp01((config.soundtrackVolumePercent / 100.0D) * multiplier);
     }
 
-    private static void debugAudioRuntime(Minecraft client, ClientLevel level, LocalPlayer player, ClientSleepAnimationState sleepState) { // TODO audio-debug-remove: remove temporary audio runtime logger.
-        if (!AUDIO_DEBUG_LOG_ENABLED) { // TODO audio-debug-remove: remove temporary audio runtime logger.
-            return; // TODO audio-debug-remove: remove temporary audio runtime logger.
-        } // TODO audio-debug-remove: remove temporary audio runtime logger.
-        audioDebugTickCounter++; // TODO audio-debug-remove: remove temporary audio runtime logger.
-        boolean force = activeSessionId != audioDebugLastSessionId || activeSequenceId != audioDebugLastSequenceId; // TODO audio-debug-remove: remove temporary audio runtime logger.
-        if (!force && audioDebugTickCounter % AUDIO_DEBUG_LOG_INTERVAL_TICKS != 0L) { // TODO audio-debug-remove: remove temporary audio runtime logger.
-            return; // TODO audio-debug-remove: remove temporary audio runtime logger.
-        } // TODO audio-debug-remove: remove temporary audio runtime logger.
-        audioDebugLastSessionId = activeSessionId; // TODO audio-debug-remove: remove temporary audio runtime logger.
-        audioDebugLastSequenceId = activeSequenceId; // TODO audio-debug-remove: remove temporary audio runtime logger.
-        SeamlessSleepClientConfig config = SeamlessSleepClientConfigManager.get(); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        double progress = sleepState.getProgress(); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        double easedVelocity = sleepState.getEasedVelocityFactor(); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        double daySpeed = sleepState.getCurrentDayTimeSpeedPerTick(); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        double speedIntensity = computeSpeedIntensity(sleepState); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        boolean windEligible = shouldPlayWind(); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        WindSoundFrame windFrame = windEligible ? computeWindSoundFrame(level, player, sleepState) : null; // TODO audio-debug-remove: remove temporary audio runtime logger.
-        double skyMultiplier = computeSkyExposureMultiplier(level, player); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        double weatherMultiplier = computeWeatherMultiplier(level); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        double madeInHeavenWindFadeStart = activeMode == SleepAnimationMode.MADE_IN_HEAVEN_BED ? computeMadeInHeavenNaturalWindFadeStartProgress() : -1.0D; // TODO audio-debug-remove: remove temporary audio runtime logger.
-        boolean astroEligible = shouldPlayAstroPassSound(); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        double astroMinSpeed = resolveAstroPassMinSpeedIntensity(); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        float astroVolume = astroEligible ? resolveAstroPassVolume(config, speedIntensity, astroMinSpeed) : 0.0F; // TODO audio-debug-remove: remove temporary audio runtime logger.
-        StringBuilder line = new StringBuilder(1024); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append("wallMs=").append(System.currentTimeMillis()); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("gameTime=").append(level.getGameTime()); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("session=").append(activeSessionId); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("sequence=").append(activeSequenceId); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("mode=").append(activeMode); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("phase=").append(activePhase); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("soundMode=").append(activeSoundMode); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("durationTicks=").append(activeDurationTicks); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("progress=").append(String.format(Locale.ROOT, "%.5f", progress)); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("visualDayTime=").append(sleepState.getCurrentVisualDayTime()); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("worldDayTime=").append(level.getDayTime()); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("easedVelocity=").append(String.format(Locale.ROOT, "%.5f", easedVelocity)); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("daySpeed=").append(String.format(Locale.ROOT, "%.3f", daySpeed)); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("speedIntensity=").append(String.format(Locale.ROOT, "%.5f", speedIntensity)); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("sleepWindConfig=").append(config.sleepWindVolumePercent); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("soundtrackConfig=").append(config.soundtrackVolumePercent); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("disableSoundsDuringReplay=").append(config.disableSoundsDuringReplay); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("suppressAllAudio=").append(shouldSuppressAllAudio(client)); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("windEligible=").append(windEligible); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("windTarget=").append(windFrame == null ? "NA" : String.format(Locale.ROOT, "%.5f", windFrame.targetVolume())); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("windPitch=").append(windFrame == null ? "NA" : String.format(Locale.ROOT, "%.5f", windFrame.pitch())); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("windCurrent=").append(windLoop == null ? "NA" : String.format(Locale.ROOT, "%.5f", windLoop.getCurrentVolume())); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("windStopped=").append(windLoop == null || windLoop.isStopped()); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("skyMultiplier=").append(String.format(Locale.ROOT, "%.5f", skyMultiplier)); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("weatherMultiplier=").append(String.format(Locale.ROOT, "%.5f", weatherMultiplier)); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("raining=").append(level.isRaining()); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("thundering=").append(level.isThundering()); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("mainSoundCurrent=").append(madeInHeavenMainSound == null ? "NA" : String.format(Locale.ROOT, "%.5f", madeInHeavenMainSound.getCurrentVolume())); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("mainSoundStopped=").append(madeInHeavenMainSound == null || madeInHeavenMainSound.isStopped()); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("timeAccelPlayed=").append(timeAccelPlayedSessionId == activeSessionId); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("timeDecelPlayed=").append(timeDecelPlayedSessionId == activeSessionId); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("bellPlayed=").append(bellPlayedSessionId == activeSessionId); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("madeInStopPlayed=").append(madeInHeavenStopPlayedSessionId == activeSessionId); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("astroSunPassesSeen=").append(astroPassSunPassesSeen); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("astroTrackingSession=").append(astroPassTrackingSessionId); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("lastAstroVisualDayTime=").append(lastAstroPassVisualDayTime); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("astroEligible=").append(astroEligible); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("astroMinSpeedResolved=").append(String.format(Locale.ROOT, "%.5f", astroMinSpeed)); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("astroVolumeResolved=").append(String.format(Locale.ROOT, "%.5f", astroVolume)); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("mihIntroScheduled=").append(madeInHeavenIntroScheduledSessionId == activeSessionId); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("mihIntroDelayTicks=").append(madeInHeavenIntroDelayTicks); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("mihIntroStarted=").append(madeInHeavenIntroStartedSessionId == activeSessionId); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("mihDecelScheduled=").append(madeInHeavenTimeDecelScheduledSessionId == activeSessionId); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("mihDecelDelayTicks=").append(madeInHeavenTimeDecelDelayTicks); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("mihDelayedDecelIsCancel=").append(madeInHeavenDelayedDecelIsCancel); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("mihBellDelayTicks=").append(madeInHeavenBellDelayTicks); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("mihNaturalBrake=").append(madeInHeavenNaturalBrakeActive); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("mihCancelBrake=").append(madeInHeavenCancelBrakeActive); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("mihBrakeWindStartVolume=").append(String.format(Locale.ROOT, "%.5f", madeInHeavenBrakeWindStartVolume)); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("mainStartedWithAccel=").append(madeInHeavenMainStartedSessionId == activeSessionId && timeAccelPlayedSessionId == activeSessionId); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("mainFadeOutMode=").append(madeInHeavenMainFadeOutMode); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("mihWindFadeStartProgress=").append(String.format(Locale.ROOT, "%.5f", madeInHeavenWindFadeStart)); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("constAccelDelay=").append(MADE_IN_HEAVEN_TIME_ACCEL_DELAY_TICKS); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("constTimeAccelAudible=").append(TIME_ACCEL_AUDIBLE_TICKS); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("constTimeDecelAudible=").append(TIME_DECEL_AUDIBLE_TICKS); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("constCancelDecelDelay=").append(MADE_IN_HEAVEN_CANCEL_DECEL_DELAY_TICKS); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("constNaturalTailPad=").append(MADE_IN_HEAVEN_NATURAL_DECEL_TAIL_PAD_TICKS); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("constBellLead=").append(MADE_IN_HEAVEN_BELL_LEAD_TICKS); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("constMainTechFadeIn=").append(MADE_IN_HEAVEN_MAIN_TECH_FADE_IN_TICKS); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("constMainFadeOutNatural=").append(MADE_IN_HEAVEN_MAIN_FADE_OUT_NATURAL_TICKS); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("constMainFadeOutCancel=").append(MADE_IN_HEAVEN_MAIN_FADE_OUT_CANCEL_TICKS); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("constAstroMinSpeedTimelapse=").append(String.format(Locale.ROOT, "%.5f", ASTRO_PASS_MIN_SPEED_INTENSITY_TIMELAPSE)); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("constAstroMinSpeedMih=").append(String.format(Locale.ROOT, "%.5f", ASTRO_PASS_MIN_SPEED_INTENSITY_MIH)); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        try { // TODO audio-debug-remove: remove temporary audio runtime logger.
-            Files.writeString(AUDIO_DEBUG_LOG_PATH, line.append(System.lineSeparator()).toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        } catch (IOException ignored) { // TODO audio-debug-remove: remove temporary audio runtime logger.
-            // TODO audio-debug-remove: remove temporary audio runtime logger.
-        } // TODO audio-debug-remove: remove temporary audio runtime logger.
-    } // TODO audio-debug-remove: remove temporary audio runtime logger.
-
     private static void resetSessionState(String reason) {
         activeSessionId = -1L;
         activeSequenceId = -1L;
@@ -1049,7 +910,6 @@ public final class SleepSoundManager {
         madeInHeavenTimeDecelScheduledSessionId = -1L;
         madeInHeavenTimeDecelDelayTicks = -1;
         madeInHeavenDelayedDecelIsCancel = false;
-        madeInHeavenBellDelayTicks = -1;
         madeInHeavenNaturalBrakeActive = false;
         madeInHeavenCancelBrakeActive = false;
         madeInHeavenBrakeWindStartVolume = 0.0F;
@@ -1069,7 +929,6 @@ public final class SleepSoundManager {
         madeInHeavenTimeDecelScheduledSessionId = -1L;
         madeInHeavenTimeDecelDelayTicks = -1;
         madeInHeavenDelayedDecelIsCancel = false;
-        madeInHeavenBellDelayTicks = -1;
         madeInHeavenNaturalBrakeActive = false;
         madeInHeavenCancelBrakeActive = false;
         madeInHeavenBrakeWindStartVolume = 0.0F;
@@ -1112,16 +971,6 @@ public final class SleepSoundManager {
         if (Float.isNaN(value) || Float.isInfinite(value)) {
             return min;
         }
-        if (value < min) {
-            return min;
-        }
-        if (value > max) {
-            return max;
-        }
-        return value;
-    }
-
-    private static int clampInt(int value, int min, int max) {
         if (value < min) {
             return min;
         }

@@ -64,10 +64,6 @@ public final class SleepFadingSoundInstance extends AbstractTickableSoundInstanc
         }
     }
 
-    public float getCurrentVolume() { // TODO audio-debug-remove: remove temporary audio runtime logger.
-        return this.volume; // TODO audio-debug-remove: remove temporary audio runtime logger.
-    } // TODO audio-debug-remove: remove temporary audio runtime logger.
-
     public void stopWithFade(int fadeTicks) {
         this.targetVolume = 0.0F;
         if (fadeTicks <= 0 || this.volume <= STOP_VOLUME_EPSILON) {
