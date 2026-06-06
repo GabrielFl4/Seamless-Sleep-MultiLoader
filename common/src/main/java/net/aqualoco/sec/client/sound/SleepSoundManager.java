@@ -34,13 +34,23 @@ public final class SleepSoundManager {
     private static final int WIND_FADE_TICKS = 24;
     private static final int WIND_STOP_FADE_TICKS = 34;
     private static final int MADE_IN_HEAVEN_TIME_ACCEL_DELAY_TICKS = 12;
-    private static final int MADE_IN_HEAVEN_TIME_DECEL_DELAY_TICKS = 40;
-    private static final int MADE_IN_HEAVEN_MAIN_DELAY_TICKS = 42;
-    private static final int MADE_IN_HEAVEN_MAIN_FADE_IN_TICKS = 130;
-    private static final int MADE_IN_HEAVEN_MAIN_FADE_OUT_TICKS = 160;
+    private static final int MADE_IN_HEAVEN_MAIN_TECH_FADE_IN_TICKS = 2;
+    private static final int TIME_ACCEL_AUDIBLE_TICKS = 57;
     private static final int TIME_DECEL_AUDIBLE_TICKS = 72;
+    private static final int MADE_IN_HEAVEN_NATURAL_DECEL_TAIL_PAD_TICKS = 8;
+    private static final int MADE_IN_HEAVEN_NATURAL_DECEL_MAX_DELAY_TICKS = 40;
+    private static final int MADE_IN_HEAVEN_BELL_LEAD_TICKS = 6;
+    private static final int MADE_IN_HEAVEN_CANCEL_DECEL_DELAY_TICKS = 6;
+    private static final int MADE_IN_HEAVEN_MAIN_FADE_OUT_NATURAL_TICKS = 48;
+    private static final int MADE_IN_HEAVEN_MAIN_FADE_OUT_CANCEL_TICKS = 16;
     private static final int FRESH_PAYLOAD_MAX_ELAPSED_TICKS = 5;
-    private static final double MADE_IN_HEAVEN_BELL_PROGRESS = 0.88D;
+    private static final float MADE_IN_HEAVEN_MAIN_VOLUME = 0.72F;
+    private static final float ASTRO_VOLUME_BASE_TIMELAPSE = 0.08F;
+    private static final float ASTRO_VOLUME_EXTRA_TIMELAPSE = 0.18F;
+    private static final float ASTRO_VOLUME_BASE_MIH = 0.16F;
+    private static final float ASTRO_VOLUME_EXTRA_MIH = 0.30F;
+    private static final double ASTRO_PASS_MIN_SPEED_INTENSITY_TIMELAPSE = 0.62D;
+    private static final double ASTRO_PASS_MIN_SPEED_INTENSITY_MIH = 0.48D;
     private static final double WIND_SESSION_PITCH_OFFSET_RANGE = 0.058D;
     private static final double WIND_RAIN_VOLUME_MULTIPLIER = 1.35D;
     private static final double WIND_THUNDER_VOLUME_MULTIPLIER = 1.90D;
@@ -53,7 +63,6 @@ public final class SleepSoundManager {
     private static final double WIND_TAIL_FULL_PROGRESS = 0.80D;
     private static final double WIND_TAIL_FADE_START_PROGRESS = 0.88D;
     private static final double WIND_TAIL_FADE_END_PROGRESS = 0.995D;
-    private static final double ASTRO_PASS_MIN_SPEED_INTENSITY = 0.52D;
     private static final boolean AUDIO_DEBUG_LOG_ENABLED = true; // TODO audio-debug-remove: remove temporary audio runtime logger.
     private static final int AUDIO_DEBUG_LOG_INTERVAL_TICKS = 5; // TODO audio-debug-remove: remove temporary audio runtime logger.
     private static final Path AUDIO_DEBUG_LOG_PATH = Path.of("seamless_sleep_audio_runtime_debug.txt"); // TODO audio-debug-remove: remove temporary audio runtime logger.
@@ -74,16 +83,19 @@ public final class SleepSoundManager {
     private static long audioDebugTickCounter; // TODO audio-debug-remove: remove temporary audio runtime logger.
     private static long audioDebugLastSessionId = Long.MIN_VALUE; // TODO audio-debug-remove: remove temporary audio runtime logger.
     private static long audioDebugLastSequenceId = Long.MIN_VALUE; // TODO audio-debug-remove: remove temporary audio runtime logger.
-    private static long madeInHeavenBellEligibleSessionId = -1L;
     private static long madeInHeavenStopPlayedSessionId = -1L;
-    private static long madeInHeavenTimeAccelScheduledSessionId = -1L;
-    private static int madeInHeavenTimeAccelDelayTicks = -1;
+    private static long madeInHeavenIntroScheduledSessionId = -1L;
+    private static long madeInHeavenIntroStartedSessionId = -1L;
+    private static int madeInHeavenIntroDelayTicks = -1;
     private static long madeInHeavenTimeDecelScheduledSessionId = -1L;
     private static int madeInHeavenTimeDecelDelayTicks = -1;
-    private static boolean madeInHeavenDelayedDecelNeedsStop;
+    private static boolean madeInHeavenDelayedDecelIsCancel;
+    private static int madeInHeavenBellDelayTicks = -1;
+    private static boolean madeInHeavenNaturalBrakeActive;
+    private static boolean madeInHeavenCancelBrakeActive;
+    private static float madeInHeavenBrakeWindStartVolume;
+    private static String madeInHeavenMainFadeOutMode = "NONE";
     private static long madeInHeavenMainStartedSessionId = -1L;
-    private static long madeInHeavenMainScheduledSessionId = -1L;
-    private static int madeInHeavenMainDelayTicks = -1;
 
     private static SleepLoopSoundInstance windLoop;
     private static SleepFadingSoundInstance madeInHeavenMainSound;
@@ -105,7 +117,7 @@ public final class SleepSoundManager {
         Minecraft client = Minecraft.getInstance();
         if (newSession) {
             stopWindLoop(WIND_STOP_FADE_TICKS);
-            stopMadeInHeavenMainSound(MADE_IN_HEAVEN_MAIN_FADE_OUT_TICKS);
+            stopMadeInHeavenMainSound(MADE_IN_HEAVEN_MAIN_FADE_OUT_CANCEL_TICKS);
             stopOneShotSounds(client);
             clearPlaybackMarkers();
         }
@@ -120,7 +132,7 @@ public final class SleepSoundManager {
 
         if (shouldSuppressAllAudio(client)) {
             stopWindLoop(WIND_STOP_FADE_TICKS);
-            stopMadeInHeavenMainSound(MADE_IN_HEAVEN_MAIN_FADE_OUT_TICKS);
+            stopMadeInHeavenMainSound(MADE_IN_HEAVEN_MAIN_FADE_OUT_CANCEL_TICKS);
             stopOneShotSounds(client);
             cancelMadeInHeavenDelayedSounds();
             return;
@@ -156,7 +168,7 @@ public final class SleepSoundManager {
         }
 
         stopWindLoop(WIND_STOP_FADE_TICKS);
-        stopMadeInHeavenMainSound(MADE_IN_HEAVEN_MAIN_FADE_OUT_TICKS);
+        stopMadeInHeavenMainSound(MADE_IN_HEAVEN_MAIN_FADE_OUT_CANCEL_TICKS);
         resetSessionState("sleep_stop_" + payload.reason().name().toLowerCase(Locale.ROOT));
     }
 
@@ -169,7 +181,7 @@ public final class SleepSoundManager {
 
         if (shouldSuppressAllAudio(client)) {
             stopAllLoops();
-            stopMadeInHeavenMainSound(MADE_IN_HEAVEN_MAIN_FADE_OUT_TICKS);
+            stopMadeInHeavenMainSound(MADE_IN_HEAVEN_MAIN_FADE_OUT_CANCEL_TICKS);
             stopOneShotSounds(client);
             cancelMadeInHeavenDelayedSounds();
             return;
@@ -179,7 +191,7 @@ public final class SleepSoundManager {
         LocalPlayer player = client.player;
         if (level == null || player == null) {
             stopAllLoops();
-            stopMadeInHeavenMainSound(MADE_IN_HEAVEN_MAIN_FADE_OUT_TICKS);
+            stopMadeInHeavenMainSound(MADE_IN_HEAVEN_MAIN_FADE_OUT_CANCEL_TICKS);
             stopOneShotSounds(client);
             cancelMadeInHeavenDelayedSounds();
             return;
@@ -188,15 +200,14 @@ public final class SleepSoundManager {
         ClientSleepAnimationState sleepState = SeamlessSleepClientState.SLEEP_ANIMATION;
         if (activeSessionId < 0L || !sleepState.isActive()) {
             stopAllLoops();
-            stopMadeInHeavenMainSound(MADE_IN_HEAVEN_MAIN_FADE_OUT_TICKS);
+            stopMadeInHeavenMainSound(MADE_IN_HEAVEN_MAIN_FADE_OUT_CANCEL_TICKS);
             cancelMadeInHeavenDelayedSounds();
             return;
         }
 
-        updateMadeInHeavenDelayedTimeAccel(client);
+        updateMadeInHeavenDelayedIntroStart(client);
         updateMadeInHeavenDelayedTimeDecel(client);
-        updateMadeInHeavenDelayedStart(client);
-        updateMadeInHeavenNaturalBell(client, sleepState);
+        updateMadeInHeavenBellTimer(client);
         updateWindLoop(client, level, player, sleepState);
         updateAstroPassSound(client, sleepState);
         updateTimelapseEpicDecel(client, sleepState);
@@ -209,7 +220,7 @@ public final class SleepSoundManager {
         }
         stopAllLoops();
         Minecraft client = Minecraft.getInstance();
-        stopMadeInHeavenMainSound(MADE_IN_HEAVEN_MAIN_FADE_OUT_TICKS);
+        stopMadeInHeavenMainSound(MADE_IN_HEAVEN_MAIN_FADE_OUT_CANCEL_TICKS);
         stopOneShotSounds(client);
         resetSessionState(reason);
     }
@@ -237,24 +248,22 @@ public final class SleepSoundManager {
     private static void handleMadeInHeavenPayload(Minecraft client, boolean freshPayload) {
         SeamlessSleepClientConfig config = SeamlessSleepClientConfigManager.get();
         if (config.soundtrackVolumePercent <= 0) {
+            cancelMadeInHeavenDelayedSounds();
+            stopMadeInHeavenMainSound(MADE_IN_HEAVEN_MAIN_FADE_OUT_CANCEL_TICKS);
             return;
         }
 
         if (activePhase == SleepAnimationPhase.BRAKING) {
             if (freshPayload) {
                 boolean naturalAutoBrake = activeDurationTicks >= 100;
-                if (naturalAutoBrake) {
-                    madeInHeavenBellEligibleSessionId = activeSessionId;
-                }
-                scheduleMadeInHeavenTimeDecelStart(!naturalAutoBrake);
+                startMadeInHeavenBrake(client, config, naturalAutoBrake);
             }
-            madeInHeavenMainScheduledSessionId = -1L;
-            madeInHeavenMainDelayTicks = -1;
+            cancelMadeInHeavenPendingIntro();
             return;
         }
 
         if (activePhase == SleepAnimationPhase.RUNNING && freshPayload) {
-            scheduleMadeInHeavenTimeAccelStart();
+            scheduleMadeInHeavenIntroStart();
         }
     }
 
@@ -276,14 +285,21 @@ public final class SleepSoundManager {
         }
 
         if (finished) {
-            if (madeInHeavenBellEligibleSessionId == activeSessionId) {
+            if (madeInHeavenNaturalBrakeActive && bellPlayedSessionId != activeSessionId) {
                 playBellOnce(client, config);
             }
             return;
         }
 
+        if (!madeInHeavenCancelBrakeActive) {
+            madeInHeavenCancelBrakeActive = true;
+            madeInHeavenNaturalBrakeActive = false;
+            madeInHeavenBrakeWindStartVolume = getCurrentWindVolumeSafely();
+            stopMadeInHeavenMainSound(MADE_IN_HEAVEN_MAIN_FADE_OUT_CANCEL_TICKS);
+            madeInHeavenMainFadeOutMode = "CANCEL";
+            playMadeInHeavenStopOnce(client, config);
+        }
         playTimeDecelOnce(client, config);
-        playMadeInHeavenStopOnce(client, config);
     }
 
     private static void updateWindLoop(Minecraft client,
@@ -333,12 +349,13 @@ public final class SleepSoundManager {
         }
 
         double speedIntensity = computeSpeedIntensity(sleepState);
-        if (speedIntensity < ASTRO_PASS_MIN_SPEED_INTENSITY) {
+        double minSpeedIntensity = resolveAstroPassMinSpeedIntensity();
+        if (speedIntensity < minSpeedIntensity) {
             return;
         }
 
         SeamlessSleepClientConfig config = SeamlessSleepClientConfigManager.get();
-        playAstroPassOnce(client, config, sleepState, speedIntensity);
+        playAstroPassOnce(client, config, sleepState, speedIntensity, minSpeedIntensity);
     }
 
     private static void updateTimelapseEpicDecel(Minecraft client, ClientSleepAnimationState sleepState) {
@@ -357,21 +374,6 @@ public final class SleepSoundManager {
         double threshold = Math.max(0.0D, 1.0D - TIME_DECEL_AUDIBLE_TICKS / (double) Math.max(1, activeDurationTicks));
         if (sleepState.getProgress() >= threshold) {
             playTimeDecelOnce(client, config);
-        }
-    }
-
-    private static void updateMadeInHeavenNaturalBell(Minecraft client, ClientSleepAnimationState sleepState) {
-        if (activeMode != SleepAnimationMode.MADE_IN_HEAVEN_BED
-                || activePhase != SleepAnimationPhase.BRAKING
-                || madeInHeavenBellEligibleSessionId != activeSessionId
-                || bellPlayedSessionId == activeSessionId
-                || sleepState.getProgress() < MADE_IN_HEAVEN_BELL_PROGRESS) {
-            return;
-        }
-
-        SeamlessSleepClientConfig config = SeamlessSleepClientConfigManager.get();
-        if (config.soundtrackVolumePercent > 0) {
-            playBellOnce(client, config);
         }
     }
 
@@ -434,6 +436,12 @@ public final class SleepSoundManager {
         double configuredVolume = config.sleepWindVolumePercent / 100.0D;
         float targetVolume = (float) clamp01(base * curve * environment * velocityBlend * motionVariation * configuredVolume);
         float pitch = computeWindPitch(level, sleepState, speedIntensity);
+        if (activeMode == SleepAnimationMode.MADE_IN_HEAVEN_BED
+                && activePhase == SleepAnimationPhase.BRAKING
+                && madeInHeavenCancelBrakeActive) {
+            double tail = 1.0D - smoothstep(0.0D, 1.0D, progress);
+            targetVolume = (float) clamp01(madeInHeavenBrakeWindStartVolume * tail);
+        }
         return new WindSoundFrame(
                 targetVolume,
                 pitch
@@ -471,7 +479,11 @@ public final class SleepSoundManager {
                 return 1.0D;
             }
 
-            double fadeStart = clamp01(MADE_IN_HEAVEN_TIME_DECEL_DELAY_TICKS / (double) Math.max(1, activeDurationTicks));
+            if (madeInHeavenCancelBrakeActive) {
+                return 1.0D;
+            }
+
+            double fadeStart = computeMadeInHeavenNaturalWindFadeStartProgress();
             double fade = 1.0D - smoothstep(fadeStart, 1.0D, progress);
             return Math.pow(fade, WIND_BRAKE_POWER);
         }
@@ -630,61 +642,148 @@ public final class SleepSoundManager {
     private static void playAstroPassOnce(Minecraft client,
                                           SeamlessSleepClientConfig config,
                                           ClientSleepAnimationState sleepState,
-                                          double speedIntensity) {
-        double passIntensity = smoothstep(ASTRO_PASS_MIN_SPEED_INTENSITY, 1.0D, speedIntensity);
+                                          double speedIntensity,
+                                          double minSpeedIntensity) {
         double speed = Math.max(0.0D, sleepState.getCurrentDayTimeSpeedPerTick());
         double pitchIntensity = smoothstep(0.80D, 0.98D, speedIntensity);
         double extremeSpeed = smoothstep(1200.0D, 3600.0D, speed);
-        float volume = soundtrackVolume(config, (float) (0.08D + 0.18D * passIntensity));
+        float volume = resolveAstroPassVolume(config, speedIntensity, minSpeedIntensity);
         float pitch = clamp((float) (0.95D + 0.42D * pitchIntensity + 0.95D * extremeSpeed), 0.85F, 2.50F);
         astroPassSound = playOneShot(client, SleepSoundIds.TIME_ASTRO, volume, pitch);
     }
 
-    private static void scheduleMadeInHeavenTimeAccelStart() {
-        if (timeAccelPlayedSessionId == activeSessionId
-                || madeInHeavenTimeAccelScheduledSessionId == activeSessionId) {
+    private static double resolveAstroPassMinSpeedIntensity() {
+        return activeMode == SleepAnimationMode.MADE_IN_HEAVEN_BED
+                ? ASTRO_PASS_MIN_SPEED_INTENSITY_MIH
+                : ASTRO_PASS_MIN_SPEED_INTENSITY_TIMELAPSE;
+    }
+
+    private static float resolveAstroPassVolume(SeamlessSleepClientConfig config,
+                                                double speedIntensity,
+                                                double minSpeedIntensity) {
+        double passIntensity = smoothstep(minSpeedIntensity, 1.0D, speedIntensity);
+        float base = activeMode == SleepAnimationMode.MADE_IN_HEAVEN_BED
+                ? ASTRO_VOLUME_BASE_MIH
+                : ASTRO_VOLUME_BASE_TIMELAPSE;
+        float extra = activeMode == SleepAnimationMode.MADE_IN_HEAVEN_BED
+                ? ASTRO_VOLUME_EXTRA_MIH
+                : ASTRO_VOLUME_EXTRA_TIMELAPSE;
+        return soundtrackVolume(config, (float) (base + extra * passIntensity));
+    }
+
+    private static void scheduleMadeInHeavenIntroStart() {
+        if (madeInHeavenIntroStartedSessionId == activeSessionId
+                || madeInHeavenIntroScheduledSessionId == activeSessionId) {
             return;
         }
 
-        madeInHeavenTimeAccelScheduledSessionId = activeSessionId;
-        madeInHeavenTimeAccelDelayTicks = MADE_IN_HEAVEN_TIME_ACCEL_DELAY_TICKS;
+        madeInHeavenIntroScheduledSessionId = activeSessionId;
+        madeInHeavenIntroDelayTicks = MADE_IN_HEAVEN_TIME_ACCEL_DELAY_TICKS;
     }
 
-    private static void updateMadeInHeavenDelayedTimeAccel(Minecraft client) {
-        if (madeInHeavenTimeAccelScheduledSessionId != activeSessionId) {
+    private static void updateMadeInHeavenDelayedIntroStart(Minecraft client) {
+        if (madeInHeavenIntroScheduledSessionId != activeSessionId) {
             return;
         }
 
         if (activeMode != SleepAnimationMode.MADE_IN_HEAVEN_BED
                 || activePhase != SleepAnimationPhase.RUNNING) {
-            madeInHeavenTimeAccelScheduledSessionId = -1L;
-            madeInHeavenTimeAccelDelayTicks = -1;
+            cancelMadeInHeavenPendingIntro();
             return;
         }
 
-        if (madeInHeavenTimeAccelDelayTicks > 0) {
-            madeInHeavenTimeAccelDelayTicks--;
+        if (madeInHeavenIntroDelayTicks > 0) {
+            madeInHeavenIntroDelayTicks--;
             return;
         }
 
         SeamlessSleepClientConfig config = SeamlessSleepClientConfigManager.get();
         if (config.soundtrackVolumePercent > 0) {
-            playTimeAccelOnce(client, config);
-            scheduleMadeInHeavenMainStart();
+            playMadeInHeavenIntroNow(client, config);
         }
-        madeInHeavenTimeAccelScheduledSessionId = -1L;
-        madeInHeavenTimeAccelDelayTicks = -1;
+        cancelMadeInHeavenPendingIntro();
     }
 
-    private static void scheduleMadeInHeavenTimeDecelStart(boolean playStopSound) {
-        if (timeDecelPlayedSessionId == activeSessionId
-                || madeInHeavenTimeDecelScheduledSessionId == activeSessionId) {
+    private static void playMadeInHeavenIntroNow(Minecraft client, SeamlessSleepClientConfig config) {
+        if (madeInHeavenIntroStartedSessionId == activeSessionId) {
             return;
         }
 
+        madeInHeavenIntroStartedSessionId = activeSessionId;
+        playTimeAccelOnce(client, config);
+        startMadeInHeavenMainNow(client, config);
+    }
+
+    private static void startMadeInHeavenMainNow(Minecraft client, SeamlessSleepClientConfig config) {
+        if (madeInHeavenMainSound != null && !madeInHeavenMainSound.isStopped()) {
+            return;
+        }
+
+        madeInHeavenMainSound = new SleepFadingSoundInstance(
+                SleepSoundIds.MADE_IN_HEAVEN_MAIN,
+                SoundSource.AMBIENT,
+                soundtrackVolume(config, MADE_IN_HEAVEN_MAIN_VOLUME),
+                MADE_IN_HEAVEN_MAIN_TECH_FADE_IN_TICKS
+        );
+        client.getSoundManager().play(madeInHeavenMainSound);
+        madeInHeavenMainStartedSessionId = activeSessionId;
+        madeInHeavenMainFadeOutMode = "NONE";
+    }
+
+    private static void startMadeInHeavenBrake(Minecraft client,
+                                               SeamlessSleepClientConfig config,
+                                               boolean naturalAutoBrake) {
+        if (madeInHeavenNaturalBrakeActive
+                || madeInHeavenCancelBrakeActive
+                || madeInHeavenTimeDecelScheduledSessionId == activeSessionId
+                || timeDecelPlayedSessionId == activeSessionId) {
+            return;
+        }
+
+        if (naturalAutoBrake) {
+            startMadeInHeavenNaturalBrake();
+        } else {
+            startMadeInHeavenCancelBrake(client, config);
+        }
+    }
+
+    private static void startMadeInHeavenNaturalBrake() {
+        madeInHeavenNaturalBrakeActive = true;
+        madeInHeavenCancelBrakeActive = false;
+        madeInHeavenDelayedDecelIsCancel = false;
+        madeInHeavenBellDelayTicks = -1;
+        madeInHeavenBrakeWindStartVolume = 0.0F;
+        madeInHeavenMainFadeOutMode = "NONE";
         madeInHeavenTimeDecelScheduledSessionId = activeSessionId;
-        madeInHeavenTimeDecelDelayTicks = MADE_IN_HEAVEN_TIME_DECEL_DELAY_TICKS;
-        madeInHeavenDelayedDecelNeedsStop = playStopSound;
+        madeInHeavenTimeDecelDelayTicks = computeMadeInHeavenNaturalDecelDelayTicks();
+    }
+
+    private static void startMadeInHeavenCancelBrake(Minecraft client, SeamlessSleepClientConfig config) {
+        madeInHeavenNaturalBrakeActive = false;
+        madeInHeavenCancelBrakeActive = true;
+        madeInHeavenDelayedDecelIsCancel = true;
+        madeInHeavenBellDelayTicks = -1;
+        madeInHeavenBrakeWindStartVolume = getCurrentWindVolumeSafely();
+        stopMadeInHeavenMainSound(MADE_IN_HEAVEN_MAIN_FADE_OUT_CANCEL_TICKS);
+        madeInHeavenMainFadeOutMode = "CANCEL";
+        playMadeInHeavenStopOnce(client, config);
+        madeInHeavenTimeDecelScheduledSessionId = activeSessionId;
+        madeInHeavenTimeDecelDelayTicks = MADE_IN_HEAVEN_CANCEL_DECEL_DELAY_TICKS;
+    }
+
+    private static int computeMadeInHeavenNaturalDecelDelayTicks() {
+        int delay = Math.max(1, activeDurationTicks)
+                - TIME_DECEL_AUDIBLE_TICKS
+                - MADE_IN_HEAVEN_NATURAL_DECEL_TAIL_PAD_TICKS;
+        return clampInt(delay, 0, MADE_IN_HEAVEN_NATURAL_DECEL_MAX_DELAY_TICKS);
+    }
+
+    private static double computeMadeInHeavenNaturalWindFadeStartProgress() {
+        return clamp01(computeMadeInHeavenNaturalDecelDelayTicks() / (double) Math.max(1, activeDurationTicks));
+    }
+
+    private static float getCurrentWindVolumeSafely() {
+        return windLoop != null && !windLoop.isStopped() ? windLoop.getCurrentVolume() : 0.0F;
     }
 
     private static void updateMadeInHeavenDelayedTimeDecel(Minecraft client) {
@@ -696,7 +795,7 @@ public final class SleepSoundManager {
                 || activePhase != SleepAnimationPhase.BRAKING) {
             madeInHeavenTimeDecelScheduledSessionId = -1L;
             madeInHeavenTimeDecelDelayTicks = -1;
-            madeInHeavenDelayedDecelNeedsStop = false;
+            madeInHeavenDelayedDecelIsCancel = false;
             return;
         }
 
@@ -707,15 +806,52 @@ public final class SleepSoundManager {
 
         SeamlessSleepClientConfig config = SeamlessSleepClientConfigManager.get();
         if (config.soundtrackVolumePercent > 0) {
-            stopMadeInHeavenMainSound(MADE_IN_HEAVEN_MAIN_FADE_OUT_TICKS);
-            playTimeDecelOnce(client, config);
-            if (madeInHeavenDelayedDecelNeedsStop) {
-                playMadeInHeavenStopOnce(client, config);
+            if (madeInHeavenDelayedDecelIsCancel) {
+                playMadeInHeavenCancelDecelNow(client, config);
+            } else {
+                playMadeInHeavenNaturalDecelNow(client, config);
             }
         }
         madeInHeavenTimeDecelScheduledSessionId = -1L;
         madeInHeavenTimeDecelDelayTicks = -1;
-        madeInHeavenDelayedDecelNeedsStop = false;
+        madeInHeavenDelayedDecelIsCancel = false;
+    }
+
+    private static void playMadeInHeavenNaturalDecelNow(Minecraft client, SeamlessSleepClientConfig config) {
+        stopMadeInHeavenMainSound(MADE_IN_HEAVEN_MAIN_FADE_OUT_NATURAL_TICKS);
+        madeInHeavenMainFadeOutMode = "NATURAL";
+        playTimeDecelOnce(client, config);
+        madeInHeavenBellDelayTicks = Math.max(0, TIME_DECEL_AUDIBLE_TICKS - MADE_IN_HEAVEN_BELL_LEAD_TICKS);
+    }
+
+    private static void playMadeInHeavenCancelDecelNow(Minecraft client, SeamlessSleepClientConfig config) {
+        playTimeDecelOnce(client, config);
+        madeInHeavenBellDelayTicks = -1;
+    }
+
+    private static void updateMadeInHeavenBellTimer(Minecraft client) {
+        if (activeMode != SleepAnimationMode.MADE_IN_HEAVEN_BED
+                || !madeInHeavenNaturalBrakeActive
+                || madeInHeavenBellDelayTicks < 0
+                || bellPlayedSessionId == activeSessionId) {
+            return;
+        }
+
+        if (activePhase != SleepAnimationPhase.BRAKING) {
+            madeInHeavenBellDelayTicks = -1;
+            return;
+        }
+
+        if (madeInHeavenBellDelayTicks > 0) {
+            madeInHeavenBellDelayTicks--;
+            return;
+        }
+
+        SeamlessSleepClientConfig config = SeamlessSleepClientConfigManager.get();
+        madeInHeavenBellDelayTicks = -1;
+        if (config.soundtrackVolumePercent > 0) {
+            playBellOnce(client, config);
+        }
     }
 
     private static void playTimeAccelOnce(Minecraft client, SeamlessSleepClientConfig config) {
@@ -757,52 +893,6 @@ public final class SleepSoundManager {
 
         bellSound = playOneShot(client, SleepSoundIds.TIME_BELL, soundtrackVolume(config, 0.80F), 1.0F);
         bellPlayedSessionId = activeSessionId;
-    }
-
-    private static void scheduleMadeInHeavenMainStart() {
-        if (madeInHeavenMainStartedSessionId == activeSessionId
-                || madeInHeavenMainScheduledSessionId == activeSessionId) {
-            return;
-        }
-
-        madeInHeavenMainScheduledSessionId = activeSessionId;
-        madeInHeavenMainDelayTicks = MADE_IN_HEAVEN_MAIN_DELAY_TICKS;
-    }
-
-    private static void updateMadeInHeavenDelayedStart(Minecraft client) {
-        if (madeInHeavenMainScheduledSessionId != activeSessionId) {
-            return;
-        }
-
-        if (activeMode != SleepAnimationMode.MADE_IN_HEAVEN_BED
-                || activePhase != SleepAnimationPhase.RUNNING) {
-            madeInHeavenMainScheduledSessionId = -1L;
-            madeInHeavenMainDelayTicks = -1;
-            return;
-        }
-
-        if (madeInHeavenMainDelayTicks > 0) {
-            madeInHeavenMainDelayTicks--;
-            return;
-        }
-
-        SeamlessSleepClientConfig config = SeamlessSleepClientConfigManager.get();
-        if (config.soundtrackVolumePercent <= 0 || madeInHeavenMainStartedSessionId == activeSessionId) {
-            madeInHeavenMainScheduledSessionId = -1L;
-            madeInHeavenMainDelayTicks = -1;
-            return;
-        }
-
-        madeInHeavenMainSound = new SleepFadingSoundInstance(
-                SleepSoundIds.MADE_IN_HEAVEN_MAIN,
-                SoundSource.AMBIENT,
-                soundtrackVolume(config, 0.72F),
-                MADE_IN_HEAVEN_MAIN_FADE_IN_TICKS
-        );
-        client.getSoundManager().play(madeInHeavenMainSound);
-        madeInHeavenMainStartedSessionId = activeSessionId;
-        madeInHeavenMainScheduledSessionId = -1L;
-        madeInHeavenMainDelayTicks = -1;
     }
 
     private static void stopOneShotSounds(Minecraft client) {
@@ -861,7 +951,10 @@ public final class SleepSoundManager {
         WindSoundFrame windFrame = windEligible ? computeWindSoundFrame(level, player, sleepState) : null; // TODO audio-debug-remove: remove temporary audio runtime logger.
         double skyMultiplier = computeSkyExposureMultiplier(level, player); // TODO audio-debug-remove: remove temporary audio runtime logger.
         double weatherMultiplier = computeWeatherMultiplier(level); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        double madeInHeavenWindFadeStart = activeMode == SleepAnimationMode.MADE_IN_HEAVEN_BED ? clamp01(MADE_IN_HEAVEN_TIME_DECEL_DELAY_TICKS / (double) Math.max(1, activeDurationTicks)) : -1.0D; // TODO audio-debug-remove: remove temporary audio runtime logger.
+        double madeInHeavenWindFadeStart = activeMode == SleepAnimationMode.MADE_IN_HEAVEN_BED ? computeMadeInHeavenNaturalWindFadeStartProgress() : -1.0D; // TODO audio-debug-remove: remove temporary audio runtime logger.
+        boolean astroEligible = shouldPlayAstroPassSound(); // TODO audio-debug-remove: remove temporary audio runtime logger.
+        double astroMinSpeed = resolveAstroPassMinSpeedIntensity(); // TODO audio-debug-remove: remove temporary audio runtime logger.
+        float astroVolume = astroEligible ? resolveAstroPassVolume(config, speedIntensity, astroMinSpeed) : 0.0F; // TODO audio-debug-remove: remove temporary audio runtime logger.
         StringBuilder line = new StringBuilder(1024); // TODO audio-debug-remove: remove temporary audio runtime logger.
         line.append("wallMs=").append(System.currentTimeMillis()); // TODO audio-debug-remove: remove temporary audio runtime logger.
         line.append('\t').append("gameTime=").append(level.getGameTime()); // TODO audio-debug-remove: remove temporary audio runtime logger.
@@ -899,22 +992,33 @@ public final class SleepSoundManager {
         line.append('\t').append("astroSunPassesSeen=").append(astroPassSunPassesSeen); // TODO audio-debug-remove: remove temporary audio runtime logger.
         line.append('\t').append("astroTrackingSession=").append(astroPassTrackingSessionId); // TODO audio-debug-remove: remove temporary audio runtime logger.
         line.append('\t').append("lastAstroVisualDayTime=").append(lastAstroPassVisualDayTime); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("mihAccelScheduled=").append(madeInHeavenTimeAccelScheduledSessionId == activeSessionId); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("mihAccelDelayTicks=").append(madeInHeavenTimeAccelDelayTicks); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("mihMainScheduled=").append(madeInHeavenMainScheduledSessionId == activeSessionId); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("mihMainDelayTicks=").append(madeInHeavenMainDelayTicks); // TODO audio-debug-remove: remove temporary audio runtime logger.
+        line.append('\t').append("astroEligible=").append(astroEligible); // TODO audio-debug-remove: remove temporary audio runtime logger.
+        line.append('\t').append("astroMinSpeedResolved=").append(String.format(Locale.ROOT, "%.5f", astroMinSpeed)); // TODO audio-debug-remove: remove temporary audio runtime logger.
+        line.append('\t').append("astroVolumeResolved=").append(String.format(Locale.ROOT, "%.5f", astroVolume)); // TODO audio-debug-remove: remove temporary audio runtime logger.
+        line.append('\t').append("mihIntroScheduled=").append(madeInHeavenIntroScheduledSessionId == activeSessionId); // TODO audio-debug-remove: remove temporary audio runtime logger.
+        line.append('\t').append("mihIntroDelayTicks=").append(madeInHeavenIntroDelayTicks); // TODO audio-debug-remove: remove temporary audio runtime logger.
+        line.append('\t').append("mihIntroStarted=").append(madeInHeavenIntroStartedSessionId == activeSessionId); // TODO audio-debug-remove: remove temporary audio runtime logger.
         line.append('\t').append("mihDecelScheduled=").append(madeInHeavenTimeDecelScheduledSessionId == activeSessionId); // TODO audio-debug-remove: remove temporary audio runtime logger.
         line.append('\t').append("mihDecelDelayTicks=").append(madeInHeavenTimeDecelDelayTicks); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("mihDelayedDecelNeedsStop=").append(madeInHeavenDelayedDecelNeedsStop); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("mihBellEligible=").append(madeInHeavenBellEligibleSessionId == activeSessionId); // TODO audio-debug-remove: remove temporary audio runtime logger.
+        line.append('\t').append("mihDelayedDecelIsCancel=").append(madeInHeavenDelayedDecelIsCancel); // TODO audio-debug-remove: remove temporary audio runtime logger.
+        line.append('\t').append("mihBellDelayTicks=").append(madeInHeavenBellDelayTicks); // TODO audio-debug-remove: remove temporary audio runtime logger.
+        line.append('\t').append("mihNaturalBrake=").append(madeInHeavenNaturalBrakeActive); // TODO audio-debug-remove: remove temporary audio runtime logger.
+        line.append('\t').append("mihCancelBrake=").append(madeInHeavenCancelBrakeActive); // TODO audio-debug-remove: remove temporary audio runtime logger.
+        line.append('\t').append("mihBrakeWindStartVolume=").append(String.format(Locale.ROOT, "%.5f", madeInHeavenBrakeWindStartVolume)); // TODO audio-debug-remove: remove temporary audio runtime logger.
+        line.append('\t').append("mainStartedWithAccel=").append(madeInHeavenMainStartedSessionId == activeSessionId && timeAccelPlayedSessionId == activeSessionId); // TODO audio-debug-remove: remove temporary audio runtime logger.
+        line.append('\t').append("mainFadeOutMode=").append(madeInHeavenMainFadeOutMode); // TODO audio-debug-remove: remove temporary audio runtime logger.
         line.append('\t').append("mihWindFadeStartProgress=").append(String.format(Locale.ROOT, "%.5f", madeInHeavenWindFadeStart)); // TODO audio-debug-remove: remove temporary audio runtime logger.
         line.append('\t').append("constAccelDelay=").append(MADE_IN_HEAVEN_TIME_ACCEL_DELAY_TICKS); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("constDecelDelay=").append(MADE_IN_HEAVEN_TIME_DECEL_DELAY_TICKS); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("constMainDelay=").append(MADE_IN_HEAVEN_MAIN_DELAY_TICKS); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("constMainFadeIn=").append(MADE_IN_HEAVEN_MAIN_FADE_IN_TICKS); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("constMainFadeOut=").append(MADE_IN_HEAVEN_MAIN_FADE_OUT_TICKS); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("constBellProgress=").append(String.format(Locale.ROOT, "%.5f", MADE_IN_HEAVEN_BELL_PROGRESS)); // TODO audio-debug-remove: remove temporary audio runtime logger.
-        line.append('\t').append("constAstroMinSpeedIntensity=").append(String.format(Locale.ROOT, "%.5f", ASTRO_PASS_MIN_SPEED_INTENSITY)); // TODO audio-debug-remove: remove temporary audio runtime logger.
+        line.append('\t').append("constTimeAccelAudible=").append(TIME_ACCEL_AUDIBLE_TICKS); // TODO audio-debug-remove: remove temporary audio runtime logger.
+        line.append('\t').append("constTimeDecelAudible=").append(TIME_DECEL_AUDIBLE_TICKS); // TODO audio-debug-remove: remove temporary audio runtime logger.
+        line.append('\t').append("constCancelDecelDelay=").append(MADE_IN_HEAVEN_CANCEL_DECEL_DELAY_TICKS); // TODO audio-debug-remove: remove temporary audio runtime logger.
+        line.append('\t').append("constNaturalTailPad=").append(MADE_IN_HEAVEN_NATURAL_DECEL_TAIL_PAD_TICKS); // TODO audio-debug-remove: remove temporary audio runtime logger.
+        line.append('\t').append("constBellLead=").append(MADE_IN_HEAVEN_BELL_LEAD_TICKS); // TODO audio-debug-remove: remove temporary audio runtime logger.
+        line.append('\t').append("constMainTechFadeIn=").append(MADE_IN_HEAVEN_MAIN_TECH_FADE_IN_TICKS); // TODO audio-debug-remove: remove temporary audio runtime logger.
+        line.append('\t').append("constMainFadeOutNatural=").append(MADE_IN_HEAVEN_MAIN_FADE_OUT_NATURAL_TICKS); // TODO audio-debug-remove: remove temporary audio runtime logger.
+        line.append('\t').append("constMainFadeOutCancel=").append(MADE_IN_HEAVEN_MAIN_FADE_OUT_CANCEL_TICKS); // TODO audio-debug-remove: remove temporary audio runtime logger.
+        line.append('\t').append("constAstroMinSpeedTimelapse=").append(String.format(Locale.ROOT, "%.5f", ASTRO_PASS_MIN_SPEED_INTENSITY_TIMELAPSE)); // TODO audio-debug-remove: remove temporary audio runtime logger.
+        line.append('\t').append("constAstroMinSpeedMih=").append(String.format(Locale.ROOT, "%.5f", ASTRO_PASS_MIN_SPEED_INTENSITY_MIH)); // TODO audio-debug-remove: remove temporary audio runtime logger.
         try { // TODO audio-debug-remove: remove temporary audio runtime logger.
             Files.writeString(AUDIO_DEBUG_LOG_PATH, line.append(System.lineSeparator()).toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND); // TODO audio-debug-remove: remove temporary audio runtime logger.
         } catch (IOException ignored) { // TODO audio-debug-remove: remove temporary audio runtime logger.
@@ -938,16 +1042,19 @@ public final class SleepSoundManager {
         timeDecelPlayedSessionId = -1L;
         bellPlayedSessionId = -1L;
         resetAstroPassTracking();
-        madeInHeavenBellEligibleSessionId = -1L;
         madeInHeavenStopPlayedSessionId = -1L;
-        madeInHeavenTimeAccelScheduledSessionId = -1L;
-        madeInHeavenTimeAccelDelayTicks = -1;
+        madeInHeavenIntroScheduledSessionId = -1L;
+        madeInHeavenIntroStartedSessionId = -1L;
+        madeInHeavenIntroDelayTicks = -1;
         madeInHeavenTimeDecelScheduledSessionId = -1L;
         madeInHeavenTimeDecelDelayTicks = -1;
-        madeInHeavenDelayedDecelNeedsStop = false;
+        madeInHeavenDelayedDecelIsCancel = false;
+        madeInHeavenBellDelayTicks = -1;
+        madeInHeavenNaturalBrakeActive = false;
+        madeInHeavenCancelBrakeActive = false;
+        madeInHeavenBrakeWindStartVolume = 0.0F;
+        madeInHeavenMainFadeOutMode = "NONE";
         madeInHeavenMainStartedSessionId = -1L;
-        madeInHeavenMainScheduledSessionId = -1L;
-        madeInHeavenMainDelayTicks = -1;
     }
 
     private static void resetAstroPassTracking() {
@@ -957,13 +1064,22 @@ public final class SleepSoundManager {
     }
 
     private static void cancelMadeInHeavenDelayedSounds() {
-        madeInHeavenTimeAccelScheduledSessionId = -1L;
-        madeInHeavenTimeAccelDelayTicks = -1;
+        cancelMadeInHeavenPendingIntro();
+        madeInHeavenIntroStartedSessionId = -1L;
         madeInHeavenTimeDecelScheduledSessionId = -1L;
         madeInHeavenTimeDecelDelayTicks = -1;
-        madeInHeavenDelayedDecelNeedsStop = false;
-        madeInHeavenMainScheduledSessionId = -1L;
-        madeInHeavenMainDelayTicks = -1;
+        madeInHeavenDelayedDecelIsCancel = false;
+        madeInHeavenBellDelayTicks = -1;
+        madeInHeavenNaturalBrakeActive = false;
+        madeInHeavenCancelBrakeActive = false;
+        madeInHeavenBrakeWindStartVolume = 0.0F;
+        madeInHeavenMainStartedSessionId = -1L;
+        madeInHeavenMainFadeOutMode = "NONE";
+    }
+
+    private static void cancelMadeInHeavenPendingIntro() {
+        madeInHeavenIntroScheduledSessionId = -1L;
+        madeInHeavenIntroDelayTicks = -1;
     }
 
     private static double smoothstep(double edge0, double edge1, double value) {
@@ -996,6 +1112,16 @@ public final class SleepSoundManager {
         if (Float.isNaN(value) || Float.isInfinite(value)) {
             return min;
         }
+        if (value < min) {
+            return min;
+        }
+        if (value > max) {
+            return max;
+        }
+        return value;
+    }
+
+    private static int clampInt(int value, int min, int max) {
         if (value < min) {
             return min;
         }

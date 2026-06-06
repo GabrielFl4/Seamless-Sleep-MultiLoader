@@ -11,31 +11,44 @@ public final class SleepFadingSoundInstance extends AbstractTickableSoundInstanc
 
     private float targetVolume;
     private int fadeTicks;
-    private boolean stopping;
+    private boolean fadingOut;
+    private int fadeOutTicksRemaining;
+    private int fadeOutTotalTicks;
+    private float fadeOutStartVolume;
 
     public SleepFadingSoundInstance(Identifier soundId, SoundSource source, float targetVolume, int fadeTicks) {
         super(SoundEvent.createVariableRangeEvent(soundId), source, SoundInstance.createUnseededRandom());
         this.looping = false;
         this.relative = true;
         this.attenuation = SoundInstance.Attenuation.NONE;
-        this.volume = 0.0F;
         this.pitch = 1.0F;
         this.targetVolume = clamp01(targetVolume);
-        this.fadeTicks = Math.max(1, fadeTicks);
+        this.fadeTicks = Math.max(0, fadeTicks);
+        this.volume = this.fadeTicks <= 0 ? this.targetVolume : 0.0F;
     }
 
     @Override
     public void tick() {
-        float step = 1.0F / Math.max(1, this.fadeTicks);
+        if (this.fadingOut) {
+            this.fadeOutTicksRemaining--;
+            float t = this.fadeOutTotalTicks <= 0
+                    ? 0.0F
+                    : this.fadeOutTicksRemaining / (float) this.fadeOutTotalTicks;
+            this.volume = this.fadeOutStartVolume * clamp01(t);
+            if (this.fadeOutTicksRemaining <= 0 || this.volume <= STOP_VOLUME_EPSILON) {
+                this.volume = 0.0F;
+                this.stop();
+            }
+            return;
+        }
+
+        float step = this.fadeTicks <= 0
+                ? 1.0F
+                : this.targetVolume / Math.max(1, this.fadeTicks);
         if (this.volume < this.targetVolume) {
             this.volume = Math.min(this.targetVolume, this.volume + step);
         } else if (this.volume > this.targetVolume) {
             this.volume = Math.max(this.targetVolume, this.volume - step);
-        }
-
-        if (this.stopping && this.volume <= STOP_VOLUME_EPSILON) {
-            this.volume = 0.0F;
-            this.stop();
         }
     }
 
@@ -47,7 +60,7 @@ public final class SleepFadingSoundInstance extends AbstractTickableSoundInstanc
     public void setTargetVolume(float targetVolume) {
         this.targetVolume = clamp01(targetVolume);
         if (this.targetVolume > STOP_VOLUME_EPSILON) {
-            this.stopping = false;
+            this.fadingOut = false;
         }
     }
 
@@ -56,13 +69,17 @@ public final class SleepFadingSoundInstance extends AbstractTickableSoundInstanc
     } // TODO audio-debug-remove: remove temporary audio runtime logger.
 
     public void stopWithFade(int fadeTicks) {
-        this.fadeTicks = Math.max(1, fadeTicks);
         this.targetVolume = 0.0F;
-        this.stopping = true;
-        if (this.volume <= STOP_VOLUME_EPSILON) {
+        if (fadeTicks <= 0 || this.volume <= STOP_VOLUME_EPSILON) {
             this.volume = 0.0F;
             this.stop();
+            return;
         }
+
+        this.fadingOut = true;
+        this.fadeOutTicksRemaining = fadeTicks;
+        this.fadeOutTotalTicks = fadeTicks;
+        this.fadeOutStartVolume = this.volume;
     }
 
     private static float clamp01(float value) {
