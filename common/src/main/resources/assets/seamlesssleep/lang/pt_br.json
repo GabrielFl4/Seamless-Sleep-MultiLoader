@@ -27,8 +27,8 @@
   "config.seamlesssleep.client.group.chat.desc": "Ajustes para o overlay do chat na cama.",
   "config.seamlesssleep.client.group.camera": "Recursos de Câmera",
   "config.seamlesssleep.client.group.camera.desc": "Inclinação da câmera e sensação do mouse enquanto descansa e durante o skip de sono.",
-  "config.seamlesssleep.client.group.sleep_zzz": "Partículas Zzz",
-  "config.seamlesssleep.client.group.sleep_zzz.desc": "\"Partículas\" de Zs que saem da boca dos jogadores ao mimir.",
+  "config.seamlesssleep.client.group.sleep_zzz": "Sons & Partículas",
+  "config.seamlesssleep.client.group.sleep_zzz.desc": "Controles de áudio e \"partículas\" de Zs que saem da boca dos jogadores ao mimir.",
 
   "config.seamlesssleep.overlay.darkness": "Vinheta ao Dormir",
   "config.seamlesssleep.overlay.darkness.desc": "Controla o quão escura a vinheta fica, ao dormir.",
@@ -47,6 +47,11 @@
   "config.seamlesssleep.camera.mouse_smoothness": "Suavização do Mouse",
   "config.seamlesssleep.camera.mouse_smoothness.desc": "O quão suave será o movimento do mouse ao deitar na cama.",
 
+  "config.seamlesssleep.sounds.sleep_wind": "Sleep Wind",
+  "config.seamlesssleep.sounds.sleep_wind.desc": "O vento durante o sono e timelapses. Agora vem de brinde com um slider!",
+  "config.seamlesssleep.sounds.soundtrack": "Soundtrack",
+  "config.seamlesssleep.sounds.soundtrack.desc": "Volume geral das trilhas sonoras. É aplicado a toda música tocada em easter eggs e timelapse.",
+
   "config.seamlesssleep.sleep_zzz.chance": "Chance de Zzz",
   "config.seamlesssleep.sleep_zzz.chance.desc": "Determina a chance de Zzz para cada player que deitar.",
   "config.seamlesssleep.sleep_zzz.style": "Estilo do Zzz",
@@ -58,6 +63,8 @@
   "config.seamlesssleep.misc.debug_logs.desc": "Mostra logs técnicos do Seamless Sleep no \u00A7elatest.log\u00A7r.",
   "config.seamlesssleep.misc.replay_compatibility": "Modo de Compatibilidade",
   "config.seamlesssleep.misc.replay_compatibility.desc": "Ajusta a matemática da animação para uma versão \u00A7eexperimental\u00A7r compatível com mods, como ReplayMod e Flashback.",
+  "config.seamlesssleep.misc.disable_sounds_during_replay": "Desativar Sons em Replay",
+  "config.seamlesssleep.misc.disable_sounds_during_replay.desc": "Desativa os sons do Seamless Sleep durante playback do ReplayMod ou Flashback.",
   "config.seamlesssleep.advanced.notice": "\u00A7eConfigurações avançadas sinistras. Altere apenas se souber o que está fazendo!",
 
   "config.seamlesssleep.sleep.clears_weather": "Chance de Limpar Clima",
@@ -137,6 +144,7 @@
   "config.seamlesssleep.world_acceleration.processes_speed.desc": "Controla a intensidade da aceleração de processos.",
   "config.seamlesssleep.world_acceleration.processes_speed.command": "/sleep set worldAccelerationProcessesSpeed <valor>",
   "config.seamlesssleep.value.none": "\u00A7cNENHUM",
+  "config.seamlesssleep.value.muted": "SILENCIADO",
   "config.seamlesssleep.value.max": "\u00A7aMÁXIMO",
   "config.seamlesssleep.value.hidden": "\u00A77OCULTO",
   "config.seamlesssleep.value.vanilla": "Vanilla",

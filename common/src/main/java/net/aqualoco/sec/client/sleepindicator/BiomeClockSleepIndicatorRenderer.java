@@ -306,8 +306,9 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
         }
 
         drawFullTexture(graphics, FRAME_CIRCLE, whiteWithAlpha(context.alpha()));
-        if (normalAlpha > 0.001F) {
-            renderZzzLayer(graphics, context.withAlphaMultiplier(normalAlpha), nowNanos);
+        float sleepZzzAlpha = Math.max(Math.max(normalAlpha, cavernsAlpha), unknownAlpha);
+        if (sleepZzzAlpha > 0.001F) {
+            renderZzzLayer(graphics, context.withAlphaMultiplier(sleepZzzAlpha), nowNanos);
         }
     }
 

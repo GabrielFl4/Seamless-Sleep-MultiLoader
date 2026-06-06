@@ -212,7 +212,9 @@ public final class SeamlessSleepServerConfigManager {
     }
 
     private static void readWorldSleepAcceleration(CommentedFileConfig file, WorldSleepAccelerationConfig cfg) {
-        LegacyAccelerationData legacy = readLegacyAccelerationData(file);
+        LegacyAccelerationData legacy = hasLegacyAccelerationData(file)
+                ? readLegacyAccelerationData(file)
+                : currentAccelerationData(cfg);
 
         cfg.mode = readAccelerationMode(
                 file,
@@ -282,6 +284,46 @@ public final class SeamlessSleepServerConfigManager {
         );
     }
 
+    private static LegacyAccelerationData currentAccelerationData(WorldSleepAccelerationConfig cfg) {
+        return new LegacyAccelerationData(
+                cfg.mode,
+                cfg.automaticMode,
+                cfg.playersAffected,
+                cfg.manualAccelerationRadiusChunks,
+                cfg.manualAccelerationSpeedPercent,
+                cfg.grassAndFoliageAccelerationEnabled,
+                cfg.cropsAndSaplingsAccelerationEnabled,
+                cfg.kelpAccelerationEnabled,
+                cfg.vanillaOnlyAcceleration,
+                cfg.processesAccelerationEnabled,
+                cfg.processesSpeedPercent
+        );
+    }
+
+    private static boolean hasLegacyAccelerationData(CommentedFileConfig file) {
+        return hasRaw(file, List.of("world_sleep_acceleration", "preset"))
+                || hasRaw(file, List.of("world_sleep_acceleration", "random_tick_acceleration_enabled"))
+                || hasRaw(file, List.of("world_sleep_acceleration", "process_acceleration_enabled"))
+                || hasRaw(file, List.of("world_sleep_acceleration", "nature_filter_profile"))
+                || hasLegacyModuleData(file, List.of("world_sleep_acceleration", "nature"), "worldSleepAccelerationNature")
+                || hasLegacyModuleData(file, List.of("world_sleep_acceleration", "process"), "worldSleepAccelerationProcess")
+                || hasRaw(file, "worldSleepAccelerationPreset")
+                || hasRaw(file, "worldSleepAccelerationRandomTickEnabled")
+                || hasRaw(file, "worldSleepAccelerationProcessEnabled")
+                || hasRaw(file, "worldSleepAccelerationNatureFilterProfile");
+    }
+
+    private static boolean hasLegacyModuleData(CommentedFileConfig file, List<String> pathPrefix, String legacyPrefix) {
+        return hasRaw(file, append(pathPrefix, "base_radius_chunks"))
+                || hasRaw(file, append(pathPrefix, "auto_min_radius_chunks"))
+                || hasRaw(file, append(pathPrefix, "base_rate_fraction"))
+                || hasRaw(file, append(pathPrefix, "auto_min_rate_fraction"))
+                || hasRaw(file, legacyPrefix + "BaseRadiusChunks")
+                || hasRaw(file, legacyPrefix + "AutoMinRadiusChunks")
+                || hasRaw(file, legacyPrefix + "BaseRateFraction")
+                || hasRaw(file, legacyPrefix + "AutoMinRateFraction");
+    }
+
     private static LegacyAccelerationData readLegacyAccelerationData(CommentedFileConfig file) {
         WorldSleepAccelerationMode legacyMode = readAccelerationMode(
                 file,
@@ -323,6 +365,8 @@ public final class SeamlessSleepServerConfigManager {
                 legacyNature
         );
         WorldSleepAccelerationModuleConfig legacyProcess = new WorldSleepAccelerationModuleConfig();
+        legacyProcess.baseRateFraction = 1.0D;
+        legacyProcess.autoMinRateFraction = 0.25D;
         readLegacyModuleConfig(
                 file,
                 List.of("world_sleep_acceleration", "process"),
@@ -714,6 +758,14 @@ public final class SeamlessSleepServerConfigManager {
     private static Object readRaw(CommentedFileConfig file, List<String> path, String legacyKey) {
         Object value = file.getRaw(path);
         return value != null ? value : file.getRaw(legacyKey);
+    }
+
+    private static boolean hasRaw(CommentedFileConfig file, List<String> path) {
+        return file.getRaw(path) != null;
+    }
+
+    private static boolean hasRaw(CommentedFileConfig file, String key) {
+        return file.getRaw(key) != null;
     }
 
     private static Object readRaw(CommentedFileConfig file, List<String> path, List<String> legacyPath, String legacyKey) {

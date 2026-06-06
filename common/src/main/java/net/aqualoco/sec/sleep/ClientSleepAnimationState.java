@@ -97,6 +97,10 @@ public final class ClientSleepAnimationState {
         return clamp01(this.cachedProgress);
     }
 
+    public long getCurrentVisualDayTime() {
+        return this.currentVisualDayTime;
+    }
+
     public double getEasedVelocityFactor() {
         if (!this.active && !this.awaitingFinish) {
             return 0.0D;

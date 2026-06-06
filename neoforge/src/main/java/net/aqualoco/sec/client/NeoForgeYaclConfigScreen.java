@@ -580,6 +580,15 @@ public final class NeoForgeYaclConfigScreen {
                         value -> cfg.replayCompatibilityEnabled = value,
                         true
                 ))
+                .option(buildToggle(
+                        Component.translatable("config.seamlesssleep.misc.disable_sounds_during_replay"),
+                        Component.translatable("config.seamlesssleep.misc.disable_sounds_during_replay.desc"),
+                        Component.empty(),
+                        false,
+                        () -> cfg.disableSoundsDuringReplay,
+                        value -> cfg.disableSoundsDuringReplay = value,
+                        true
+                ))
                 .group(easterEggsGroup)
                 .build();
     }
@@ -593,7 +602,7 @@ public final class NeoForgeYaclConfigScreen {
                         Component.translatable("config.seamlesssleep.overlay.darkness"),
                         Component.translatable("config.seamlesssleep.overlay.darkness.desc"),
                         Component.empty(),
-                        35,
+                        20,
                         0,
                         100,
                         1,
@@ -740,6 +749,32 @@ public final class NeoForgeYaclConfigScreen {
                 .name(Component.translatable("config.seamlesssleep.client.group.sleep_zzz"))
                 .description(OptionDescription.of(Component.translatable("config.seamlesssleep.client.group.sleep_zzz.desc")))
                 .collapsed(false)
+                .option(buildIntSlider(
+                        Component.translatable("config.seamlesssleep.sounds.sleep_wind"),
+                        Component.translatable("config.seamlesssleep.sounds.sleep_wind.desc"),
+                        Component.empty(),
+                        40,
+                        0,
+                        100,
+                        1,
+                        () -> cfg.sleepWindVolumePercent,
+                        value -> cfg.sleepWindVolumePercent = value,
+                        true,
+                        NeoForgeYaclConfigScreen::formatSoundVolumeValue
+                ))
+                .option(buildIntSlider(
+                        Component.translatable("config.seamlesssleep.sounds.soundtrack"),
+                        Component.translatable("config.seamlesssleep.sounds.soundtrack.desc"),
+                        Component.empty(),
+                        40,
+                        0,
+                        100,
+                        1,
+                        () -> cfg.soundtrackVolumePercent,
+                        value -> cfg.soundtrackVolumePercent = value,
+                        true,
+                        NeoForgeYaclConfigScreen::formatSoundVolumeValue
+                ))
                 .option(buildIntSlider(
                         Component.translatable("config.seamlesssleep.sleep_zzz.chance"),
                         Component.translatable("config.seamlesssleep.sleep_zzz.chance.desc"),
@@ -1194,6 +1229,13 @@ public final class NeoForgeYaclConfigScreen {
             return Component.translatable("config.seamlesssleep.value.max");
         }
         return Component.literal(value + "%");
+    }
+
+    private static Component formatSoundVolumeValue(Integer value) {
+        if (value == null || value <= 0) {
+            return Component.translatable("config.seamlesssleep.value.muted").withStyle(ChatFormatting.GRAY);
+        }
+        return Component.literal(value + "%").withStyle(ChatFormatting.WHITE);
     }
 
     private static Component formatVanillaHiddenPercentValue(Integer value) {

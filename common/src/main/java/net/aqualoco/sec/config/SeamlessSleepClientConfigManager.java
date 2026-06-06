@@ -23,7 +23,7 @@ public final class SeamlessSleepClientConfigManager {
     private static final String FILE_NAME = "seamless_sleep.toml";
     private static final String LEGACY_JSON_FILE_NAME = "seamless_sleep.json";
     private static final String LEGACY_JSONC_FILE_NAME = "seamless_sleep.jsonc";
-    private static final int CONFIG_VERSION = 6;
+    private static final int CONFIG_VERSION = 8;
 
     private static SeamlessSleepClientConfig config = defaultConfig();
     private static Path configPath;
@@ -116,10 +116,10 @@ public final class SeamlessSleepClientConfigManager {
         if (sleepIndicatorModeValue != null) {
             cfg.sleepIndicatorMode = parseSleepIndicatorMode(sleepIndicatorModeValue, cfg.sleepIndicatorMode);
         } else if (legacySleepOverlayEnabled != null) {
-            cfg.sleepIndicatorMode = legacySleepOverlayEnabled ? SleepIndicatorMode.TEXT : SleepIndicatorMode.OFF;
+            cfg.sleepIndicatorMode = legacySleepOverlayEnabled ? SleepIndicatorMode.BIOME_CLOCK : SleepIndicatorMode.OFF;
             if (legacySleepOverlayEnabled) {
                 cfg.sleepIndicatorAnchor = SleepIndicatorAnchor.TOP_LEFT;
-                cfg.sleepIndicatorVisibility = SleepIndicatorVisibility.SLEEP;
+                cfg.sleepIndicatorVisibility = SleepIndicatorVisibility.BED;
             }
         }
         cfg.sleepIndicatorAnchor = readEnum(file, List.of("sleep_indicator", "anchor"), "sleepIndicatorAnchor", SleepIndicatorAnchor.class, cfg.sleepIndicatorAnchor);
@@ -135,6 +135,48 @@ public final class SeamlessSleepClientConfigManager {
         cfg.sleepChatMaxLines = readInt(file, List.of("chat", "sleepChatMaxLines"), "sleepChatMaxLines", cfg.sleepChatMaxLines);
         cfg.sleepCameraTiltDegrees = readDouble(file, List.of("camera", "sleepCameraTiltDegrees"), "sleepCameraTiltDegrees", cfg.sleepCameraTiltDegrees);
         cfg.mouseSmoothnessPercent = readInt(file, List.of("camera", "mouseSmoothnessPercent"), "mouseSmoothnessPercent", cfg.mouseSmoothnessPercent);
+        cfg.sleepWindVolumePercent = readIntAny(
+                file,
+                List.of("sounds", "sleepWindVolumePercent"),
+                List.of("sleep_sounds", "sleepWindVolumePercent"),
+                "sleepWindVolumePercent",
+                cfg.sleepWindVolumePercent
+        );
+        Object soundtrackVolume = readRawAny(
+                file,
+                List.of("sounds", "soundtrackVolumePercent"),
+                List.of("sleep_sounds", "timelapseVolumePercent"),
+                "timelapseVolumePercent"
+        );
+        if (!(soundtrackVolume instanceof Number)) {
+            soundtrackVolume = readRaw(file, List.of("sleep_sounds", "madeInHeavenVolumePercent"), "madeInHeavenVolumePercent");
+        }
+        if (soundtrackVolume instanceof Number number) {
+            cfg.soundtrackVolumePercent = number.intValue();
+        }
+        cfg.disableSoundsDuringReplay = readBooleanAny(
+                file,
+                List.of("sounds", "disableSoundsDuringReplay"),
+                List.of("sleep_sounds", "disableSoundsDuringReplay"),
+                "disableSoundsDuringReplay",
+                cfg.disableSoundsDuringReplay
+        );
+        Boolean legacySleepSoundsEnabled = readOptionalBoolean(file, List.of("sleep_sounds", "sleepSoundsEnabled"), "sleepSoundsEnabled");
+        Boolean legacySleepWindEnabled = readOptionalBoolean(file, List.of("sleep_sounds", "sleepWindEnabled"), "sleepWindEnabled");
+        Boolean legacyTimelapseSoundsEnabled = readOptionalBoolean(file, List.of("sleep_sounds", "timelapseSoundsEnabled"), "timelapseSoundsEnabled");
+        Boolean legacyMadeInHeavenSoundEnabled = readOptionalBoolean(file, List.of("sleep_sounds", "madeInHeavenSoundEnabled"), "madeInHeavenSoundEnabled");
+        if (Boolean.FALSE.equals(legacySleepSoundsEnabled)) {
+            cfg.sleepWindVolumePercent = 0;
+            cfg.soundtrackVolumePercent = 0;
+        } else {
+            if (Boolean.FALSE.equals(legacySleepWindEnabled)) {
+                cfg.sleepWindVolumePercent = 0;
+            }
+            if (Boolean.FALSE.equals(legacyTimelapseSoundsEnabled)
+                    && Boolean.FALSE.equals(legacyMadeInHeavenSoundEnabled)) {
+                cfg.soundtrackVolumePercent = 0;
+            }
+        }
         cfg.replayCompatibilityEnabled = readBoolean(file, List.of("advanced", "replayCompatibilityEnabled"), "replayCompatibilityEnabled", cfg.replayCompatibilityEnabled);
         cfg.debugLogsEnabled = readBoolean(file, List.of("advanced", "debugLogsEnabled"), "debugLogsEnabled", cfg.debugLogsEnabled);
         if (fileConfigVersion > 0 && fileConfigVersion < 3) {
@@ -152,7 +194,7 @@ public final class SeamlessSleepClientConfigManager {
         appendSectionGap(sb, 2);
         appendSectionHeader(sb, "overlay");
         appendEntry(sb,
-                "Sleep vignette darkness while resting in bed. Range: 0.0 to 1.0. 0.0=hidden, 1.0=vanilla. Default: 0.35",
+                "Sleep vignette darkness while resting in bed. Range: 0.0 to 1.0. 0.0=hidden, 1.0=vanilla. Default: 0.20",
                 "sleepOverlayDarknessMultiplier",
                 Double.toString(cfg.sleepOverlayDarknessMultiplier));
         appendEntry(sb,
@@ -236,6 +278,21 @@ public final class SeamlessSleepClientConfigManager {
                 Integer.toString(cfg.mouseSmoothnessPercent));
 
         appendSectionGap(sb, 2);
+        appendSectionHeader(sb, "sounds");
+        appendEntry(sb,
+                "Wind loop volume. Range: 0 to 100. Default: 40",
+                "sleepWindVolumePercent",
+                Integer.toString(cfg.sleepWindVolumePercent));
+        appendEntry(sb,
+                "General soundtrack volume for timelapse and easter egg sounds. Range: 0 to 100. Default: 40",
+                "soundtrackVolumePercent",
+                Integer.toString(cfg.soundtrackVolumePercent));
+        appendEntry(sb,
+                "Suppress Seamless Sleep sounds while ReplayMod or Flashback playback is active. Range: true | false. Default: false",
+                "disableSoundsDuringReplay",
+                Boolean.toString(cfg.disableSoundsDuringReplay));
+
+        appendSectionGap(sb, 2);
         appendSectionHeader(sb, "advanced");
         appendEntry(sb,
                 "Replay and Flashback compatibility mode. Range: true | false. Default: true",
@@ -292,8 +349,26 @@ public final class SeamlessSleepClientConfigManager {
         return value instanceof Boolean bool ? bool : fallback;
     }
 
+    private static boolean readBooleanAny(CommentedFileConfig file,
+                                          List<String> primaryPath,
+                                          List<String> legacyPath,
+                                          String legacyKey,
+                                          boolean fallback) {
+        Object value = readRawAny(file, primaryPath, legacyPath, legacyKey);
+        return value instanceof Boolean bool ? bool : fallback;
+    }
+
     private static int readInt(CommentedFileConfig file, List<String> path, String legacyKey, int fallback) {
         Object value = readRaw(file, path, legacyKey);
+        return value instanceof Number number ? number.intValue() : fallback;
+    }
+
+    private static int readIntAny(CommentedFileConfig file,
+                                  List<String> primaryPath,
+                                  List<String> legacyPath,
+                                  String legacyKey,
+                                  int fallback) {
+        Object value = readRawAny(file, primaryPath, legacyPath, legacyKey);
         return value instanceof Number number ? number.intValue() : fallback;
     }
 
@@ -311,6 +386,23 @@ public final class SeamlessSleepClientConfigManager {
         if (value != null || legacyKey == null || legacyKey.isBlank()) {
             return value;
         }
+        return file.getRaw(legacyKey);
+    }
+
+    private static Object readRawAny(CommentedFileConfig file,
+                                     List<String> primaryPath,
+                                     List<String> legacyPath,
+                                     String legacyKey) {
+        Object value = primaryPath == null ? null : file.getRaw(primaryPath);
+        if (value != null) {
+            return value;
+        }
+
+        value = legacyPath == null ? null : file.getRaw(legacyPath);
+        if (value != null || legacyKey == null || legacyKey.isBlank()) {
+            return value;
+        }
+
         return file.getRaw(legacyKey);
     }
 

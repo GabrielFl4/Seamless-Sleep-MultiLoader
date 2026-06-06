@@ -12,7 +12,7 @@ public final class SeamlessSleepClientConfig {
     private static final double DEFAULT_CHAT_BG_BASE = 0.4D;
     private static final double DEFAULT_CHAT_PRESET_POSITION = 0.5D;
 
-    private static final double DEFAULT_OVERLAY_DARKNESS = 0.35D;
+    private static final double DEFAULT_OVERLAY_DARKNESS = 0.20D;
     private static final double DEFAULT_CHAT_GROUP_MULTIPLIER = DEFAULT_CHAT_PRESET_POSITION;
     private static final int DEFAULT_CHAT_MAX_LINES = 4;
     private static final double DEFAULT_TILT_DEGREES = 10.0D;
@@ -30,6 +30,8 @@ public final class SeamlessSleepClientConfig {
     private static final double MAX_TILT_DEGREES = 90.0D;
     private static final boolean DEFAULT_REPLAY_COMPATIBILITY_ENABLED = true;
     private static final boolean DEFAULT_DEBUG_LOGS_ENABLED = false;
+    private static final int MIN_SOUND_VOLUME_PERCENT = 0;
+    private static final int MAX_SOUND_VOLUME_PERCENT = 100;
 
     public double sleepOverlayDarknessMultiplier = DEFAULT_OVERLAY_DARKNESS;
     public boolean leaveBedHintEnabled = DEFAULT_LEAVE_BED_HINT_ENABLED;
@@ -52,6 +54,10 @@ public final class SeamlessSleepClientConfig {
     public int mouseSmoothnessPercent = DEFAULT_MOUSE_SMOOTHNESS_PERCENT;
     public boolean replayCompatibilityEnabled = DEFAULT_REPLAY_COMPATIBILITY_ENABLED;
     public boolean debugLogsEnabled = DEFAULT_DEBUG_LOGS_ENABLED;
+
+    public int sleepWindVolumePercent = 40;
+    public int soundtrackVolumePercent = 40;
+    public boolean disableSoundsDuringReplay = false;
 
     public void clamp() {
         sleepChatTextOpacityMultiplier = clamp01(sleepChatTextOpacityMultiplier, DEFAULT_CHAT_TEXT_BASE);
@@ -96,6 +102,8 @@ public final class SeamlessSleepClientConfig {
         sleepChatMaxLines = clampInt(sleepChatMaxLines, 0, 12, DEFAULT_CHAT_MAX_LINES);
         sleepCameraTiltDegrees = clampTiltDegrees(sleepCameraTiltDegrees, DEFAULT_TILT_DEGREES);
         mouseSmoothnessPercent = clampInt(mouseSmoothnessPercent, 0, 100, DEFAULT_MOUSE_SMOOTHNESS_PERCENT);
+        sleepWindVolumePercent = clampInt(sleepWindVolumePercent, MIN_SOUND_VOLUME_PERCENT, MAX_SOUND_VOLUME_PERCENT, 40);
+        soundtrackVolumePercent = clampInt(soundtrackVolumePercent, MIN_SOUND_VOLUME_PERCENT, MAX_SOUND_VOLUME_PERCENT, 40);
     }
 
     public double resolveSleepChatTextOpacityFactor() {

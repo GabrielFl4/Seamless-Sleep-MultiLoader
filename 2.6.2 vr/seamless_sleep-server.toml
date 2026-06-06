@@ -1,0 +1,10 @@
+config_version = 2
+mod_version = "2.6.2"
+
+
+[sleep]
+    #Chance to clear rain/thunder after sleeping. Range: 0 to 100. 0=never, 100=always
+    weather_clear_chance_percent = 100
+
+    #Sleep animation duration multiplier. Range: 0.25 to 8.0. Default: 1.0
+    sleepAnimationDurationMultiplier = 1.0

@@ -84,27 +84,6 @@ public final class SeamlessSleepCommands {
                                                                 IntegerArgumentType.getInteger(ctx, "days"),
                                                                 IntegerArgumentType.getInteger(ctx, "seconds"),
                                                                 SleepAnimationSoundMode.EPIC
-                                                        )))
-                                                .then(Commands.literal("none")
-                                                        .executes(ctx -> startTimelapse(
-                                                                ctx,
-                                                                IntegerArgumentType.getInteger(ctx, "days"),
-                                                                IntegerArgumentType.getInteger(ctx, "seconds"),
-                                                                SleepAnimationSoundMode.MUTED
-                                                        )))
-                                                .then(Commands.literal("sfx")
-                                                        .executes(ctx -> startTimelapse(
-                                                                ctx,
-                                                                IntegerArgumentType.getInteger(ctx, "days"),
-                                                                IntegerArgumentType.getInteger(ctx, "seconds"),
-                                                                SleepAnimationSoundMode.DEFAULT
-                                                        )))
-                                                .then(Commands.literal("music")
-                                                        .executes(ctx -> startTimelapse(
-                                                                ctx,
-                                                                IntegerArgumentType.getInteger(ctx, "days"),
-                                                                IntegerArgumentType.getInteger(ctx, "seconds"),
-                                                                SleepAnimationSoundMode.EPIC
                                                         ))))))
                         .then(Commands.literal("set")
                                 .then(Commands.literal("sleepClearsWeather")

@@ -33,5 +33,6 @@ public abstract class MinecraftSleepAnimationCleanupMixin {
         }
 
         SeamlessSleepClientState.SLEEP_ANIMATION.resetIfWorldMismatch(world, "world_changed");
+        SleepSoundManager.tick(client);
     }
 }

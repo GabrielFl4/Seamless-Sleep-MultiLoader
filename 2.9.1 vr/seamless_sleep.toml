@@ -1,0 +1,90 @@
+config_version = 8
+mod_version = "2.9.1"
+
+
+[overlay]
+    #Sleep vignette darkness while resting in bed. Range: 0.0 to 1.0. 0.0=hidden, 1.0=vanilla. Default: 0.35
+    sleepOverlayDarknessMultiplier = 0.0
+
+    #Show leave bed hint. Range: true | false. Default: true
+    leaveBedHintEnabled = true
+
+    #Show sleep context messages. Includes bed restrictions and sleeping progress. Range: true | false. Default: true
+    sleepContextEnabled = true
+
+
+
+[sleep_indicator]
+    #Sleep indicator renderer. Range: OFF | TEXT | BIOME_CLOCK | TIMESTAMP. Default: BIOME_CLOCK
+    mode = "TEXT"
+
+    #Sleep indicator screen anchor. Range: TOP_LEFT | TOP_CENTER | TOP_RIGHT | BOTTOM_RIGHT | CENTER. Default: TOP_LEFT
+    anchor = "TOP_LEFT"
+
+    #Sleep indicator visibility. Range: BED | SLEEP | ALWAYS. Default: BED
+    visibility = "SLEEP"
+
+    #Sleep indicator visual scale. Range: 0.25 to 4.0. Default: 1.0
+    scale = 1.0
+
+
+[sleep_indicator.timestamp]
+    #Timestamp layout. Range: DAY_FIRST | TIME_FIRST. Default: DAY_FIRST
+    style = "DAY_FIRST"
+
+    #Timestamp text color as RGB decimal. Default: 16777215 (white)
+    color = 16777215
+
+
+
+[sleep_zzz]
+    #Chance to show world-space Zs for each counted sleep session. Range: 0 to 100. 0=never, 100=always. Default: 70
+    chance = 70
+
+    #Visual style for sleeping Zs. Range: SEQUENTIAL_TRAIL | CARTOON_DRIFT. Default: CARTOON_DRIFT
+    style = "CARTOON_DRIFT"
+
+
+
+[chat]
+    #Overall chat opacity while resting in bed. Range: 0.0 to 1.0. 0.0=hidden, 0.5=current Seamless preset, 1.0=vanilla. Default: 0.5
+    sleepChatOpacityMultiplier = 0.5
+
+    #Visible chat lines while resting in bed. Range: integer 0 to 12. Default: 4
+    sleepChatMaxLines = 4
+
+    #Legacy text opacity anchor kept for compatibility. It defines the midpoint preset used by the overall chat opacity slider. Range: 0.0 to 1.0. Default: 0.5
+    sleepChatTextOpacityMultiplier = 0.0
+
+    #Legacy background opacity anchor kept for compatibility. It defines the midpoint preset used by the overall chat opacity slider. Range: 0.0 to 1.0. Default: 0.4
+    sleepChatBackgroundOpacityMultiplier = 0.4
+
+
+
+[camera]
+    #Lay down camera tilt in degrees. Range: 0.0 to 90.0. Value 0.0 is canonicalized to 0.1. Default: 10.0
+    sleepCameraTiltDegrees = 10.0
+
+    #Mouse damping percent while resting and during the sleep skip. It scales both the smoothing and the custom reduced look response. Range: 0 to 100. 0=vanilla, 100=max. Default: 100
+    mouseSmoothnessPercent = 100
+
+
+
+[sounds]
+    #Wind loop volume. Range: 0 to 100. Default: 40
+    sleepWindVolumePercent = 40
+
+    #General soundtrack volume for timelapse and easter egg sounds. Range: 0 to 100. Default: 70
+    soundtrackVolumePercent = 70
+
+    #Suppress Seamless Sleep sounds while ReplayMod or Flashback playback is active. Range: true | false. Default: false
+    disableSoundsDuringReplay = false
+
+
+
+[advanced]
+    #Replay and Flashback compatibility mode. Range: true | false. Default: true
+    replayCompatibilityEnabled = true
+
+    #Verbose debug logs. Range: true | false. Default: false
+    debugLogsEnabled = false
