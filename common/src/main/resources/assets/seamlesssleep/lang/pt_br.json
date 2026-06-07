@@ -77,7 +77,7 @@
   "config.seamlesssleep.sleep.fall_asleep_delay.desc": "Quanto tempo um jogador contado precisa ficar na cama antes do skip poder comecar.",
   "config.seamlesssleep.sleep.fall_asleep_delay.command": "/sleep set fallAsleepDelayTicks <0..200>",
   "config.seamlesssleep.sleep.eligibility": "Elegibilidade de Sono",
-  "config.seamlesssleep.sleep.eligibility.desc": "Controla se jogadores podem apenas repousar sem pular o tempo, dormir pelas regras vanilla, ou também dormir durante o dia.",
+  "config.seamlesssleep.sleep.eligibility.desc": "Insônia → Jogadores podem deitar, mas nunca dormir.\n\nVanilla → Regras padrões do jogo.\n\nDia Incluso → Jogadores podem dormir de dia e noite.",
   "config.seamlesssleep.sleep.eligibility.command": "/sleep set sleepEligibility <insomnia | vanilla | day_included>",
   "config.seamlesssleep.sleep.eligibility.insomnia": "Insônia",
   "config.seamlesssleep.sleep.eligibility.vanilla": "Vanilla",
