@@ -10,6 +10,7 @@ import dev.isxander.yacl3.api.YetAnotherConfigLib;
 import dev.isxander.yacl3.api.controller.BooleanControllerBuilder;
 import dev.isxander.yacl3.api.controller.ColorControllerBuilder;
 import dev.isxander.yacl3.api.controller.ControllerBuilder;
+import dev.isxander.yacl3.api.controller.CyclingListControllerBuilder;
 import dev.isxander.yacl3.api.controller.DoubleSliderControllerBuilder;
 import dev.isxander.yacl3.api.controller.EnumControllerBuilder;
 import dev.isxander.yacl3.api.controller.IntegerSliderControllerBuilder;
@@ -69,6 +70,11 @@ import java.util.function.IntSupplier;
 import java.util.function.Supplier;
 
 final class FabricYaclConfigScreen {
+    private static final SleepEligibilityMode[] SELECTABLE_SLEEP_ELIGIBILITY_MODES = {
+            SleepEligibilityMode.INSOMNIA,
+            SleepEligibilityMode.VANILLA,
+            SleepEligibilityMode.DAY_INCLUDED
+    };
 
     private FabricYaclConfigScreen() {
     }
@@ -207,12 +213,13 @@ final class FabricYaclConfigScreen {
                 Component.empty(),
                 SleepEligibilityMode.VANILLA,
                 SleepEligibilityMode.class,
-                () -> uiState.boundSleepEligibility,
-                value -> uiState.boundSleepEligibility = value == null ? SleepEligibilityMode.VANILLA : value,
+                () -> selectableSleepEligibility(uiState.boundSleepEligibility),
+                value -> uiState.boundSleepEligibility = selectableSleepEligibility(value),
                 canEditServerConfig,
                 value -> enumText("config.seamlesssleep.sleep.eligibility", value),
                 session,
-                ServerConfigField.SLEEP_ELIGIBILITY
+                ServerConfigField.SLEEP_ELIGIBILITY,
+                SELECTABLE_SLEEP_ELIGIBILITY_MODES
         );
         listenServer(session, ServerConfigField.SLEEP_ELIGIBILITY, sleepEligibilityOption, value -> uiState.sleepEligibility = value);
 
@@ -1217,8 +1224,46 @@ final class FabricYaclConfigScreen {
         return builder.build();
     }
 
+    private static <E extends Enum<E>> Option<E> buildEnumOption(Component name,
+                                                                 Component description,
+                                                                 Component disabledReason,
+                                                                 E def,
+                                                                 Class<E> enumClass,
+                                                                 Supplier<E> getter,
+                                                                 Consumer<E> setter,
+                                                                 boolean available,
+                                                                 Function<E, Component> formatter,
+                                                                 RemoteServerConfigScreenSession session,
+                                                                 ServerConfigField field,
+                                                                 E[] values) {
+        OptionDescription optionDescription = optionDescription(description, disabledReason, available);
+        Option.Builder<E> builder = withConflictController(Option.<E>createBuilder()
+                .name(name)
+                .description(withConflictDescription(optionDescription, session, field))
+                .binding(def, getter::get, setter::accept),
+                opt -> CyclingListControllerBuilder.create(opt)
+                        .values(values)
+                        .formatValue(formatter::apply),
+                session,
+                field);
+        builder.available(available);
+        return builder.build();
+    }
+
     private static Component enumText(String keyPrefix, Enum<?> value) {
         return Component.translatable(keyPrefix + "." + value.name().toLowerCase(Locale.ROOT));
+    }
+
+    private static SleepEligibilityMode selectableSleepEligibility(SleepEligibilityMode value) {
+        if (value == SleepEligibilityMode.INSOMNIA
+                || value == SleepEligibilityMode.VANILLA
+                || value == SleepEligibilityMode.DAY_INCLUDED) {
+            return value;
+        }
+        if (value == SleepEligibilityMode.ALWAYS) {
+            return SleepEligibilityMode.DAY_INCLUDED;
+        }
+        return SleepEligibilityMode.VANILLA;
     }
 
     private static Component formatPercentValue(Integer value) {
@@ -1895,7 +1940,7 @@ final class FabricYaclConfigScreen {
             );
             this.boundOverrideOverlayText = this.overrideOverlayText;
             this.boundOverlayCustomText = SeamlessSleepServerConfig.sanitizeOverlayText(this.overlayCustomText);
-            this.boundSleepEligibility = this.sleepEligibility == null ? SleepEligibilityMode.VANILLA : this.sleepEligibility;
+            this.boundSleepEligibility = selectableSleepEligibility(this.sleepEligibility);
             this.boundMadeInHeavenChancePercent = Mth.clamp(this.madeInHeavenChancePercent, 0, 100);
             this.boundMode = this.mode == null ? WorldSleepAccelerationMode.AUTOMATIC : this.mode;
             this.boundDisplayedAccelerationRadius = this.resolveDisplayedAccelerationRadius();
@@ -1980,6 +2025,7 @@ final class FabricYaclConfigScreen {
 
         private Object optionValue(ServerConfigField field) {
             return switch (field) {
+                case SLEEP_ELIGIBILITY -> selectableSleepEligibility(sleepEligibility);
                 case MANUAL_ACCELERATION_RADIUS_CHUNKS -> resolveDisplayedAccelerationRadius();
                 case MANUAL_ACCELERATION_SPEED_PERCENT -> resolveDisplayedAccelerationSpeedPercent();
                 case WORLD_SLEEP_ACCELERATION_PLAYERS_AFFECTED -> resolveDisplayedPlayersAffected();

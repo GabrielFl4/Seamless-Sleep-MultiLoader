@@ -28,6 +28,7 @@ import net.aqualoco.sec.sleep.SleepAnimationPhase;
 import net.aqualoco.sec.sleep.SleepAnimationSoundMode;
 import net.aqualoco.sec.sleep.SleepAnimationState;
 import net.aqualoco.sec.sleep.SleepAnimationVisualContext;
+import net.aqualoco.sec.sleep.SleepWeatherHelper;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -152,14 +153,14 @@ public final class SeamlessSleepCommands {
                                                 ))))
                                 .then(Commands.literal("sleepEligibility")
                                         .executes(SeamlessSleepCommands::getSleepEligibility)
+                                        .then(Commands.literal("insomnia")
+                                                .executes(ctx -> setSleepEligibility(ctx, SleepEligibilityMode.INSOMNIA)))
                                         .then(Commands.literal("vanilla")
                                                 .executes(ctx -> setSleepEligibility(ctx, SleepEligibilityMode.VANILLA)))
                                         .then(Commands.literal("day_included")
                                                 .executes(ctx -> setSleepEligibility(ctx, SleepEligibilityMode.DAY_INCLUDED)))
                                         .then(Commands.literal("dayIncluded")
-                                                .executes(ctx -> setSleepEligibility(ctx, SleepEligibilityMode.DAY_INCLUDED)))
-                                        .then(Commands.literal("always")
-                                                .executes(ctx -> setSleepEligibility(ctx, SleepEligibilityMode.ALWAYS))))
+                                                .executes(ctx -> setSleepEligibility(ctx, SleepEligibilityMode.DAY_INCLUDED))))
                                 .then(Commands.literal("madeInHeavenChance")
                                         .executes(SeamlessSleepCommands::getMadeInHeavenChance)
                                         .then(Commands.argument("value", IntegerArgumentType.integer(0, 100))
@@ -527,6 +528,7 @@ public final class SeamlessSleepCommands {
         }
 
         WorldSleepAccelerationManager.refreshForLevelTick(overworld);
+        SleepWeatherHelper.clearWeatherCycle(overworld);
         SleepAnimationNetworking.sendStart(overworld, state);
         return 1;
     }
@@ -1044,6 +1046,7 @@ public final class SeamlessSleepCommands {
     private static String formatSleepEligibility(SleepEligibilityMode mode) {
         SleepEligibilityMode resolved = mode == null ? SleepEligibilityMode.VANILLA : mode;
         return switch (resolved) {
+            case INSOMNIA -> "INSOMNIA";
             case VANILLA -> "VANILLA";
             case DAY_INCLUDED -> "DAY_INCLUDED";
             case ALWAYS -> "ALWAYS";

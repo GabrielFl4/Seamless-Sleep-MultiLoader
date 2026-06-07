@@ -35,7 +35,7 @@ public abstract class BedBlockRestingMixin {
         Either<Player.BedSleepingProblem, Unit> sleepResult = player.startSleepInBed(bedPos);
         if (sleepResult.right().isPresent()) {
             BedRestingHelper.initializeAuthoritativeBedLook(serverPlayer, bedPos);
-            BedRestingHelper.syncManagedSleepState(serverPlayer, true);
+            BedRestingHelper.syncManagedSleepState(serverPlayer, BedRestingHelper.canCountForSleep(serverPlayer, bedPos));
             BedRestingHelper.showLeaveBedHint(serverPlayer);
             return sleepResult;
         }

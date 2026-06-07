@@ -491,7 +491,7 @@ public final class SeamlessSleepServerConfigManager {
                 "text_indicator_custom_text",
                 toTomlString(cfg.overlayCustomText));
         appendEntry(sb,
-                "Sleep eligibility policy. Values: VANILLA, DAY_INCLUDED, ALWAYS. Default: VANILLA",
+                "Sleep eligibility policy. Values: INSOMNIA, VANILLA, DAY_INCLUDED. Default: VANILLA. Legacy manual value ALWAYS is still accepted",
                 "sleep_eligibility",
                 toTomlString(cfg.sleepEligibility.name()));
 

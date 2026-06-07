@@ -1,6 +1,7 @@
 package net.aqualoco.sec.config;
 
 public enum SleepEligibilityMode {
+    INSOMNIA,
     VANILLA,
     DAY_INCLUDED,
     ALWAYS;
@@ -11,5 +12,9 @@ public enum SleepEligibilityMode {
 
     public boolean ignoresMonsterCheck() {
         return this == ALWAYS;
+    }
+
+    public boolean preventsSleepSkip() {
+        return this == INSOMNIA;
     }
 }

@@ -8,6 +8,7 @@
     "bed.BedBlockRestingMixin",
     "sleep.LevelSleepBrightnessAccessor",
     "sleep.BlockEntitySetChangedInvoker",
+    "sleep.ServerLevelWeatherInvoker",
     "sleep.AbstractFurnaceBlockEntityAccelerationMixin",
     "bed.LivingEntityBedRestingMixin",
     "bed.PlayerBedRestingMixin",

@@ -212,6 +212,10 @@ public final class BedRestingHelper {
         }
 
         SleepEligibilityMode eligibility = SeamlessSleepServerConfigManager.get().sleepEligibility;
+        if (eligibility.preventsSleepSkip()) {
+            return false;
+        }
+
         boolean bedRuleAllowsSleep = SleepDimensionSupport.canCountForSleepNow(player, bedPos);
         if (!bedRuleAllowsSleep && !eligibility.allowsDaySleep()) {
             return false;
@@ -237,6 +241,9 @@ public final class BedRestingHelper {
 
     public static boolean canCountForMadeInHeaven(ServerPlayer player, @Nullable BlockPos bedPos) {
         if (!isManagedBedState(player) || !player.isAlive() || bedPos == null) {
+            return false;
+        }
+        if (SeamlessSleepServerConfigManager.get().sleepEligibility.preventsSleepSkip()) {
             return false;
         }
 

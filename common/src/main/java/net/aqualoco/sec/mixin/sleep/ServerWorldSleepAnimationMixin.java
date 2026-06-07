@@ -17,6 +17,7 @@ import net.aqualoco.sec.sleep.SleepAnimationStopReason;
 import net.aqualoco.sec.sleep.SleepStatusUpdateSuppression;
 import net.aqualoco.sec.sleep.SleepAnimationVisualContext;
 import net.aqualoco.sec.sleep.SleepRequirement;
+import net.aqualoco.sec.sleep.SleepWeatherHelper;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.gamerules.GameRules;
@@ -251,6 +252,9 @@ public abstract class ServerWorldSleepAnimationMixin {
         }
 
         this.seamlesssleep$sleepAnimationWakePlayers = state.shouldWakePlayersOnFinish();
+        if (state.getMode() == SleepAnimationMode.MADE_IN_HEAVEN_BED) {
+            SleepWeatherHelper.clearWeatherCycle(world);
+        }
         int weatherChancePercent = SeamlessSleepServerConfigManager.get().sleepWeatherClearChancePercent;
         this.seamlesssleep$sleepAnimationResetWeather = state.getMode().resetsWeatherOnFinish()
                 && seamlesssleep$rollWeatherClearChance(world, weatherChancePercent);
@@ -262,7 +266,7 @@ public abstract class ServerWorldSleepAnimationMixin {
     @Unique
     private void seamlesssleep$tryStartCustomBedSleep(ServerLevel world, SleepAnimationState state) {
         SleepEligibilityMode eligibility = SeamlessSleepServerConfigManager.get().sleepEligibility;
-        if (eligibility == SleepEligibilityMode.VANILLA) {
+        if (eligibility == SleepEligibilityMode.VANILLA || eligibility.preventsSleepSkip()) {
             return;
         }
         if (!world.getGameRules().get(GameRules.ADVANCE_TIME)) {
@@ -310,6 +314,7 @@ public abstract class ServerWorldSleepAnimationMixin {
 
         this.seamlesssleep$sleepAnimationWakePlayers = state.shouldWakePlayersOnFinish();
         this.seamlesssleep$sleepAnimationResetWeather = false;
+        SleepWeatherHelper.clearWeatherCycle(world);
         WorldSleepAccelerationManager.refreshForLevelTick(world);
         SleepAnimationNetworking.sendStart(world, state);
         Constants.debug("Starting Made In Heaven bed animation outside normal sleep eligibility: {}", currentTime);
