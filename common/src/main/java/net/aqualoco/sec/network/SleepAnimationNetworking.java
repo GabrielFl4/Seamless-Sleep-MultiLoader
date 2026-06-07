@@ -56,7 +56,9 @@ public final class SleepAnimationNetworking {
         if (!ServerSeamlessClientPresenceManager.isConfirmed(player)) {
             return;
         }
-        if (!state.isActive() || !player.level().dimension().equals(world.dimension())) {
+        if (!state.isActive()
+                || state.hasVisualFinishBeenAnnounced()
+                || !player.level().dimension().equals(world.dimension())) {
             return;
         }
 

@@ -45,6 +45,9 @@ public final class ClientSleepAnimationState {
     private float replayCompatElapsedTicksFallback;
     private boolean loggedReplayTimelineFallback;
     private boolean replayCompatPendingWorldTimeReanchor;
+    private boolean finishedDayTimeLockActive;
+    private long finishedDayTimeLockDayTime;
+    private int finishedDayTimeLockWorldIdentity;
 
     public boolean isActive() {
         return this.active;
@@ -145,6 +148,7 @@ public final class ClientSleepAnimationState {
 
     public void reset() {
         this.clearPlaybackState(false);
+        this.clearFinishedDayTimeLock();
     }
 
     public void resetForWorldExit(String reason) {
@@ -158,6 +162,7 @@ public final class ClientSleepAnimationState {
         this.sequenceId = -1L;
         this.activeWorldIdentity = 0;
         this.clearPlaybackState(false);
+        this.clearFinishedDayTimeLock();
     }
 
     public void resetIfWorldMismatch(ClientLevel world, String reason) {
@@ -185,6 +190,7 @@ public final class ClientSleepAnimationState {
             return;
         }
         this.resetIfWorldMismatch(world, "start_world_changed");
+        this.clearFinishedDayTimeLock();
 
         boolean replayCompatEnabled = SeamlessSleepClientConfigManager.get().replayCompatibilityEnabled;
         boolean replayCompatActive = replayCompatEnabled && ReplayPlaybackCompat.isReplayPlaybackActive();
@@ -279,6 +285,9 @@ public final class ClientSleepAnimationState {
             return;
         }
 
+        boolean shouldLockFinishedDayTime = reason == SleepAnimationStopReason.FINISHED
+                && !replayCompatActive
+                && world != null;
         if (world != null) {
             world.getLevelData().setDayTime(finalDayTime);
         }
@@ -294,8 +303,29 @@ public final class ClientSleepAnimationState {
                 ? SleepAnimationPhase.FINISHED
                 : SleepAnimationPhase.CANCELLED;
         this.clearPlaybackState(false);
+        if (shouldLockFinishedDayTime) {
+            this.startFinishedDayTimeLock(world, finalDayTime);
+        } else {
+            this.clearFinishedDayTimeLock();
+        }
 
         Constants.debug("Client sleep animation finished/stopped: {} (session {})", reason, sessionId);
+    }
+
+    public void tickFinishedDayTimeLock(ClientLevel world, boolean playerStillSleeping) {
+        if (!this.finishedDayTimeLockActive) {
+            return;
+        }
+        if (world == null
+                || !playerStillSleeping
+                || this.finishedDayTimeLockWorldIdentity != System.identityHashCode(world)) {
+            this.clearFinishedDayTimeLock();
+            return;
+        }
+
+        world.getLevelData().setDayTime(this.finishedDayTimeLockDayTime);
+        this.currentAuthoritativeDayTime = this.finishedDayTimeLockDayTime;
+        this.currentVisualDayTime = this.finishedDayTimeLockDayTime;
     }
 
     public void tick(ClientLevel world, DeltaTracker deltaTracker) {
@@ -743,6 +773,18 @@ public final class ClientSleepAnimationState {
         if (!keepWorldAnchor) {
             this.activeWorldIdentity = 0;
         }
+    }
+
+    private void startFinishedDayTimeLock(ClientLevel world, long finalDayTime) {
+        this.finishedDayTimeLockActive = true;
+        this.finishedDayTimeLockDayTime = finalDayTime;
+        this.finishedDayTimeLockWorldIdentity = System.identityHashCode(world);
+    }
+
+    private void clearFinishedDayTimeLock() {
+        this.finishedDayTimeLockActive = false;
+        this.finishedDayTimeLockDayTime = 0L;
+        this.finishedDayTimeLockWorldIdentity = 0;
     }
 
     private static double clamp01(double value) {

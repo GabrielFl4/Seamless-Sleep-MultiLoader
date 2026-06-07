@@ -528,10 +528,6 @@ public final class SeamlessSleepCommands {
 
         WorldSleepAccelerationManager.refreshForLevelTick(overworld);
         SleepAnimationNetworking.sendStart(overworld, state);
-        context.getSource().sendSuccess(
-                () -> timelapseStartedMessage(days, seconds, resolvedSoundMode),
-                true
-        );
         return 1;
     }
 
@@ -544,18 +540,10 @@ public final class SeamlessSleepCommands {
 
         SleepAnimationState state = SeamlessSleepCommon.OVERWORLD_SLEEP_ANIMATION;
         if (!state.isActive() || state.getMode() != SleepAnimationMode.COMMAND_TIMELAPSE) {
-            context.getSource().sendSuccess(
-                    () -> Component.translatable("command.seamlesssleep.timelapse.stop.none"),
-                    false
-            );
             return 0;
         }
 
         if (state.getPhase() == SleepAnimationPhase.BRAKING) {
-            context.getSource().sendSuccess(
-                    () -> Component.translatable("command.seamlesssleep.timelapse.stop.already_stopping"),
-                    false
-            );
             return 1;
         }
 
@@ -566,10 +554,6 @@ public final class SeamlessSleepCommands {
 
         WorldSleepAccelerationManager.refreshForLevelTick(overworld);
         SleepAnimationNetworking.sendStart(overworld, state);
-        context.getSource().sendSuccess(
-                () -> Component.translatable("command.seamlesssleep.timelapse.stop.started"),
-                true
-        );
         return 1;
     }
 
@@ -997,22 +981,6 @@ public final class SeamlessSleepCommands {
         ServerConfigMutationService.saveAndSync(context.getSource().getServer(), config);
         context.getSource().sendSuccess(() -> message, true);
         return 1;
-    }
-
-    private static Component timelapseStartedMessage(int days, int seconds, SleepAnimationSoundMode soundMode) {
-        if (soundMode.isMuted()) {
-            return Component.translatable(
-                    "command.seamlesssleep.timelapse.started.muted",
-                    days,
-                    seconds
-            );
-        }
-        return Component.translatable(
-                "command.seamlesssleep.timelapse.started.profile",
-                days,
-                seconds,
-                Component.translatable("command.seamlesssleep.sound_profile." + soundMode.name().toLowerCase(Locale.ROOT))
-        );
     }
 
     private static String formatPercent(double value) {

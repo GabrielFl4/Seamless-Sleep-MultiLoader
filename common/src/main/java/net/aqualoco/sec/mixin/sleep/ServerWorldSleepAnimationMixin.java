@@ -209,6 +209,11 @@ public abstract class ServerWorldSleepAnimationMixin {
 
         state.tick(self);
 
+        if (state.consumeVisualFinishEvent()) {
+            WorldSleepAccelerationManager.refreshForLevelTick(self);
+            SleepAnimationNetworking.sendFinish(self, state);
+        }
+
         if (!state.isActive() && state.isFinishedNaturally()) {
             if (state.getMode() == SleepAnimationMode.MADE_IN_HEAVEN_BED
                     && state.shouldWakePlayersOnFinish()
@@ -217,7 +222,9 @@ public abstract class ServerWorldSleepAnimationMixin {
             }
             this.seamlesssleep$finishSleepAnimation(state);
             WorldSleepAccelerationManager.refreshForLevelTick(self);
-            SleepAnimationNetworking.sendFinish(self, state);
+            if (!state.hasVisualFinishBeenAnnounced()) {
+                SleepAnimationNetworking.sendFinish(self, state);
+            }
         }
     }
 

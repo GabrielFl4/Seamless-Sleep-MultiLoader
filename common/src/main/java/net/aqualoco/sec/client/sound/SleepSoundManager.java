@@ -17,10 +17,9 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.client.resources.sounds.SoundInstance;
-import net.minecraft.core.BlockPos;
+import net.minecraft.client.resources.sounds.TickableSoundInstance;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
-import net.minecraft.world.level.Level;
 
 import java.util.Locale;
 
@@ -93,6 +92,7 @@ public final class SleepSoundManager {
     private static SoundInstance madeInHeavenStopSound;
     private static SoundInstance bellSound;
     private static SoundInstance astroPassSound;
+    private static final SleepAudioEnvironment audioEnvironment = new SleepAudioEnvironment();
 
     private SleepSoundManager() {
     }
@@ -124,8 +124,11 @@ public final class SleepSoundManager {
             stopMadeInHeavenMainSound(MADE_IN_HEAVEN_MAIN_FADE_OUT_CANCEL_TICKS);
             stopOneShotSounds(client);
             cancelMadeInHeavenDelayedSounds();
+            audioEnvironment.reset();
             return;
         }
+
+        primeAudioEnvironment(client);
 
         if (activeMode == SleepAnimationMode.COMMAND_TIMELAPSE) {
             handleTimelapsePayload(client, freshPayload);
@@ -159,20 +162,23 @@ public final class SleepSoundManager {
         stopWindLoop(WIND_STOP_FADE_TICKS);
         stopMadeInHeavenMainSound(MADE_IN_HEAVEN_MAIN_FADE_OUT_CANCEL_TICKS);
         resetSessionState("sleep_stop_" + payload.reason().name().toLowerCase(Locale.ROOT));
+        audioEnvironment.reset();
     }
 
     public static void tick(Minecraft client) {
-        pruneStoppedSounds();
         if (client == null) {
             stopAllLoops();
+            audioEnvironment.reset();
             return;
         }
 
+        pruneStoppedSounds(client);
         if (shouldSuppressAllAudio(client)) {
             stopAllLoops();
             stopMadeInHeavenMainSound(MADE_IN_HEAVEN_MAIN_FADE_OUT_CANCEL_TICKS);
             stopOneShotSounds(client);
             cancelMadeInHeavenDelayedSounds();
+            audioEnvironment.reset();
             return;
         }
 
@@ -183,6 +189,7 @@ public final class SleepSoundManager {
             stopMadeInHeavenMainSound(MADE_IN_HEAVEN_MAIN_FADE_OUT_CANCEL_TICKS);
             stopOneShotSounds(client);
             cancelMadeInHeavenDelayedSounds();
+            audioEnvironment.reset();
             return;
         }
 
@@ -191,11 +198,14 @@ public final class SleepSoundManager {
             stopAllLoops();
             stopMadeInHeavenMainSound(MADE_IN_HEAVEN_MAIN_FADE_OUT_CANCEL_TICKS);
             cancelMadeInHeavenDelayedSounds();
+            audioEnvironment.reset();
             return;
         }
 
+        audioEnvironment.update(level, player);
         updateMadeInHeavenDelayedIntroStart(client);
         updateMadeInHeavenDelayedTimeDecel(client);
+        updateMadeInHeavenMainVolume(client);
         updateWindLoop(client, level, player, sleepState);
         updateAstroPassSound(client, sleepState);
         updateTimelapseEpicDecel(client, sleepState);
@@ -210,24 +220,25 @@ public final class SleepSoundManager {
         stopMadeInHeavenMainSound(MADE_IN_HEAVEN_MAIN_FADE_OUT_CANCEL_TICKS);
         stopOneShotSounds(client);
         resetSessionState(reason);
+        audioEnvironment.reset();
     }
 
     private static void handleTimelapsePayload(Minecraft client, boolean freshPayload) {
         SeamlessSleepClientConfig config = SeamlessSleepClientConfigManager.get();
-        if (config.soundtrackVolumePercent <= 0 || activeSoundMode.isMuted()) {
+        if (activeSoundMode.isMuted()) {
             stopWindLoop(WIND_STOP_FADE_TICKS);
             return;
         }
 
         if (activePhase == SleepAnimationPhase.BRAKING) {
             stopWindLoop(WIND_STOP_FADE_TICKS);
-            if (activeSoundMode == SleepAnimationSoundMode.EPIC && freshPayload) {
+            if (activeSoundMode == SleepAnimationSoundMode.EPIC && freshPayload && config.soundtrackVolumePercent > 0) {
                 playTimeDecelOnce(client, config);
             }
             return;
         }
 
-        if (activeSoundMode == SleepAnimationSoundMode.EPIC && freshPayload) {
+        if (activeSoundMode == SleepAnimationSoundMode.EPIC && freshPayload && config.soundtrackVolumePercent > 0) {
             playTimeAccelOnce(client, config);
         }
     }
@@ -281,7 +292,7 @@ public final class SleepSoundManager {
         if (!madeInHeavenCancelBrakeActive) {
             madeInHeavenCancelBrakeActive = true;
             madeInHeavenNaturalBrakeActive = false;
-            madeInHeavenBrakeWindStartVolume = getCurrentWindVolumeSafely();
+            madeInHeavenBrakeWindStartVolume = getCurrentWindVolumeSafely(client);
             stopMadeInHeavenMainSound(MADE_IN_HEAVEN_MAIN_FADE_OUT_CANCEL_TICKS);
             madeInHeavenMainFadeOutMode = "CANCEL";
             playMadeInHeavenStopOnce(client, config);
@@ -417,7 +428,7 @@ public final class SleepSoundManager {
         double curve = startGate * brakeEnvelope * Math.max(velocityCurve, brakeTail);
         double base = activeMode == SleepAnimationMode.NORMAL_SLEEP ? 0.28D : 0.34D;
 
-        double environment = computeSkyExposureMultiplier(level, player) * computeWeatherMultiplier(level);
+        double environment = audioEnvironment.windMultiplier() * computeWeatherMultiplier(level);
         double velocityBlend = 0.70D + 0.30D * speedIntensity;
         double motionVariation = computeWindMotionVariation(level, progress, speedIntensity);
         double configuredVolume = config.sleepWindVolumePercent / 100.0D;
@@ -514,19 +525,6 @@ public final class SleepSoundManager {
         return 1.0D + (slow * 0.65D + slower * 0.35D) * amplitude;
     }
 
-    private static double computeSkyExposureMultiplier(ClientLevel level, LocalPlayer player) {
-        if (level.dimension() != Level.OVERWORLD) {
-            return 0.45D;
-        }
-
-        BlockPos eyePos = BlockPos.containing(player.getX(), player.getEyeY(), player.getZ());
-        if (level.canSeeSky(eyePos) || level.canSeeSky(player.blockPosition())) {
-            return 1.0D;
-        }
-
-        return player.getY() <= 45.0D ? 0.18D : 0.45D;
-    }
-
     private static double computeWeatherMultiplier(ClientLevel level) {
         if (level.isThundering()) {
             return WIND_THUNDER_VOLUME_MULTIPLIER;
@@ -548,10 +546,14 @@ public final class SleepSoundManager {
     }
 
     private static void ensureWindLoop(Minecraft client) {
-        if (windLoop != null && !windLoop.isStopped()) {
+        if (isSoundReferenceAlive(client, windLoop)) {
             return;
         }
 
+        windLoop = null;
+        if (client == null) {
+            return;
+        }
         windLoop = new SleepLoopSoundInstance(SleepSoundIds.SLEEP_WIND, SoundSource.AMBIENT, WIND_FADE_TICKS);
         client.getSoundManager().play(windLoop);
     }
@@ -572,13 +574,38 @@ public final class SleepSoundManager {
         }
     }
 
-    private static void pruneStoppedSounds() {
-        if (windLoop != null && windLoop.isStopped()) {
+    private static void pruneStoppedSounds(Minecraft client) {
+        if (windLoop != null && !isSoundReferenceAlive(client, windLoop)) {
             windLoop = null;
         }
-        if (madeInHeavenMainSound != null && madeInHeavenMainSound.isStopped()) {
+        if (madeInHeavenMainSound != null && !isSoundReferenceAlive(client, madeInHeavenMainSound)) {
             madeInHeavenMainSound = null;
         }
+        if (timeAccelSound != null && !isSoundReferenceAlive(client, timeAccelSound)) {
+            timeAccelSound = null;
+        }
+        if (timeDecelSound != null && !isSoundReferenceAlive(client, timeDecelSound)) {
+            timeDecelSound = null;
+        }
+        if (madeInHeavenStopSound != null && !isSoundReferenceAlive(client, madeInHeavenStopSound)) {
+            madeInHeavenStopSound = null;
+        }
+        if (bellSound != null && !isSoundReferenceAlive(client, bellSound)) {
+            bellSound = null;
+        }
+        if (astroPassSound != null && !isSoundReferenceAlive(client, astroPassSound)) {
+            astroPassSound = null;
+        }
+    }
+
+    private static boolean isSoundReferenceAlive(Minecraft client, SoundInstance instance) {
+        if (client == null || instance == null) {
+            return false;
+        }
+        if (instance instanceof TickableSoundInstance tickableSound && tickableSound.isStopped()) {
+            return false;
+        }
+        return client.getSoundManager().isActive(instance);
     }
 
     private static SoundInstance playOneShot(Minecraft client,
@@ -702,10 +729,14 @@ public final class SleepSoundManager {
     }
 
     private static void startMadeInHeavenMainNow(Minecraft client, SeamlessSleepClientConfig config) {
-        if (madeInHeavenMainSound != null && !madeInHeavenMainSound.isStopped()) {
+        if (isSoundReferenceAlive(client, madeInHeavenMainSound)) {
             return;
         }
 
+        madeInHeavenMainSound = null;
+        if (client == null) {
+            return;
+        }
         madeInHeavenMainSound = new SleepFadingSoundInstance(
                 SleepSoundIds.MADE_IN_HEAVEN_MAIN,
                 SoundSource.AMBIENT,
@@ -715,6 +746,31 @@ public final class SleepSoundManager {
         client.getSoundManager().play(madeInHeavenMainSound);
         madeInHeavenMainStartedSessionId = activeSessionId;
         madeInHeavenMainFadeOutMode = "NONE";
+    }
+
+    private static void updateMadeInHeavenMainVolume(Minecraft client) {
+        if (activeMode != SleepAnimationMode.MADE_IN_HEAVEN_BED
+                || madeInHeavenMainStartedSessionId != activeSessionId
+                || !"NONE".equals(madeInHeavenMainFadeOutMode)) {
+            return;
+        }
+
+        SeamlessSleepClientConfig config = SeamlessSleepClientConfigManager.get();
+        if (config.soundtrackVolumePercent <= 0) {
+            stopMadeInHeavenMainSound(MADE_IN_HEAVEN_MAIN_FADE_OUT_CANCEL_TICKS);
+            return;
+        }
+
+        if (!isSoundReferenceAlive(client, madeInHeavenMainSound)) {
+            madeInHeavenMainSound = null;
+            if (activePhase == SleepAnimationPhase.RUNNING
+                    || (activePhase == SleepAnimationPhase.BRAKING && madeInHeavenNaturalBrakeActive)) {
+                startMadeInHeavenMainNow(client, config);
+            }
+            return;
+        }
+
+        madeInHeavenMainSound.setTargetVolume(soundtrackVolume(config, MADE_IN_HEAVEN_MAIN_VOLUME));
     }
 
     private static void startMadeInHeavenBrake(Minecraft client,
@@ -748,7 +804,7 @@ public final class SleepSoundManager {
         madeInHeavenNaturalBrakeActive = false;
         madeInHeavenCancelBrakeActive = true;
         madeInHeavenDelayedDecelIsCancel = true;
-        madeInHeavenBrakeWindStartVolume = getCurrentWindVolumeSafely();
+        madeInHeavenBrakeWindStartVolume = getCurrentWindVolumeSafely(client);
         stopMadeInHeavenMainSound(MADE_IN_HEAVEN_MAIN_FADE_OUT_CANCEL_TICKS);
         madeInHeavenMainFadeOutMode = "CANCEL";
         playMadeInHeavenStopOnce(client, config);
@@ -764,8 +820,8 @@ public final class SleepSoundManager {
         return clamp01(computeMadeInHeavenNaturalDecelDelayTicks() / (double) Math.max(1, activeDurationTicks));
     }
 
-    private static float getCurrentWindVolumeSafely() {
-        return windLoop != null && !windLoop.isStopped() ? windLoop.getCurrentVolume() : 0.0F;
+    private static float getCurrentWindVolumeSafely(Minecraft client) {
+        return isSoundReferenceAlive(client, windLoop) ? windLoop.getCurrentVolume() : 0.0F;
     }
 
     private static void updateMadeInHeavenDelayedTimeDecel(Minecraft client) {
@@ -884,7 +940,15 @@ public final class SleepSoundManager {
     }
 
     private static float soundtrackVolume(SeamlessSleepClientConfig config, float multiplier) {
-        return (float) clamp01((config.soundtrackVolumePercent / 100.0D) * multiplier);
+        return (float) clamp01((config.soundtrackVolumePercent / 100.0D) * multiplier * audioEnvironment.mainMultiplier());
+    }
+
+    private static void primeAudioEnvironment(Minecraft client) {
+        if (client == null || client.level == null || client.player == null) {
+            audioEnvironment.reset();
+            return;
+        }
+        audioEnvironment.updateImmediate(client.level, client.player);
     }
 
     private static void resetSessionState(String reason) {

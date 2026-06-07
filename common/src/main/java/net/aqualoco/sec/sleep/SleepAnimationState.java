@@ -11,6 +11,8 @@ public final class SleepAnimationState {
     private static final int MIN_DURATION_TICKS = 40;   // ~2s
     private static final int MAX_DURATION_TICKS = 180;  // ~9s
     private static final long VISUAL_FINISH_DAY_TIME_THRESHOLD = 2L;
+    private static final double VISUAL_FINISH_PROGRESS_THRESHOLD = 0.985D;
+    private static final int POST_VISUAL_FINISH_WAKE_DELAY_TICKS = 14;
     private static final long UNSET_START_GAME_TIME = Long.MIN_VALUE;
     private static final int MADE_IN_HEAVEN_MAX_CYCLES = 21;
     private static final int MADE_IN_HEAVEN_MANUAL_BRAKE_TICKS = 60;
@@ -34,6 +36,9 @@ public final class SleepAnimationState {
     private long lastAppliedDayTime;
     private double cachedProgress;
     private boolean wakePlayersOnFinish;
+    private int postVisualFinishWakeDelayTicks;
+    private boolean visualFinishEventPending;
+    private boolean visualFinishAnnounced;
 
     public boolean isActive() {
         return this.active;
@@ -115,6 +120,7 @@ public final class SleepAnimationState {
         this.lastAppliedDayTime = currentTime;
         this.cachedProgress = 0.0D;
         this.wakePlayersOnFinish = true;
+        this.resetVisualFinishState();
 
         Constants.debug(
                 "Made In Heaven bed animation started on server (session {}, {} -> {}, gameTime {})",
@@ -213,6 +219,7 @@ public final class SleepAnimationState {
         this.lastAppliedDayTime = currentTime;
         this.cachedProgress = 0.0D;
         this.wakePlayersOnFinish = wakePlayersOnFinish;
+        this.resetVisualFinishState();
 
         Constants.debug(
                 "{} (session {}, {} -> {}, duration {} ticks)",
@@ -239,6 +246,7 @@ public final class SleepAnimationState {
             this.phase = SleepAnimationPhase.IDLE;
             this.cachedProgress = 0.0D;
             this.wakePlayersOnFinish = false;
+            this.resetVisualFinishState();
             return false;
         }
 
@@ -266,6 +274,7 @@ public final class SleepAnimationState {
         this.lastAppliedDayTime = currentTime;
         this.cachedProgress = 0.0D;
         this.wakePlayersOnFinish = this.mode.wakesPlayersOnFinish();
+        this.resetVisualFinishState();
 
         Constants.debug(
                 "Sleep animation started on server (session {}, {} -> {}, duration {} ticks, gameTime {})",
@@ -284,10 +293,16 @@ public final class SleepAnimationState {
         this.phase = SleepAnimationPhase.CANCELLED;
         this.cachedProgress = 0.0D;
         this.wakePlayersOnFinish = false;
+        this.resetVisualFinishState();
     }
 
     public void tick(ServerLevel world) {
         if (!this.active) {
+            return;
+        }
+
+        if (this.phase == SleepAnimationPhase.FINISHED) {
+            this.tickPostVisualFinishWakeHold(world);
             return;
         }
 
@@ -323,7 +338,7 @@ public final class SleepAnimationState {
         long interpolated = this.startTimeOfDay + (long) (delta * eased);
         if (this.endTimeOfDay >= this.startTimeOfDay) {
             interpolated = Math.max(interpolated, this.lastAppliedDayTime);
-            if (this.endTimeOfDay - interpolated <= VISUAL_FINISH_DAY_TIME_THRESHOLD) {
+            if (this.isPerceptuallyFinished(x, interpolated)) {
                 this.finish(world);
                 return;
             }
@@ -352,11 +367,46 @@ public final class SleepAnimationState {
     }
 
     private void finish(ServerLevel world) {
-        this.active = false;
         this.phase = SleepAnimationPhase.FINISHED;
         this.cachedProgress = 1.0D;
         this.lastAppliedDayTime = this.endTimeOfDay;
         world.setDayTime(this.endTimeOfDay);
+        this.visualFinishEventPending = true;
+        this.visualFinishAnnounced = false;
+        if (this.shouldHoldWakeAfterVisualFinish()) {
+            this.active = true;
+            this.postVisualFinishWakeDelayTicks = POST_VISUAL_FINISH_WAKE_DELAY_TICKS;
+        } else {
+            this.active = false;
+            this.postVisualFinishWakeDelayTicks = 0;
+        }
+    }
+
+    private void tickPostVisualFinishWakeHold(ServerLevel world) {
+        this.cachedProgress = 1.0D;
+        this.lastAppliedDayTime = this.endTimeOfDay;
+        world.setDayTime(this.endTimeOfDay);
+        if (this.postVisualFinishWakeDelayTicks > 0) {
+            this.postVisualFinishWakeDelayTicks--;
+        }
+        if (this.postVisualFinishWakeDelayTicks <= 0) {
+            this.active = false;
+        }
+    }
+
+    private boolean isPerceptuallyFinished(double progress, long interpolatedDayTime) {
+        return progress >= VISUAL_FINISH_PROGRESS_THRESHOLD
+                || this.endTimeOfDay - interpolatedDayTime <= VISUAL_FINISH_DAY_TIME_THRESHOLD;
+    }
+
+    private boolean shouldHoldWakeAfterVisualFinish() {
+        return this.wakePlayersOnFinish && this.mode.isBedSleepMode();
+    }
+
+    private void resetVisualFinishState() {
+        this.postVisualFinishWakeDelayTicks = 0;
+        this.visualFinishEventPending = false;
+        this.visualFinishAnnounced = false;
     }
 
     public long getSessionId() {
@@ -407,6 +457,19 @@ public final class SleepAnimationState {
         return this.phase == SleepAnimationPhase.FINISHED;
     }
 
+    public boolean consumeVisualFinishEvent() {
+        if (!this.visualFinishEventPending) {
+            return false;
+        }
+        this.visualFinishEventPending = false;
+        this.visualFinishAnnounced = true;
+        return true;
+    }
+
+    public boolean hasVisualFinishBeenAnnounced() {
+        return this.visualFinishAnnounced;
+    }
+
     public boolean shouldWakePlayersOnFinish() {
         return this.wakePlayersOnFinish;
     }
@@ -420,7 +483,7 @@ public final class SleepAnimationState {
     }
 
     public double getAverageLogicalWorldRate() {
-        if (!this.active) {
+        if (!this.active || this.phase == SleepAnimationPhase.FINISHED) {
             return 1.0D;
         }
 
@@ -437,7 +500,7 @@ public final class SleepAnimationState {
     }
 
     public double getCurrentLogicalWorldRate() {
-        if (!this.active || this.durationTicks <= 0) {
+        if (!this.active || this.phase == SleepAnimationPhase.FINISHED || this.durationTicks <= 0) {
             return 1.0D;
         }
 
@@ -470,7 +533,7 @@ public final class SleepAnimationState {
     }
 
     public double getEasedVelocityFactor() {
-        if (!this.active) {
+        if (!this.active || this.phase == SleepAnimationPhase.FINISHED) {
             return 0.0D;
         }
 

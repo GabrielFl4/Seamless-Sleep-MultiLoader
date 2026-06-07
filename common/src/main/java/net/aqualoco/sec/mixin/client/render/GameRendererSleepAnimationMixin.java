@@ -49,6 +49,11 @@ public abstract class GameRendererSleepAnimationMixin {
         if (SeamlessSleepClientState.SLEEP_ANIMATION.isActive()) {
             SeamlessSleepClientState.SLEEP_ANIMATION.tick(world, deltaTracker);
         }
+        LocalPlayer player = client.player;
+        SeamlessSleepClientState.SLEEP_ANIMATION.tickFinishedDayTimeLock(
+                world,
+                player != null && player.isSleeping()
+        );
     }
 
     @Inject(method = "renderItemInHand", at = @At("HEAD"), cancellable = true)
