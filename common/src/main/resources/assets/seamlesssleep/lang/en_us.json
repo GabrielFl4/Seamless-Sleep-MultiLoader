@@ -77,7 +77,7 @@
   "config.seamlesssleep.sleep.fall_asleep_delay.desc": "How long a counted player must stay in bed before the sleep skip can start.",
   "config.seamlesssleep.sleep.fall_asleep_delay.command": "/sleep set fallAsleepDelayTicks <0..200>",
   "config.seamlesssleep.sleep.eligibility": "Sleep Eligibility",
-  "config.seamlesssleep.sleep.eligibility.desc": "Controls whether players can only rest without skipping time, sleep by vanilla rules, or also sleep during the day.",
+  "config.seamlesssleep.sleep.eligibility.desc": "Insomnia → Players can lie down, but never sleep.\n\nVanilla → Default game rules.\n\nDay Included → Players can sleep during the day and night.",
   "config.seamlesssleep.sleep.eligibility.command": "/sleep set sleepEligibility <insomnia | vanilla | day_included>",
   "config.seamlesssleep.sleep.eligibility.insomnia": "Insomnia",
   "config.seamlesssleep.sleep.eligibility.vanilla": "Vanilla",
