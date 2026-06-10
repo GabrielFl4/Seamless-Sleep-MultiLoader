@@ -180,6 +180,7 @@ public final class ServerConfigMutationService {
             case SLEEP_ELIGIBILITY -> config.sleepEligibility = parseEnum(value, SleepEligibilityMode.class, field);
             case MADE_IN_HEAVEN_CHANCE_PERCENT ->
                     config.madeInHeavenChancePercent = parseInt(value, 0, 100, field);
+            case BETTER_DAYS_COMPATIBILITY_ENABLED -> config.betterDaysCompatibilityEnabled = parseBoolean(value, field);
             case WORLD_SLEEP_ACCELERATION_MODE ->
                     config.worldSleepAcceleration.mode = parseEnum(value, WorldSleepAccelerationMode.class, field);
             case WORLD_SLEEP_AUTOMATIC_MODE ->
@@ -261,6 +262,7 @@ public final class ServerConfigMutationService {
         target.overlayCustomText = source.overlayCustomText;
         target.sleepEligibility = source.sleepEligibility;
         target.madeInHeavenChancePercent = source.madeInHeavenChancePercent;
+        target.betterDaysCompatibilityEnabled = source.betterDaysCompatibilityEnabled;
         target.worldSleepAcceleration.mode = source.worldSleepAcceleration.mode;
         target.worldSleepAcceleration.automaticMode = source.worldSleepAcceleration.automaticMode;
         target.worldSleepAcceleration.playersAffected = source.worldSleepAcceleration.playersAffected;

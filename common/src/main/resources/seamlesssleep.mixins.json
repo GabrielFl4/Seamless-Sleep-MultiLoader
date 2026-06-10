@@ -16,6 +16,8 @@
     "sleep.ServerLevelRandomTickAccelerationMixin",
     "sleep.ServerWorldSleepAnimationMixin",
     "sleep.PlayerEntitySleepAnimationMixin",
+    "compat.BetterDaysSleepFeatureMixin",
+    "compat.BetterDaysSleepStatusMixin",
     "network.PlayerListOperatorAccessMixin",
     "network.ServerGamePacketListenerBedRestingMixin",
     "bed.ServerPlayerBedRestingMixin"

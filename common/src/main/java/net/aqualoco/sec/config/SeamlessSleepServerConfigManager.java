@@ -15,7 +15,7 @@ public final class SeamlessSleepServerConfigManager {
     private static final String FILE_NAME = "seamless_sleep-server.toml";
     private static final String LEGACY_JSON_FILE_NAME = "seamless_sleep-server.json";
     private static final String LEGACY_JSONC_FILE_NAME = "seamless_sleep-server.jsonc";
-    private static final int CONFIG_VERSION = 6;
+    private static final int CONFIG_VERSION = 7;
 
     public enum ReloadResult {
         SUCCESS,
@@ -205,6 +205,12 @@ public final class SeamlessSleepServerConfigManager {
                 List.of("easter_eggs", "made_in_heaven_chance_percent"),
                 "madeInHeavenChancePercent",
                 cfg.madeInHeavenChancePercent
+        );
+        cfg.betterDaysCompatibilityEnabled = readBoolean(
+                file,
+                List.of("compatibility", "better_days_sleep_compatibility_enabled"),
+                "betterDaysCompatibilityEnabled",
+                cfg.betterDaysCompatibilityEnabled
         );
         readWorldSleepAcceleration(file, cfg.worldSleepAcceleration);
         cfg.clamp();
@@ -501,6 +507,13 @@ public final class SeamlessSleepServerConfigManager {
                 "Chance for bed sleep to use Made In Heaven. Range: 0 to 100. 0=off",
                 "made_in_heaven_chance_percent",
                 Integer.toString(cfg.madeInHeavenChancePercent));
+
+        appendSectionGap(sb, 1);
+        appendSectionHeader(sb, "compatibility");
+        appendEntry(sb,
+                "When true, Seamless Sleep disables Better Days sleep features while leaving Better Days day/night duration active",
+                "better_days_sleep_compatibility_enabled",
+                Boolean.toString(cfg.betterDaysCompatibilityEnabled));
 
         appendSectionGap(sb, 1);
         appendSectionHeader(sb, "world_sleep_acceleration");

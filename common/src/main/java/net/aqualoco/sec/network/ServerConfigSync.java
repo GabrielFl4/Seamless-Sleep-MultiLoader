@@ -58,7 +58,8 @@ public final class ServerConfigSync {
                 config.worldSleepAcceleration.kelpAccelerationEnabled,
                 config.worldSleepAcceleration.vanillaOnlyAcceleration,
                 config.worldSleepAcceleration.processesAccelerationEnabled,
-                config.worldSleepAcceleration.processesSpeedPercent
+                config.worldSleepAcceleration.processesSpeedPercent,
+                config.betterDaysCompatibilityEnabled
         );
     }
 }

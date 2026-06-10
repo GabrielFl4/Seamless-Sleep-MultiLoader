@@ -21,6 +21,7 @@ public final class SeamlessSleepServerConfigSnapshot {
     private static boolean vanillaOnlyAcceleration = WorldSleepAccelerationConfig.DEFAULT_VANILLA_ONLY_ACCELERATION;
     private static boolean processesAccelerationEnabled = true;
     private static int processesSpeedPercent = 100;
+    private static boolean betterDaysCompatibilityEnabled = SeamlessSleepServerConfig.DEFAULT_BETTER_DAYS_COMPATIBILITY_ENABLED;
     private static boolean initialized;
 
     private SeamlessSleepServerConfigSnapshot() {
@@ -44,7 +45,8 @@ public final class SeamlessSleepServerConfigSnapshot {
                               boolean kelpEnabled,
                               boolean vanillaOnly,
                               boolean processesEnabled,
-                              int processesSpeedPercentValue) {
+                              int processesSpeedPercentValue,
+                              boolean betterDaysCompatibilityEnabledValue) {
         sleepWeatherClearChancePercent = weatherClearChancePercent;
         sleepAnimationDurationMultiplier = durationMultiplier;
         fallAsleepDelayTicks = SeamlessSleepServerConfig.clampInt(
@@ -68,11 +70,36 @@ public final class SeamlessSleepServerConfigSnapshot {
         vanillaOnlyAcceleration = vanillaOnly;
         processesAccelerationEnabled = processesEnabled;
         processesSpeedPercent = processesSpeedPercentValue;
+        betterDaysCompatibilityEnabled = betterDaysCompatibilityEnabledValue;
         initialized = true;
     }
 
     public static boolean isInitialized() {
         return initialized;
+    }
+
+    public static void reset() {
+        sleepWeatherClearChancePercent = 100;
+        sleepAnimationDurationMultiplier = 1.0D;
+        fallAsleepDelayTicks = SeamlessSleepServerConfig.DEFAULT_FALL_ASLEEP_DELAY_TICKS;
+        overrideOverlayText = false;
+        overlayCustomText = SeamlessSleepServerConfig.DEFAULT_OVERLAY_CUSTOM_TEXT;
+        sleepEligibility = SleepEligibilityMode.VANILLA;
+        madeInHeavenChancePercent = 0;
+        serverSimulationDistance = 12;
+        worldSleepAccelerationMode = WorldSleepAccelerationMode.AUTOMATIC;
+        worldSleepAutomaticMode = WorldSleepAutomaticMode.AGGRESSIVE;
+        worldSleepAccelerationPlayersAffected = WorldSleepAccelerationPlayersAffected.ALL_PLAYERS;
+        manualAccelerationRadiusChunks = WorldSleepAccelerationConfig.DEFAULT_MANUAL_RADIUS_CHUNKS;
+        manualAccelerationSpeedPercent = WorldSleepAccelerationConfig.DEFAULT_MANUAL_SPEED_PERCENT;
+        grassAndFoliageAccelerationEnabled = true;
+        cropsAndSaplingsAccelerationEnabled = true;
+        kelpAccelerationEnabled = false;
+        vanillaOnlyAcceleration = WorldSleepAccelerationConfig.DEFAULT_VANILLA_ONLY_ACCELERATION;
+        processesAccelerationEnabled = true;
+        processesSpeedPercent = 100;
+        betterDaysCompatibilityEnabled = SeamlessSleepServerConfig.DEFAULT_BETTER_DAYS_COMPATIBILITY_ENABLED;
+        initialized = false;
     }
 
     public static int getSleepWeatherClearChancePercent() {
@@ -149,5 +176,9 @@ public final class SeamlessSleepServerConfigSnapshot {
 
     public static int getProcessesSpeedPercent() {
         return processesSpeedPercent;
+    }
+
+    public static boolean isBetterDaysCompatibilityEnabled() {
+        return betterDaysCompatibilityEnabled;
     }
 }

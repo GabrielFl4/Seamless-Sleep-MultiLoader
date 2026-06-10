@@ -1,6 +1,7 @@
 package net.aqualoco.sec.handshake;
 
 import net.aqualoco.sec.Constants;
+import net.aqualoco.sec.client.RemoteServerConfigClientState;
 import net.aqualoco.sec.network.ClientHelloC2SPayload;
 import net.aqualoco.sec.network.ServerHelloS2CPayload;
 import net.aqualoco.sec.platform.Services;
@@ -103,6 +104,7 @@ public final class ClientHandshakeState {
         serverVersion = "unknown";
         serverProtocol = -1;
         serverFeatureFlags = 0;
+        RemoteServerConfigClientState.reset();
     }
 
     private static void disconnectIfServerMissingSeamless(Minecraft client) {

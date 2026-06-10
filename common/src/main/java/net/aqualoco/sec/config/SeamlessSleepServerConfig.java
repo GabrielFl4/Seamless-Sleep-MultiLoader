@@ -7,6 +7,7 @@ public final class SeamlessSleepServerConfig {
     public static final int MAX_FALL_ASLEEP_DELAY_TICKS = 200;
     public static final int MAX_OVERLAY_CUSTOM_TEXT_LENGTH = 128;
     public static final String DEFAULT_OVERLAY_CUSTOM_TEXT = "Sleeping...";
+    public static final boolean DEFAULT_BETTER_DAYS_COMPATIBILITY_ENABLED = true;
 
     public int sleepWeatherClearChancePercent = 100;
     public double sleepAnimationDurationMultiplier = 1.0D;
@@ -15,6 +16,7 @@ public final class SeamlessSleepServerConfig {
     public String overlayCustomText = DEFAULT_OVERLAY_CUSTOM_TEXT;
     public SleepEligibilityMode sleepEligibility = SleepEligibilityMode.VANILLA;
     public int madeInHeavenChancePercent = 0;
+    public boolean betterDaysCompatibilityEnabled = DEFAULT_BETTER_DAYS_COMPATIBILITY_ENABLED;
     public final WorldSleepAccelerationConfig worldSleepAcceleration = new WorldSleepAccelerationConfig();
 
     public void clamp() {

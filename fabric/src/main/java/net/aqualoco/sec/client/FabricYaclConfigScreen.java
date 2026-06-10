@@ -556,6 +556,32 @@ final class FabricYaclConfigScreen {
         );
         listenServer(session, ServerConfigField.MADE_IN_HEAVEN_CHANCE_PERCENT, madeInHeavenChanceOption, value -> uiState.madeInHeavenChancePercent = value);
 
+        Option<Boolean> betterDaysCompatibilityOption = buildToggle(
+                Component.translatable("config.seamlesssleep.compat.better_days"),
+                serverDescription(
+                        Component.translatable("config.seamlesssleep.compat.better_days.desc"),
+                        "config.seamlesssleep.compat.better_days.command"
+                ),
+                Component.empty(),
+                SeamlessSleepServerConfig.DEFAULT_BETTER_DAYS_COMPATIBILITY_ENABLED,
+                () -> uiState.boundBetterDaysCompatibilityEnabled,
+                value -> uiState.boundBetterDaysCompatibilityEnabled = value,
+                canEditServerConfig,
+                session,
+                ServerConfigField.BETTER_DAYS_COMPATIBILITY_ENABLED
+        );
+        listenServer(session, ServerConfigField.BETTER_DAYS_COMPATIBILITY_ENABLED, betterDaysCompatibilityOption, value -> uiState.betterDaysCompatibilityEnabled = value);
+
+        OptionGroup compatibilityGroup = OptionGroup.createBuilder()
+                .name(Component.translatable("config.seamlesssleep.server.group.compatibility"))
+                .description(description(
+                        Component.translatable("config.seamlesssleep.server.group.compatibility.desc"),
+                        canEditServerConfig
+                ))
+                .collapsed(false)
+                .option(betterDaysCompatibilityOption)
+                .build();
+
         OptionGroup easterEggsGroup = OptionGroup.createBuilder()
                 .name(Component.translatable("config.seamlesssleep.server.group.easter_eggs"))
                 .description(description(
@@ -596,6 +622,7 @@ final class FabricYaclConfigScreen {
                         value -> cfg.disableSoundsDuringReplay = value,
                         true
                 ))
+                .group(compatibilityGroup)
                 .group(easterEggsGroup)
                 .build();
     }
@@ -1819,6 +1846,7 @@ final class FabricYaclConfigScreen {
         private String overlayCustomText;
         private SleepEligibilityMode sleepEligibility;
         private int madeInHeavenChancePercent;
+        private boolean betterDaysCompatibilityEnabled;
         private WorldSleepAccelerationMode mode;
         private WorldSleepAutomaticMode automaticMode;
         private WorldSleepAccelerationPlayersAffected playersAffected;
@@ -1837,6 +1865,7 @@ final class FabricYaclConfigScreen {
         private String boundOverlayCustomText;
         private SleepEligibilityMode boundSleepEligibility;
         private int boundMadeInHeavenChancePercent;
+        private boolean boundBetterDaysCompatibilityEnabled;
         private WorldSleepAccelerationMode boundMode;
         private int boundDisplayedAccelerationRadius;
         private int boundDisplayedAccelerationSpeedPercent;
@@ -1862,6 +1891,7 @@ final class FabricYaclConfigScreen {
             state.overlayCustomText = serverCfg.overlayCustomText;
             state.sleepEligibility = serverCfg.sleepEligibility;
             state.madeInHeavenChancePercent = serverCfg.madeInHeavenChancePercent;
+            state.betterDaysCompatibilityEnabled = serverCfg.betterDaysCompatibilityEnabled;
             state.mode = serverCfg.worldSleepAcceleration.mode;
             state.automaticMode = serverCfg.worldSleepAcceleration.automaticMode;
             state.playersAffected = serverCfg.worldSleepAcceleration.playersAffected;
@@ -1886,6 +1916,7 @@ final class FabricYaclConfigScreen {
             state.overlayCustomText = SeamlessSleepServerConfigSnapshot.getOverlayCustomText();
             state.sleepEligibility = SeamlessSleepServerConfigSnapshot.getSleepEligibility();
             state.madeInHeavenChancePercent = SeamlessSleepServerConfigSnapshot.getMadeInHeavenChancePercent();
+            state.betterDaysCompatibilityEnabled = SeamlessSleepServerConfigSnapshot.isBetterDaysCompatibilityEnabled();
             state.mode = SeamlessSleepServerConfigSnapshot.getWorldSleepAccelerationMode();
             state.automaticMode = SeamlessSleepServerConfigSnapshot.getWorldSleepAutomaticMode();
             state.playersAffected = SeamlessSleepServerConfigSnapshot.getWorldSleepAccelerationPlayersAffected();
@@ -1916,6 +1947,7 @@ final class FabricYaclConfigScreen {
             this.overlayCustomText = source.overlayCustomText;
             this.sleepEligibility = source.sleepEligibility;
             this.madeInHeavenChancePercent = source.madeInHeavenChancePercent;
+            this.betterDaysCompatibilityEnabled = source.betterDaysCompatibilityEnabled;
             this.mode = source.mode;
             this.automaticMode = source.automaticMode;
             this.playersAffected = source.playersAffected;
@@ -1942,6 +1974,7 @@ final class FabricYaclConfigScreen {
             this.boundOverlayCustomText = SeamlessSleepServerConfig.sanitizeOverlayText(this.overlayCustomText);
             this.boundSleepEligibility = selectableSleepEligibility(this.sleepEligibility);
             this.boundMadeInHeavenChancePercent = Mth.clamp(this.madeInHeavenChancePercent, 0, 100);
+            this.boundBetterDaysCompatibilityEnabled = this.betterDaysCompatibilityEnabled;
             this.boundMode = this.mode == null ? WorldSleepAccelerationMode.AUTOMATIC : this.mode;
             this.boundDisplayedAccelerationRadius = this.resolveDisplayedAccelerationRadius();
             this.boundDisplayedAccelerationSpeedPercent = this.resolveDisplayedAccelerationSpeedPercent();
@@ -2007,6 +2040,7 @@ final class FabricYaclConfigScreen {
                 case OVERLAY_CUSTOM_TEXT -> SeamlessSleepServerConfig.sanitizeOverlayText(overlayCustomText);
                 case SLEEP_ELIGIBILITY -> sleepEligibility == null ? SleepEligibilityMode.VANILLA : sleepEligibility;
                 case MADE_IN_HEAVEN_CHANCE_PERCENT -> madeInHeavenChancePercent;
+                case BETTER_DAYS_COMPATIBILITY_ENABLED -> betterDaysCompatibilityEnabled;
                 case WORLD_SLEEP_ACCELERATION_MODE -> mode == null ? WorldSleepAccelerationMode.AUTOMATIC : mode;
                 case WORLD_SLEEP_AUTOMATIC_MODE -> automaticMode == null ? WorldSleepAutomaticMode.AGGRESSIVE : automaticMode;
                 case WORLD_SLEEP_ACCELERATION_PLAYERS_AFFECTED -> playersAffected == null
@@ -2042,6 +2076,7 @@ final class FabricYaclConfigScreen {
                 case OVERLAY_CUSTOM_TEXT -> overlayCustomText = (String) value;
                 case SLEEP_ELIGIBILITY -> sleepEligibility = (SleepEligibilityMode) value;
                 case MADE_IN_HEAVEN_CHANCE_PERCENT -> madeInHeavenChancePercent = (Integer) value;
+                case BETTER_DAYS_COMPATIBILITY_ENABLED -> betterDaysCompatibilityEnabled = (Boolean) value;
                 case WORLD_SLEEP_ACCELERATION_MODE -> mode = (WorldSleepAccelerationMode) value;
                 case WORLD_SLEEP_AUTOMATIC_MODE -> automaticMode = (WorldSleepAutomaticMode) value;
                 case WORLD_SLEEP_ACCELERATION_PLAYERS_AFFECTED -> playersAffected = (WorldSleepAccelerationPlayersAffected) value;
@@ -2069,6 +2104,7 @@ final class FabricYaclConfigScreen {
             serverCfg.overlayCustomText = overlayCustomText;
             serverCfg.sleepEligibility = sleepEligibility == null ? SleepEligibilityMode.VANILLA : sleepEligibility;
             serverCfg.madeInHeavenChancePercent = madeInHeavenChancePercent;
+            serverCfg.betterDaysCompatibilityEnabled = betterDaysCompatibilityEnabled;
             serverCfg.worldSleepAcceleration.mode = mode;
             serverCfg.worldSleepAcceleration.automaticMode = automaticMode;
             serverCfg.worldSleepAcceleration.playersAffected = playersAffected == null

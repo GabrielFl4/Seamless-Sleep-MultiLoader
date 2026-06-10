@@ -168,6 +168,20 @@ public final class SeamlessSleepCommands {
                                                         ctx,
                                                         IntegerArgumentType.getInteger(ctx, "value")
                                                 ))))
+                                .then(Commands.literal("betterDaysCompatibility")
+                                        .executes(SeamlessSleepCommands::getBetterDaysCompatibility)
+                                        .then(Commands.argument("value", BoolArgumentType.bool())
+                                                .executes(ctx -> setBetterDaysCompatibility(
+                                                        ctx,
+                                                        BoolArgumentType.getBool(ctx, "value")
+                                                ))))
+                                .then(Commands.literal("betterDaysSleepCompatibility")
+                                        .executes(SeamlessSleepCommands::getBetterDaysCompatibility)
+                                        .then(Commands.argument("value", BoolArgumentType.bool())
+                                                .executes(ctx -> setBetterDaysCompatibility(
+                                                        ctx,
+                                                        BoolArgumentType.getBool(ctx, "value")
+                                                ))))
                                 .then(Commands.literal("worldAccelerationMode")
                                         .then(Commands.literal("NONE")
                                                 .executes(ctx -> setWorldAccelerationMode(ctx, WorldSleepAccelerationMode.OFF)))
@@ -489,6 +503,25 @@ public final class SeamlessSleepCommands {
                 context,
                 config,
                 "Made In Heaven Chance updated to " + config.madeInHeavenChancePercent + "%."
+        );
+    }
+
+    private static int getBetterDaysCompatibility(CommandContext<CommandSourceStack> context) {
+        SeamlessSleepServerConfig config = SeamlessSleepServerConfigManager.get();
+        context.getSource().sendSuccess(
+                () -> Component.literal("Better Days Compatibility is " + formatOnOff(config.betterDaysCompatibilityEnabled) + "."),
+                false
+        );
+        return 1;
+    }
+
+    private static int setBetterDaysCompatibility(CommandContext<CommandSourceStack> context, boolean value) {
+        SeamlessSleepServerConfig config = SeamlessSleepServerConfigManager.get();
+        config.betterDaysCompatibilityEnabled = value;
+        return saveAndSyncConfig(
+                context,
+                config,
+                "Better Days Compatibility updated to " + formatOnOff(value) + "."
         );
     }
 

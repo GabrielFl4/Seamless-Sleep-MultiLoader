@@ -30,7 +30,8 @@ public record ServerConfigSyncPayload(int sleepWeatherClearChancePercent,
                                       boolean kelpAccelerationEnabled,
                                       boolean vanillaOnlyAcceleration,
                                       boolean processesAccelerationEnabled,
-                                      int processesSpeedPercent) implements CustomPacketPayload {
+                                      int processesSpeedPercent,
+                                      boolean betterDaysCompatibilityEnabled) implements CustomPacketPayload {
 
     public static final Type<ServerConfigSyncPayload> ID =
             new Type<>(Identifier.fromNamespaceAndPath(Constants.MOD_ID, "server_config_sync"));
@@ -61,6 +62,7 @@ public record ServerConfigSyncPayload(int sleepWeatherClearChancePercent,
         buf.writeBoolean(payload.vanillaOnlyAcceleration());
         buf.writeBoolean(payload.processesAccelerationEnabled());
         buf.writeVarInt(payload.processesSpeedPercent());
+        buf.writeBoolean(payload.betterDaysCompatibilityEnabled());
     }
 
     private static ServerConfigSyncPayload read(FriendlyByteBuf buf) {
@@ -110,6 +112,9 @@ public record ServerConfigSyncPayload(int sleepWeatherClearChancePercent,
         boolean vanillaOnlyAcceleration = buf.readBoolean();
         boolean processesEnabled = buf.readBoolean();
         int processesSpeedPercent = buf.readVarInt();
+        boolean betterDaysCompatibilityEnabled = buf.readableBytes() > 0
+                ? buf.readBoolean()
+                : SeamlessSleepServerConfig.DEFAULT_BETTER_DAYS_COMPATIBILITY_ENABLED;
         return new ServerConfigSyncPayload(
                 weatherClearChancePercent,
                 durationMultiplier,
@@ -129,7 +134,8 @@ public record ServerConfigSyncPayload(int sleepWeatherClearChancePercent,
                 kelpEnabled,
                 vanillaOnlyAcceleration,
                 processesEnabled,
-                processesSpeedPercent
+                processesSpeedPercent,
+                betterDaysCompatibilityEnabled
         );
     }
 
@@ -179,7 +185,8 @@ public record ServerConfigSyncPayload(int sleepWeatherClearChancePercent,
                 kelpEnabled,
                 vanillaOnlyAcceleration,
                 processesEnabled,
-                processesSpeedPercent
+                processesSpeedPercent,
+                SeamlessSleepServerConfig.DEFAULT_BETTER_DAYS_COMPATIBILITY_ENABLED
         );
     }
 

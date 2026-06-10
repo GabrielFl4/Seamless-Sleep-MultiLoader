@@ -29,6 +29,14 @@ public final class RemoteServerConfigClientState {
         return serverConfigRevision;
     }
 
+    public static void reset() {
+        canEditServerConfig = false;
+        requiredPermissionLevel = 0;
+        serverConfigRevision = 0;
+        activeListener = null;
+        SeamlessSleepServerConfigSnapshot.reset();
+    }
+
     public static void applyServerConfig(ServerConfigSyncPayload payload) {
         SeamlessSleepServerConfigSnapshot.update(
                 payload.sleepWeatherClearChancePercent(),
@@ -49,7 +57,8 @@ public final class RemoteServerConfigClientState {
                 payload.kelpAccelerationEnabled(),
                 payload.vanillaOnlyAcceleration(),
                 payload.processesAccelerationEnabled(),
-                payload.processesSpeedPercent()
+                payload.processesSpeedPercent(),
+                payload.betterDaysCompatibilityEnabled()
         );
 
         Listener listener = activeListener();
