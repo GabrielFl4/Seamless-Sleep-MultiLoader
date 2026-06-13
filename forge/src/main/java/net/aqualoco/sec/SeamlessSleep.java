@@ -2,6 +2,7 @@ package net.aqualoco.sec;
 
 import net.aqualoco.sec.client.ForgeConfigScreens;
 import net.aqualoco.sec.client.ForgeHudOverlayLayers;
+import net.aqualoco.sec.client.VivecraftClientCompat;
 import net.aqualoco.sec.network.SleepAnimationNetworking;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.event.RegisterCommandsEvent;
@@ -33,6 +34,7 @@ public class SeamlessSleep {
         ServerStoppingEvent.BUS.addListener(SeamlessSleepServerEvents::onServerStopping);
 
         if (FMLEnvironment.dist == Dist.CLIENT) {
+            VivecraftClientCompat.registerClientIntegrations();
             SleepAnimationNetworking.initClient();
             ForgeConfigScreens.register(context);
             ForgeHudOverlayLayers.register(modBusGroup);

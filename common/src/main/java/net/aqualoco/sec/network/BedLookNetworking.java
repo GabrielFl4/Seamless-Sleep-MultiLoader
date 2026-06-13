@@ -1,6 +1,7 @@
 package net.aqualoco.sec.network;
 
 import net.aqualoco.sec.bed.BedRestingHelper;
+import net.aqualoco.sec.compat.VivecraftCompat;
 import net.aqualoco.sec.handshake.ServerSeamlessClientPresenceManager;
 import net.minecraft.server.level.ServerPlayer;
 
@@ -14,7 +15,9 @@ public final class BedLookNetworking {
         if (!ServerSeamlessClientPresenceManager.requireConfirmed(player, "bed_look_sync")) {
             return;
         }
-        if (!BedRestingHelper.isManagedBedStateServer(player) || player.getBedOrientation() == null) {
+        if (!BedRestingHelper.isManagedBedStateServer(player)
+                || VivecraftCompat.isServerVrActive(player)
+                || player.getBedOrientation() == null) {
             return;
         }
 

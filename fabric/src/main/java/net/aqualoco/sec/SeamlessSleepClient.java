@@ -2,6 +2,7 @@ package net.aqualoco.sec;
 
 import net.aqualoco.sec.client.SeamlessSleepClientState;
 import net.aqualoco.sec.client.SleepStatusOverlay;
+import net.aqualoco.sec.client.VivecraftClientCompat;
 import net.aqualoco.sec.handshake.ClientHandshakeState;
 import net.aqualoco.sec.network.SleepAnimationNetworking;
 import net.aqualoco.sec.sleep.SleepDimensionSupport;
@@ -16,6 +17,7 @@ public class SeamlessSleepClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
+        VivecraftClientCompat.registerClientIntegrations();
         SleepAnimationNetworking.initClient();
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) ->
                 client.execute(() -> ClientHandshakeState.onPlayConnectionReady(client)));

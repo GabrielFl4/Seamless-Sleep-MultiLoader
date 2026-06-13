@@ -2,6 +2,7 @@ package net.aqualoco.sec;
 
 
 import net.aqualoco.sec.client.NeoForgeConfigScreens;
+import net.aqualoco.sec.client.VivecraftClientCompat;
 import net.aqualoco.sec.network.SleepAnimationNetworking;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
@@ -31,6 +32,7 @@ public class SeamlessSleep {
         NeoForge.EVENT_BUS.addListener(SeamlessSleepServerEvents::onServerStopping);
 
         if (FMLLoader.getCurrent().getDist().isClient()) {
+            VivecraftClientCompat.registerClientIntegrations();
             SleepAnimationNetworking.initClient();
             NeoForgeConfigScreens.register(modContainer);
         }

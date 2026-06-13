@@ -2,6 +2,7 @@ package net.aqualoco.sec.mixin;
 
 import net.aqualoco.sec.Constants;
 import net.aqualoco.sec.compat.BetterDaysCompat;
+import net.aqualoco.sec.compat.VivecraftCompat;
 import net.aqualoco.sec.platform.Services;
 import org.objectweb.asm.tree.ClassNode;
 import org.spongepowered.asm.mixin.extensibility.IMixinConfigPlugin;
@@ -18,18 +19,33 @@ public final class SeamlessSleepMixinPlugin implements IMixinConfigPlugin {
     private static final String BETTER_CLOUDS_RENDERER_RESOURCE = "com/qendolin/betterclouds/clouds/Renderer.class";
     private static final String BETTER_DAYS_MIXIN = "net.aqualoco.sec.mixin.compat.BetterDaysSleepFeatureMixin";
     private static final String BETTER_DAYS_SLEEP_STATUS_MIXIN = "net.aqualoco.sec.mixin.compat.BetterDaysSleepStatusMixin";
+    private static final String VIVECRAFT_POST_PROCESS_UBO_MIXIN = "net.aqualoco.sec.mixin.compat.vivecraft.VivecraftPostProcessUboMixin";
+    private static final String VIVECRAFT_LOCAL_PLAYER_ROOM_Y_OFFSET_MIXIN = "net.aqualoco.sec.mixin.compat.vivecraft.VivecraftLocalPlayerRoomYOffsetMixin";
+    private static final String VIVECRAFT_INTERACT_TRACKER_SLEEP_GATE_MIXIN = "net.aqualoco.sec.mixin.compat.vivecraft.VivecraftInteractTrackerSleepGateMixin";
+    private static final String VIVECRAFT_VR_PLAYER_MODEL_SLEEPING_OFFSET_MIXIN = "net.aqualoco.sec.mixin.compat.vivecraft.VivecraftVRPlayerModelSleepingOffsetMixin";
+    private static final String VIVECRAFT_MODEL_UTILS_SLEEPING_OFFSET_MIXIN = "net.aqualoco.sec.mixin.compat.vivecraft.VivecraftModelUtilsSleepingOffsetMixin";
     private static final String ABSTRACT_FURNACE_ACCELERATION_MIXIN = "net.aqualoco.sec.mixin.sleep.AbstractFurnaceBlockEntityAccelerationMixin";
     private static final String FORGE_LOADER_RESOURCE = "net/minecraftforge/fml/loading/FMLLoader.class";
 
     private boolean betterCloudsAvailable;
     private boolean betterDaysAvailable;
     private boolean betterDaysSleepStatusAvailable;
+    private boolean vivecraftPostProcessUboAvailable;
+    private boolean vivecraftPlayerExtensionAvailable;
+    private boolean vivecraftInteractTrackerAvailable;
+    private boolean vivecraftVrPlayerSleepingOffsetTargetsAvailable;
 
     @Override
     public void onLoad(String mixinPackage) {
         betterCloudsAvailable = isBetterCloudsPresent();
         betterDaysAvailable = isBetterDaysPresent();
         betterDaysSleepStatusAvailable = isBetterDaysSleepStatusPresent();
+        vivecraftPostProcessUboAvailable = isVivecraftTargetPresent(VivecraftCompat.POST_PROCESS_UBO_RESOURCE);
+        vivecraftPlayerExtensionAvailable = isVivecraftTargetPresent(VivecraftCompat.PLAYER_EXTENSION_RESOURCE);
+        vivecraftInteractTrackerAvailable = isVivecraftTargetPresent(VivecraftCompat.INTERACT_TRACKER_RESOURCE);
+        vivecraftVrPlayerSleepingOffsetTargetsAvailable =
+                isVivecraftTargetPresent(VivecraftCompat.VR_PLAYER_MODEL_RESOURCE)
+                        && isVivecraftTargetPresent(VivecraftCompat.MODEL_UTILS_RESOURCE);
     }
 
     @Override
@@ -47,6 +63,19 @@ public final class SeamlessSleepMixinPlugin implements IMixinConfigPlugin {
         }
         if (BETTER_DAYS_SLEEP_STATUS_MIXIN.equals(mixinClassName)) {
             return betterDaysSleepStatusAvailable;
+        }
+        if (VIVECRAFT_POST_PROCESS_UBO_MIXIN.equals(mixinClassName)) {
+            return vivecraftPostProcessUboAvailable;
+        }
+        if (VIVECRAFT_LOCAL_PLAYER_ROOM_Y_OFFSET_MIXIN.equals(mixinClassName)) {
+            return vivecraftPlayerExtensionAvailable;
+        }
+        if (VIVECRAFT_INTERACT_TRACKER_SLEEP_GATE_MIXIN.equals(mixinClassName)) {
+            return vivecraftInteractTrackerAvailable;
+        }
+        if (VIVECRAFT_VR_PLAYER_MODEL_SLEEPING_OFFSET_MIXIN.equals(mixinClassName)
+                || VIVECRAFT_MODEL_UTILS_SLEEPING_OFFSET_MIXIN.equals(mixinClassName)) {
+            return vivecraftVrPlayerSleepingOffsetTargetsAvailable;
         }
         if (ABSTRACT_FURNACE_ACCELERATION_MIXIN.equals(mixinClassName)) {
             return !isForgePlatform();
@@ -101,6 +130,17 @@ public final class SeamlessSleepMixinPlugin implements IMixinConfigPlugin {
 
         if (modLoaded && !targetPresent) {
             Constants.warn("Better Days detected, but target betterdays.time.SleepStatus was not found; Better Days sleep status compatibility could not be applied.");
+        }
+        return modLoaded && targetPresent;
+    }
+
+    private boolean isVivecraftTargetPresent(String classResourcePath) {
+        boolean modLoaded = isModLoaded(VivecraftCompat.MOD_ID);
+        boolean targetPresent = hasClassResource(classResourcePath, Thread.currentThread().getContextClassLoader())
+                || hasClassResource(classResourcePath, SeamlessSleepMixinPlugin.class.getClassLoader());
+
+        if (modLoaded && !targetPresent) {
+            Constants.warn("Vivecraft detected, but target {} was not found; matching Vivecraft compatibility hook will not be applied.", classResourcePath);
         }
         return modLoaded && targetPresent;
     }

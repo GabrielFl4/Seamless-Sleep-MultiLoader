@@ -14,6 +14,8 @@ import net.aqualoco.sec.network.ServerConfigUpdateResultS2CPayload;
 import net.aqualoco.sec.network.ServerHelloS2CPayload;
 import net.aqualoco.sec.network.SleepAnimationStartPayload;
 import net.aqualoco.sec.network.SleepAnimationStopPayload;
+import net.aqualoco.sec.network.VivecraftVrStatePayload;
+import net.aqualoco.sec.compat.VivecraftCompat;
 import net.aqualoco.sec.platform.services.INetworkHelper;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
@@ -78,10 +80,20 @@ public class FabricNetworkHelper implements INetworkHelper {
                 BedLookSyncPayload.ID,
                 BedLookSyncPayload.CODEC
         );
+        PayloadTypeRegistry.playC2S().register(
+                VivecraftVrStatePayload.ID,
+                VivecraftVrStatePayload.CODEC
+        );
         ServerPlayNetworking.registerGlobalReceiver(
                 BedLookSyncPayload.ID,
                 (payload, context) -> context.server().execute(
                         () -> BedLookNetworking.handleServer(context.player(), payload)
+                )
+        );
+        ServerPlayNetworking.registerGlobalReceiver(
+                VivecraftVrStatePayload.ID,
+                (payload, context) -> context.server().execute(
+                        () -> VivecraftCompat.handleClientVrState(context.player(), payload)
                 )
         );
         ServerPlayNetworking.registerGlobalReceiver(

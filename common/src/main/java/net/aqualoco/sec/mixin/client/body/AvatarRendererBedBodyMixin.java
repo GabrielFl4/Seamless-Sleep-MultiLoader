@@ -6,6 +6,7 @@ import net.aqualoco.sec.client.BedCameraRenderState;
 import net.aqualoco.sec.client.ClientBedWorkflow;
 import net.aqualoco.sec.client.EssentialCompat;
 import net.aqualoco.sec.client.ReplayPlaybackCompat;
+import net.aqualoco.sec.client.VivecraftClientCompat;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.SubmitNodeCollector;
@@ -56,6 +57,9 @@ public abstract class AvatarRendererBedBodyMixin {
                 || !avatarRenderState.hasPose(Pose.SLEEPING)) {
             return;
         }
+        if (avatar instanceof Player player && VivecraftClientCompat.isVrPlayer(player)) {
+            return;
+        }
 
         float lookYaw = avatarRenderState.bodyRot + avatarRenderState.yRot;
         float lookPitch = avatarRenderState.xRot;
@@ -97,6 +101,7 @@ public abstract class AvatarRendererBedBodyMixin {
                 || avatarRenderState.id != client.player.getId()
                 || (client.options.getCameraType().isFirstPerson() && !replayPlaybackActive)
                 || (!replayPlaybackActive && !ClientBedWorkflow.isManagedBedState(client.player))
+                || VivecraftClientCompat.shouldUseVrBedPolicy(client.player)
                 || !avatarRenderState.hasPose(Pose.SLEEPING)) {
             return;
         }

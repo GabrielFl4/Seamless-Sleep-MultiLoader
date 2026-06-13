@@ -3,6 +3,7 @@ package net.aqualoco.sec.bed;
 import net.aqualoco.sec.config.SeamlessSleepServerConfig;
 import net.aqualoco.sec.config.SeamlessSleepServerConfigManager;
 import net.aqualoco.sec.config.SleepEligibilityMode;
+import net.aqualoco.sec.compat.VivecraftCompat;
 import net.aqualoco.sec.network.BedHudNetworking;
 import net.aqualoco.sec.sleep.SleepAnimationStates;
 import net.aqualoco.sec.sleep.SleepDimensionSupport;
@@ -348,6 +349,14 @@ public final class BedRestingHelper {
         );
     }
 
+    public static Component getLeaveBedHintMessage(Player player) {
+        if (player instanceof ServerPlayer serverPlayer && VivecraftCompat.isServerVrActive(serverPlayer)) {
+            return Component.translatable("seamlesssleep.text.leave_bed_vr");
+        }
+
+        return getLeaveBedHintMessage();
+    }
+
     public static boolean isManagedSleepFallbackProblem(Player.@Nullable BedSleepingProblem problem) {
         return problem != null
                 && !Player.BedSleepingProblem.TOO_FAR_AWAY.equals(problem)
@@ -370,7 +379,7 @@ public final class BedRestingHelper {
     }
 
     public static void showLeaveBedHint(ServerPlayer player) {
-        player.displayClientMessage(getLeaveBedHintMessage(), true);
+        player.displayClientMessage(getLeaveBedHintMessage(player), true);
     }
 
     // Falls back to a simple safe spot above the bed if vanilla cannot resolve a stand-up position.

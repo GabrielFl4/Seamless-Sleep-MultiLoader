@@ -50,7 +50,12 @@
     "client.ui.MinecraftSleepPauseDeferralMixin",
     "client.input.MultiPlayerGameModeBedWorkflowMixin",
     "client.ui.SleepOverlayOpacityMixin",
-    "client.ui.InGameHudSleepMessageMixin"
+    "client.ui.InGameHudSleepMessageMixin",
+    "compat.vivecraft.VivecraftPostProcessUboMixin",
+    "compat.vivecraft.VivecraftLocalPlayerRoomYOffsetMixin",
+    "compat.vivecraft.VivecraftInteractTrackerSleepGateMixin",
+    "compat.vivecraft.VivecraftVRPlayerModelSleepingOffsetMixin",
+    "compat.vivecraft.VivecraftModelUtilsSleepingOffsetMixin"
   ],
   "server": [],
   "injectors": {

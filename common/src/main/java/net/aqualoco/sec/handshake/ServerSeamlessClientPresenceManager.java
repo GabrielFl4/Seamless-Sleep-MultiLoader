@@ -1,6 +1,7 @@
 package net.aqualoco.sec.handshake;
 
 import net.aqualoco.sec.Constants;
+import net.aqualoco.sec.compat.VivecraftCompat;
 import net.aqualoco.sec.config.SeamlessSleepServerConfigManager;
 import net.aqualoco.sec.config.ServerConfigMutationService;
 import net.aqualoco.sec.network.ClientHelloC2SPayload;
@@ -115,6 +116,7 @@ public final class ServerSeamlessClientPresenceManager {
         }
 
         Entry entry = ENTRIES.remove(player.getUUID());
+        VivecraftCompat.clearServerVrState(player);
         if (entry != null && entry.state == ServerSeamlessClientPresenceState.PENDING) {
             recordFailure(entry, ServerSeamlessClientPresenceState.DISCONNECTED, "Disconnected before handshake confirmation.");
         }
@@ -123,6 +125,7 @@ public final class ServerSeamlessClientPresenceManager {
     public static void reset() {
         ENTRIES.clear();
         FAILURE_HISTORY.clear();
+        VivecraftCompat.resetServerVrStates();
     }
 
     public static boolean isConfirmed(ServerPlayer player) {

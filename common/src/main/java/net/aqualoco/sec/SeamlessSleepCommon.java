@@ -3,6 +3,7 @@ package net.aqualoco.sec;
 import net.aqualoco.sec.config.SeamlessSleepClientConfigManager;
 import net.aqualoco.sec.config.SeamlessSleepServerConfigManager;
 import net.aqualoco.sec.compat.BetterDaysCompat;
+import net.aqualoco.sec.compat.VivecraftCompat;
 import net.aqualoco.sec.network.SleepAnimationNetworking;
 import net.aqualoco.sec.sleep.SleepAnimationState;
 
@@ -18,6 +19,7 @@ public final class SeamlessSleepCommon {
         SeamlessSleepClientConfigManager.init();
         SeamlessSleepServerConfigManager.init();
         BetterDaysCompat.init();
+        VivecraftCompat.init();
         SleepAnimationNetworking.initCommon();
         Constants.info("Initialized. Sleep animation networking is registered.");
     }

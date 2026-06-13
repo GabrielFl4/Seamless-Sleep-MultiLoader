@@ -2,6 +2,7 @@ package net.aqualoco.sec.handshake;
 
 import net.aqualoco.sec.Constants;
 import net.aqualoco.sec.client.RemoteServerConfigClientState;
+import net.aqualoco.sec.client.VivecraftClientCompat;
 import net.aqualoco.sec.network.ClientHelloC2SPayload;
 import net.aqualoco.sec.network.ServerHelloS2CPayload;
 import net.aqualoco.sec.platform.Services;
@@ -84,6 +85,7 @@ public final class ClientHandshakeState {
             return;
         }
         state = ClientState.CONFIRMED;
+        VivecraftClientCompat.sendVrStateToServer(true);
         Constants.LOG.info("{} Confirmed server support (protocol {}, version {}, features {}).",
                 LOG_PREFIX,
                 serverProtocol,
@@ -105,6 +107,7 @@ public final class ClientHandshakeState {
         serverProtocol = -1;
         serverFeatureFlags = 0;
         RemoteServerConfigClientState.reset();
+        VivecraftClientCompat.resetClientSync();
     }
 
     private static void disconnectIfServerMissingSeamless(Minecraft client) {

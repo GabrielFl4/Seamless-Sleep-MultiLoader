@@ -1,6 +1,7 @@
 package net.aqualoco.sec.client.sleepindicator;
 
 import net.aqualoco.sec.client.ClientBedWorkflow;
+import net.aqualoco.sec.client.VivecraftClientCompat;
 import net.aqualoco.sec.config.SeamlessSleepClientConfigManager;
 import net.aqualoco.sec.sleep.ClientSleepAnimationState;
 import net.minecraft.client.DeltaTracker;
@@ -35,6 +36,9 @@ public final class SleepIndicatorSystem {
             return;
         }
         if (client.options.hideGui) {
+            return;
+        }
+        if (VivecraftClientCompat.shouldUseVrBedPolicy(player) && ClientBedWorkflow.isManagedBedState(player)) {
             return;
         }
 

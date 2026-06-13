@@ -1,6 +1,7 @@
 package net.aqualoco.sec.platform;
 
 import net.aqualoco.sec.SeamlessSleep;
+import net.aqualoco.sec.compat.VivecraftCompat;
 import net.aqualoco.sec.network.BedLookNetworking;
 import net.aqualoco.sec.network.BedLookSyncPayload;
 import net.aqualoco.sec.config.ServerConfigMutationService;
@@ -15,6 +16,7 @@ import net.aqualoco.sec.network.ServerConfigUpdateResultS2CPayload;
 import net.aqualoco.sec.network.ServerHelloS2CPayload;
 import net.aqualoco.sec.network.SleepAnimationStartPayload;
 import net.aqualoco.sec.network.SleepAnimationStopPayload;
+import net.aqualoco.sec.network.VivecraftVrStatePayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.ConnectionProtocol;
 import net.aqualoco.sec.platform.services.INetworkHelper;
@@ -111,6 +113,11 @@ public class NeoForgeNetworkHelper implements INetworkHelper {
                 BedLookSyncPayload.ID,
                 BedLookSyncPayload.CODEC.cast(),
                 NeoForgeNetworkHelper::handleBedLookSync
+        );
+        registrar.playToServer(
+                VivecraftVrStatePayload.ID,
+                VivecraftVrStatePayload.CODEC.cast(),
+                NeoForgeNetworkHelper::handleVivecraftVrState
         );
     }
 
@@ -243,6 +250,14 @@ public class NeoForgeNetworkHelper implements INetworkHelper {
         context.enqueueWork(() -> {
             if (context.player() instanceof ServerPlayer serverPlayer) {
                 BedLookNetworking.handleServer(serverPlayer, payload);
+            }
+        });
+    }
+
+    private static void handleVivecraftVrState(VivecraftVrStatePayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            if (context.player() instanceof ServerPlayer serverPlayer) {
+                VivecraftCompat.handleClientVrState(serverPlayer, payload);
             }
         });
     }

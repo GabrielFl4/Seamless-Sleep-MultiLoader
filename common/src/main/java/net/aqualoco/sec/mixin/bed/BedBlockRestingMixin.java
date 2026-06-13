@@ -3,7 +3,6 @@ package net.aqualoco.sec.mixin.bed;
 import com.mojang.datafixers.util.Either;
 import net.aqualoco.sec.bed.BedRestingHelper;
 import net.minecraft.core.BlockPos;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Unit;
 import net.minecraft.world.entity.player.Player;

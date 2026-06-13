@@ -4,6 +4,7 @@
   "seamlesssleep.text.sleeping_storm": "Sleeping through the storm",
   "seamlesssleep.text.made_in_heaven": "Made in Heaven",
   "seamlesssleep.text.leave_bed": "Press %s to leave the bed",
+  "seamlesssleep.text.leave_bed_vr": "Crouch to leave the bed",
   "seamlesssleep.text.players_missing_sleep.single": "%s more player needs to sleep",
   "seamlesssleep.text.players_missing_sleep.multiple": "%s more players need to sleep",
 

@@ -1,6 +1,7 @@
 package net.aqualoco.sec.mixin.client.input;
 
 import net.aqualoco.sec.client.ClientBedWorkflow;
+import net.aqualoco.sec.client.VivecraftClientCompat;
 import net.aqualoco.sec.client.sleepvisual.SleepZzzVisualSystem;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.ClientInput;
@@ -31,6 +32,11 @@ public abstract class LocalPlayerBedWorkflowMixin {
         LocalPlayer self = (LocalPlayer) (Object) this;
         ClientBedWorkflow.tick(self);
         SleepZzzVisualSystem.tick(Minecraft.getInstance());
+
+        if (VivecraftClientCompat.shouldUseVrBedPolicy(self)
+                && this.input.keyPresses.shift()) {
+            ClientBedWorkflow.tryWakeFromLeaveBedIntent(self);
+        }
 
         if (!ClientBedWorkflow.shouldBlockGameplayInteractions(self)) {
             return;

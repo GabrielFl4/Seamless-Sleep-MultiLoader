@@ -3,6 +3,7 @@ package net.aqualoco.sec.platform;
 import net.aqualoco.sec.network.BedLookNetworking;
 import net.aqualoco.sec.network.BedLookSyncPayload;
 import net.aqualoco.sec.Constants;
+import net.aqualoco.sec.compat.VivecraftCompat;
 import net.aqualoco.sec.config.ServerConfigMutationService;
 import net.aqualoco.sec.handshake.ServerSeamlessClientPresenceManager;
 import net.aqualoco.sec.network.BedHudSleepProgressPayload;
@@ -15,6 +16,7 @@ import net.aqualoco.sec.network.ServerConfigUpdateResultS2CPayload;
 import net.aqualoco.sec.network.ServerHelloS2CPayload;
 import net.aqualoco.sec.network.SleepAnimationStartPayload;
 import net.aqualoco.sec.network.SleepAnimationStopPayload;
+import net.aqualoco.sec.network.VivecraftVrStatePayload;
 import net.aqualoco.sec.platform.services.INetworkHelper;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
@@ -113,6 +115,11 @@ public class ForgeNetworkHelper implements INetworkHelper {
                         BedLookSyncPayload.ID,
                         BedLookSyncPayload.CODEC.cast(),
                         ForgeNetworkHelper::handleBedLookSync
+                )
+                .addMain(
+                        VivecraftVrStatePayload.ID,
+                        VivecraftVrStatePayload.CODEC.cast(),
+                        ForgeNetworkHelper::handleVivecraftVrState
                 )
                 .build();
     }
@@ -309,6 +316,19 @@ public class ForgeNetworkHelper implements INetworkHelper {
             ServerPlayer player = context.getSender();
             if (player != null) {
                 BedLookNetworking.handleServer(player, payload);
+            }
+        });
+    }
+
+    private static void handleVivecraftVrState(VivecraftVrStatePayload payload, CustomPayloadEvent.Context context) {
+        if (context.isClientSide()) {
+            return;
+        }
+
+        context.enqueueWork(() -> {
+            ServerPlayer player = context.getSender();
+            if (player != null) {
+                VivecraftCompat.handleClientVrState(player, payload);
             }
         });
     }

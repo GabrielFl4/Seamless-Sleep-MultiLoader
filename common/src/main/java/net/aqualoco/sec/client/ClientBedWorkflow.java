@@ -65,6 +65,9 @@ public final class ClientBedWorkflow {
     }
 
     public static boolean hasFreeLook(LocalPlayer player) {
+        if (VivecraftClientCompat.shouldUseVrBedPolicy(player)) {
+            return false;
+        }
         return isManagedBedState(player);
     }
 
@@ -73,10 +76,18 @@ public final class ClientBedWorkflow {
     }
 
     public static boolean shouldUseBedCrosshair(LocalPlayer player) {
+        if (VivecraftClientCompat.shouldUseVrBedPolicy(player)) {
+            return false;
+        }
         return isManagedBedState(player);
     }
 
     public static boolean shouldControlSleepOverlay(LocalPlayer player) {
+        if (VivecraftClientCompat.shouldUseVrBedPolicy(player)
+                && (player.isSleeping() || player.getSleepTimer() > 0)) {
+            return true;
+        }
+
         return BedRestingHelper.isManagedBedWorkflowSupported(player)
                 && (player.isSleeping()
                 || player.getSleepTimer() > 0
@@ -87,6 +98,15 @@ public final class ClientBedWorkflow {
     public static float getSleepOverlayAlpha(LocalPlayer player) {
         SeamlessSleepClientConfig cfg = SeamlessSleepClientConfigManager.get();
         boolean animationActive = SeamlessSleepClientState.SLEEP_ANIMATION.isActive();
+        if (VivecraftClientCompat.shouldUseVrBedPolicy(player)) {
+            seamlesssleep$overlayAlpha = 0.0F;
+            seamlesssleep$overlayFadeOutActive = false;
+            seamlesssleep$overlaySuppressedUntilWake = false;
+            seamlesssleep$lastOverlayAnimationProgress = 0.0D;
+            seamlesssleep$wasOverlayAnimationActive = animationActive;
+            return 0.0F;
+        }
+
         if (!BedRestingHelper.isManagedBedWorkflowSupported(player)) {
             seamlesssleep$overlayAlpha = 0.0F;
             seamlesssleep$overlayFadeOutActive = false;
@@ -135,6 +155,8 @@ public final class ClientBedWorkflow {
         FirstPersonModelCompat.ensureBedCompatibilityInstalled();
 
         boolean managed = isManagedBedState(player);
+        VivecraftClientCompat.tick(player, managed && !seamlesssleep$wasManagedBedState);
+        boolean vivecraftVrBed = VivecraftClientCompat.shouldUseVrBedPolicy(player);
 
         if (!managed) {
             if (seamlesssleep$wasManagedBedState) {
@@ -144,6 +166,12 @@ public final class ClientBedWorkflow {
             seamlesssleep$resetBedLookSyncState();
         } else {
             BedHudMessageManager.syncManagedBedState(player);
+            if (vivecraftVrBed) {
+                seamlesssleep$resetLookState();
+                seamlesssleep$resetBedLookSyncState();
+                seamlesssleep$wasManagedBedState = true;
+                return;
+            }
             if (!seamlesssleep$hasViewState) {
                 seamlesssleep$initLookState(player, player.getBedOrientation());
             }
@@ -187,13 +215,23 @@ public final class ClientBedWorkflow {
         return seamlesssleep$sendWakePacket(player);
     }
 
+    public static boolean tryWakeFromLeaveBedIntent(LocalPlayer player) {
+        return tryWakeFromAnimation(player) || tryWakeFromPreAnimation(player);
+    }
+
     public static float getCameraYaw(LocalPlayer player) {
+        if (VivecraftClientCompat.shouldUseVrBedPolicy(player)) {
+            return player.getYRot();
+        }
         return seamlesssleep$hasViewState && isManagedBedState(player)
                 ? seamlesssleep$viewYaw
                 : player.getYRot();
     }
 
     public static float getCameraPitch(LocalPlayer player) {
+        if (VivecraftClientCompat.shouldUseVrBedPolicy(player)) {
+            return player.getXRot();
+        }
         return seamlesssleep$hasViewState && isManagedBedState(player)
                 ? seamlesssleep$viewPitch
                 : player.getXRot();
@@ -206,6 +244,9 @@ public final class ClientBedWorkflow {
         }
 
         if (ReplayPlaybackCompat.isReplayPlaybackActive()) {
+            return false;
+        }
+        if (VivecraftClientCompat.shouldUseVrBedPolicy(player)) {
             return false;
         }
 
