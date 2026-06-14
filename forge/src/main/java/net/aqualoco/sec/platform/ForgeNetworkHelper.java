@@ -16,6 +16,8 @@ import net.aqualoco.sec.network.ServerConfigUpdateResultS2CPayload;
 import net.aqualoco.sec.network.ServerHelloS2CPayload;
 import net.aqualoco.sec.network.SleepAnimationStartPayload;
 import net.aqualoco.sec.network.SleepAnimationStopPayload;
+import net.aqualoco.sec.network.VivecraftBedOffsetC2SPayload;
+import net.aqualoco.sec.network.VivecraftBedOffsetS2CPayload;
 import net.aqualoco.sec.network.VivecraftVrStatePayload;
 import net.aqualoco.sec.platform.services.INetworkHelper;
 import net.minecraft.client.Minecraft;
@@ -40,6 +42,7 @@ public class ForgeNetworkHelper implements INetworkHelper {
         void handleServerConfigAccess(ServerConfigAccessS2CPayload payload);
         void handleServerConfigUpdateResult(ServerConfigUpdateResultS2CPayload payload);
         void handleServerHello(ServerHelloS2CPayload payload);
+        void handleVivecraftBedOffset(VivecraftBedOffsetS2CPayload payload);
     }
 
     private static final Identifier CHANNEL_ID =
@@ -95,6 +98,11 @@ public class ForgeNetworkHelper implements INetworkHelper {
                         ServerHelloS2CPayload.CODEC.cast(),
                         ForgeNetworkHelper::handleServerHello
                 )
+                .addMain(
+                        VivecraftBedOffsetS2CPayload.ID,
+                        VivecraftBedOffsetS2CPayload.CODEC.cast(),
+                        ForgeNetworkHelper::handleVivecraftBedOffsetClient
+                )
                 .serverbound()
                 .addMain(
                         ClientHelloC2SPayload.ID,
@@ -120,6 +128,11 @@ public class ForgeNetworkHelper implements INetworkHelper {
                         VivecraftVrStatePayload.ID,
                         VivecraftVrStatePayload.CODEC.cast(),
                         ForgeNetworkHelper::handleVivecraftVrState
+                )
+                .addMain(
+                        VivecraftBedOffsetC2SPayload.ID,
+                        VivecraftBedOffsetC2SPayload.CODEC.cast(),
+                        ForgeNetworkHelper::handleVivecraftBedOffsetServer
                 )
                 .build();
     }
@@ -268,6 +281,19 @@ public class ForgeNetworkHelper implements INetworkHelper {
         });
     }
 
+    private static void handleVivecraftBedOffsetClient(VivecraftBedOffsetS2CPayload payload, CustomPayloadEvent.Context context) {
+        if (!context.isClientSide()) {
+            return;
+        }
+
+        context.enqueueWork(() -> {
+            ClientHandler handler = clientHandler;
+            if (handler != null) {
+                handler.handleVivecraftBedOffset(payload);
+            }
+        });
+    }
+
     private static void handleClientHello(ClientHelloC2SPayload payload, CustomPayloadEvent.Context context) {
         if (context.isClientSide()) {
             return;
@@ -329,6 +355,19 @@ public class ForgeNetworkHelper implements INetworkHelper {
             ServerPlayer player = context.getSender();
             if (player != null) {
                 VivecraftCompat.handleClientVrState(player, payload);
+            }
+        });
+    }
+
+    private static void handleVivecraftBedOffsetServer(VivecraftBedOffsetC2SPayload payload, CustomPayloadEvent.Context context) {
+        if (context.isClientSide()) {
+            return;
+        }
+
+        context.enqueueWork(() -> {
+            ServerPlayer player = context.getSender();
+            if (player != null) {
+                VivecraftCompat.handleClientBedOffset(player, payload);
             }
         });
     }

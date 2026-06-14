@@ -10,6 +10,7 @@ import net.minecraft.world.entity.player.Input;
 import net.minecraft.world.phys.Vec2;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -19,6 +20,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class LocalPlayerBedWorkflowMixin {
 
     @Shadow public ClientInput input;
+
+    @Unique
+    private boolean seamlesssleep$wasVivecraftManagedBed;
 
     @Inject(
             method = "aiStep",
@@ -33,9 +37,17 @@ public abstract class LocalPlayerBedWorkflowMixin {
         ClientBedWorkflow.tick(self);
         SleepZzzVisualSystem.tick(Minecraft.getInstance());
 
-        if (VivecraftClientCompat.shouldUseVrBedPolicy(self)
-                && this.input.keyPresses.shift()) {
-            ClientBedWorkflow.tryWakeFromLeaveBedIntent(self);
+        boolean vivecraftVrBedPolicy = VivecraftClientCompat.shouldUseVrBedPolicy(self);
+        boolean managedBedState = ClientBedWorkflow.isManagedBedState(self);
+        if (vivecraftVrBedPolicy && managedBedState) {
+            boolean manualCrouchPressed = VivecraftClientCompat.pollManualCrouchButtonPress();
+            if (this.seamlesssleep$wasVivecraftManagedBed && manualCrouchPressed) {
+                ClientBedWorkflow.tryWakeFromLeaveBedIntent(self);
+            }
+            this.seamlesssleep$wasVivecraftManagedBed = true;
+        } else {
+            VivecraftClientCompat.pollManualCrouchButtonPress();
+            this.seamlesssleep$wasVivecraftManagedBed = false;
         }
 
         if (!ClientBedWorkflow.shouldBlockGameplayInteractions(self)) {

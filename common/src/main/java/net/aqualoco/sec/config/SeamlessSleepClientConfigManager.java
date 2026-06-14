@@ -23,7 +23,7 @@ public final class SeamlessSleepClientConfigManager {
     private static final String FILE_NAME = "seamless_sleep.toml";
     private static final String LEGACY_JSON_FILE_NAME = "seamless_sleep.json";
     private static final String LEGACY_JSONC_FILE_NAME = "seamless_sleep.jsonc";
-    private static final int CONFIG_VERSION = 8;
+    private static final int CONFIG_VERSION = 9;
 
     private static SeamlessSleepClientConfig config = defaultConfig();
     private static Path configPath;
@@ -177,7 +177,15 @@ public final class SeamlessSleepClientConfigManager {
                 cfg.soundtrackVolumePercent = 0;
             }
         }
-        cfg.replayCompatibilityEnabled = readBoolean(file, List.of("advanced", "replayCompatibilityEnabled"), "replayCompatibilityEnabled", cfg.replayCompatibilityEnabled);
+        cfg.vivecraftCompatibilityEnabled = readBoolean(file, List.of("compatibility", "vivecraft", "enabled"), "vivecraftCompatibilityEnabled", cfg.vivecraftCompatibilityEnabled);
+        cfg.vivecraftBedRoomYOffset = readDouble(file, List.of("compatibility", "vivecraft", "bedRoomYOffset"), "vivecraftBedRoomYOffset", cfg.vivecraftBedRoomYOffset);
+        cfg.replayCompatibilityEnabled = readBooleanAny(
+                file,
+                List.of("compatibility", "replayCompatibilityEnabled"),
+                List.of("advanced", "replayCompatibilityEnabled"),
+                "replayCompatibilityEnabled",
+                cfg.replayCompatibilityEnabled
+        );
         cfg.debugLogsEnabled = readBoolean(file, List.of("advanced", "debugLogsEnabled"), "debugLogsEnabled", cfg.debugLogsEnabled);
         if (fileConfigVersion > 0 && fileConfigVersion < 3) {
             cfg.sleepChatOpacityMultiplier *= 0.5D;
@@ -293,11 +301,25 @@ public final class SeamlessSleepClientConfigManager {
                 Boolean.toString(cfg.disableSoundsDuringReplay));
 
         appendSectionGap(sb, 2);
-        appendSectionHeader(sb, "advanced");
+        appendSectionHeader(sb, "compatibility.vivecraft");
+        appendEntry(sb,
+                "Enable Vivecraft VR compatibility policies. Range: true | false. Default: true",
+                "enabled",
+                Boolean.toString(cfg.vivecraftCompatibilityEnabled));
+        appendEntry(sb,
+                "Base Vivecraft room Y offset while sleeping in VR. Range: -2.0 to 0.0. 0.0=vanilla, more negative lowers the bed view before dynamic height compensation. Default: -1.25",
+                "bedRoomYOffset",
+                Double.toString(cfg.vivecraftBedRoomYOffset));
+
+        appendSectionGap(sb, 2);
+        appendSectionHeader(sb, "compatibility");
         appendEntry(sb,
                 "Replay and Flashback compatibility mode. Range: true | false. Default: true",
                 "replayCompatibilityEnabled",
                 Boolean.toString(cfg.replayCompatibilityEnabled));
+
+        appendSectionGap(sb, 2);
+        appendSectionHeader(sb, "advanced");
         appendEntry(sb,
                 "Verbose debug logs. Range: true | false. Default: false",
                 "debugLogsEnabled",

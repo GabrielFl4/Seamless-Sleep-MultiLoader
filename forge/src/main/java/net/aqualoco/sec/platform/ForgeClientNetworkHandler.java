@@ -3,6 +3,7 @@ package net.aqualoco.sec.platform;
 import net.aqualoco.sec.client.BedHudMessageManager;
 import net.aqualoco.sec.client.RemoteServerConfigClientState;
 import net.aqualoco.sec.client.SeamlessSleepClientState;
+import net.aqualoco.sec.client.VivecraftClientCompat;
 import net.aqualoco.sec.client.sound.SleepSoundManager;
 import net.aqualoco.sec.handshake.ClientHandshakeState;
 import net.aqualoco.sec.network.BedHudSleepProgressPayload;
@@ -12,6 +13,7 @@ import net.aqualoco.sec.network.ServerConfigUpdateResultS2CPayload;
 import net.aqualoco.sec.network.ServerHelloS2CPayload;
 import net.aqualoco.sec.network.SleepAnimationStartPayload;
 import net.aqualoco.sec.network.SleepAnimationStopPayload;
+import net.aqualoco.sec.network.VivecraftBedOffsetS2CPayload;
 import net.aqualoco.sec.sleep.SleepDimensionSupport;
 import net.aqualoco.sec.sleep.SleepAnimationStopReason;
 import net.minecraft.client.Minecraft;
@@ -112,6 +114,11 @@ final class ForgeClientNetworkHandler implements ForgeNetworkHelper.ClientHandle
     @Override
     public void handleServerHello(ServerHelloS2CPayload payload) {
         ClientHandshakeState.handleServerHello(payload);
+    }
+
+    @Override
+    public void handleVivecraftBedOffset(VivecraftBedOffsetS2CPayload payload) {
+        VivecraftClientCompat.applySyncedBedRoomYOffset(payload);
     }
 
     private static boolean isMatchingSupportedWorld(ClientLevel world, Identifier payloadWorldId) {

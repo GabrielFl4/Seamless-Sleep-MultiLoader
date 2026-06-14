@@ -54,6 +54,7 @@
     "compat.vivecraft.VivecraftPostProcessUboMixin",
     "compat.vivecraft.VivecraftLocalPlayerRoomYOffsetMixin",
     "compat.vivecraft.VivecraftInteractTrackerSleepGateMixin",
+    "compat.vivecraft.VivecraftVRPlayerMenuHandMixin",
     "compat.vivecraft.VivecraftVRPlayerModelSleepingOffsetMixin",
     "compat.vivecraft.VivecraftModelUtilsSleepingOffsetMixin"
   ],

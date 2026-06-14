@@ -184,6 +184,7 @@ public final class ServerSeamlessClientPresenceManager {
     private static void syncConfirmedClient(ServerPlayer player) {
         ServerConfigSync.sendToPlayer(player, SeamlessSleepServerConfigManager.get());
         ServerConfigMutationService.sendAccessToPlayer(player);
+        VivecraftCompat.sendBedOffsetSnapshotsToPlayer(player);
         SleepAnimationNetworking.sendActiveSnapshotToPlayer(player);
     }
 

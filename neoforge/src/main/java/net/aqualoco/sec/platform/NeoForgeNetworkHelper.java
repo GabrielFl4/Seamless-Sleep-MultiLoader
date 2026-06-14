@@ -16,6 +16,8 @@ import net.aqualoco.sec.network.ServerConfigUpdateResultS2CPayload;
 import net.aqualoco.sec.network.ServerHelloS2CPayload;
 import net.aqualoco.sec.network.SleepAnimationStartPayload;
 import net.aqualoco.sec.network.SleepAnimationStopPayload;
+import net.aqualoco.sec.network.VivecraftBedOffsetC2SPayload;
+import net.aqualoco.sec.network.VivecraftBedOffsetS2CPayload;
 import net.aqualoco.sec.network.VivecraftVrStatePayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.ConnectionProtocol;
@@ -42,6 +44,7 @@ public class NeoForgeNetworkHelper implements INetworkHelper {
         void handleServerConfigAccess(ServerConfigAccessS2CPayload payload);
         void handleServerConfigUpdateResult(ServerConfigUpdateResultS2CPayload payload);
         void handleServerHello(ServerHelloS2CPayload payload);
+        void handleVivecraftBedOffset(VivecraftBedOffsetS2CPayload payload);
     }
 
     private static boolean registered;
@@ -94,6 +97,11 @@ public class NeoForgeNetworkHelper implements INetworkHelper {
                 ServerHelloS2CPayload.CODEC.cast(),
                 NeoForgeNetworkHelper::handleServerHello
         );
+        registrar.playToClient(
+                VivecraftBedOffsetS2CPayload.ID,
+                VivecraftBedOffsetS2CPayload.CODEC.cast(),
+                NeoForgeNetworkHelper::handleVivecraftBedOffsetClient
+        );
         registrar.playToServer(
                 ClientHelloC2SPayload.ID,
                 ClientHelloC2SPayload.CODEC.cast(),
@@ -118,6 +126,11 @@ public class NeoForgeNetworkHelper implements INetworkHelper {
                 VivecraftVrStatePayload.ID,
                 VivecraftVrStatePayload.CODEC.cast(),
                 NeoForgeNetworkHelper::handleVivecraftVrState
+        );
+        registrar.playToServer(
+                VivecraftBedOffsetC2SPayload.ID,
+                VivecraftBedOffsetC2SPayload.CODEC.cast(),
+                NeoForgeNetworkHelper::handleVivecraftBedOffsetServer
         );
     }
 
@@ -222,6 +235,15 @@ public class NeoForgeNetworkHelper implements INetworkHelper {
         });
     }
 
+    private static void handleVivecraftBedOffsetClient(VivecraftBedOffsetS2CPayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            ClientHandler handler = clientHandler;
+            if (handler != null) {
+                handler.handleVivecraftBedOffset(payload);
+            }
+        });
+    }
+
     private static void handleClientHello(ClientHelloC2SPayload payload, IPayloadContext context) {
         context.enqueueWork(() -> {
             if (context.player() instanceof ServerPlayer serverPlayer) {
@@ -258,6 +280,14 @@ public class NeoForgeNetworkHelper implements INetworkHelper {
         context.enqueueWork(() -> {
             if (context.player() instanceof ServerPlayer serverPlayer) {
                 VivecraftCompat.handleClientVrState(serverPlayer, payload);
+            }
+        });
+    }
+
+    private static void handleVivecraftBedOffsetServer(VivecraftBedOffsetC2SPayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            if (context.player() instanceof ServerPlayer serverPlayer) {
+                VivecraftCompat.handleClientBedOffset(serverPlayer, payload);
             }
         });
     }

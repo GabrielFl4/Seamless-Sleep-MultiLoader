@@ -57,7 +57,7 @@ public abstract class AvatarRendererBedBodyMixin {
                 || !avatarRenderState.hasPose(Pose.SLEEPING)) {
             return;
         }
-        if (avatar instanceof Player player && VivecraftClientCompat.isVrPlayer(player)) {
+        if (avatar instanceof Player player && VivecraftClientCompat.shouldPreserveVrPlayerRender(player)) {
             return;
         }
 

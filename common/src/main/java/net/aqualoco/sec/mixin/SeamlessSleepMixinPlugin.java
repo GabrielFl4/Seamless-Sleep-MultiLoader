@@ -22,6 +22,7 @@ public final class SeamlessSleepMixinPlugin implements IMixinConfigPlugin {
     private static final String VIVECRAFT_POST_PROCESS_UBO_MIXIN = "net.aqualoco.sec.mixin.compat.vivecraft.VivecraftPostProcessUboMixin";
     private static final String VIVECRAFT_LOCAL_PLAYER_ROOM_Y_OFFSET_MIXIN = "net.aqualoco.sec.mixin.compat.vivecraft.VivecraftLocalPlayerRoomYOffsetMixin";
     private static final String VIVECRAFT_INTERACT_TRACKER_SLEEP_GATE_MIXIN = "net.aqualoco.sec.mixin.compat.vivecraft.VivecraftInteractTrackerSleepGateMixin";
+    private static final String VIVECRAFT_VR_PLAYER_MENU_HAND_MIXIN = "net.aqualoco.sec.mixin.compat.vivecraft.VivecraftVRPlayerMenuHandMixin";
     private static final String VIVECRAFT_VR_PLAYER_MODEL_SLEEPING_OFFSET_MIXIN = "net.aqualoco.sec.mixin.compat.vivecraft.VivecraftVRPlayerModelSleepingOffsetMixin";
     private static final String VIVECRAFT_MODEL_UTILS_SLEEPING_OFFSET_MIXIN = "net.aqualoco.sec.mixin.compat.vivecraft.VivecraftModelUtilsSleepingOffsetMixin";
     private static final String ABSTRACT_FURNACE_ACCELERATION_MIXIN = "net.aqualoco.sec.mixin.sleep.AbstractFurnaceBlockEntityAccelerationMixin";
@@ -33,6 +34,7 @@ public final class SeamlessSleepMixinPlugin implements IMixinConfigPlugin {
     private boolean vivecraftPostProcessUboAvailable;
     private boolean vivecraftPlayerExtensionAvailable;
     private boolean vivecraftInteractTrackerAvailable;
+    private boolean vivecraftVrPlayerAvailable;
     private boolean vivecraftVrPlayerSleepingOffsetTargetsAvailable;
 
     @Override
@@ -43,6 +45,7 @@ public final class SeamlessSleepMixinPlugin implements IMixinConfigPlugin {
         vivecraftPostProcessUboAvailable = isVivecraftTargetPresent(VivecraftCompat.POST_PROCESS_UBO_RESOURCE);
         vivecraftPlayerExtensionAvailable = isVivecraftTargetPresent(VivecraftCompat.PLAYER_EXTENSION_RESOURCE);
         vivecraftInteractTrackerAvailable = isVivecraftTargetPresent(VivecraftCompat.INTERACT_TRACKER_RESOURCE);
+        vivecraftVrPlayerAvailable = isVivecraftTargetPresent(VivecraftCompat.VR_PLAYER_RESOURCE);
         vivecraftVrPlayerSleepingOffsetTargetsAvailable =
                 isVivecraftTargetPresent(VivecraftCompat.VR_PLAYER_MODEL_RESOURCE)
                         && isVivecraftTargetPresent(VivecraftCompat.MODEL_UTILS_RESOURCE);
@@ -72,6 +75,9 @@ public final class SeamlessSleepMixinPlugin implements IMixinConfigPlugin {
         }
         if (VIVECRAFT_INTERACT_TRACKER_SLEEP_GATE_MIXIN.equals(mixinClassName)) {
             return vivecraftInteractTrackerAvailable;
+        }
+        if (VIVECRAFT_VR_PLAYER_MENU_HAND_MIXIN.equals(mixinClassName)) {
+            return vivecraftVrPlayerAvailable;
         }
         if (VIVECRAFT_VR_PLAYER_MODEL_SLEEPING_OFFSET_MIXIN.equals(mixinClassName)
                 || VIVECRAFT_MODEL_UTILS_SLEEPING_OFFSET_MIXIN.equals(mixinClassName)) {

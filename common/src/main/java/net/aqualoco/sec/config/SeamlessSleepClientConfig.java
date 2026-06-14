@@ -29,6 +29,10 @@ public final class SeamlessSleepClientConfig {
     private static final double MIN_NON_ZERO_TILT_DEGREES = 0.1D;
     private static final double MAX_TILT_DEGREES = 90.0D;
     private static final boolean DEFAULT_REPLAY_COMPATIBILITY_ENABLED = true;
+    public static final boolean DEFAULT_VIVECRAFT_COMPATIBILITY_ENABLED = true;
+    public static final double DEFAULT_VIVECRAFT_BED_ROOM_Y_OFFSET = -1.25D;
+    public static final double MIN_VIVECRAFT_BED_ROOM_Y_OFFSET = -2.0D;
+    public static final double MAX_VIVECRAFT_BED_ROOM_Y_OFFSET = 0.0D;
     private static final boolean DEFAULT_DEBUG_LOGS_ENABLED = false;
     private static final int MIN_SOUND_VOLUME_PERCENT = 0;
     private static final int MAX_SOUND_VOLUME_PERCENT = 100;
@@ -53,6 +57,8 @@ public final class SeamlessSleepClientConfig {
     public double sleepCameraTiltDegrees = DEFAULT_TILT_DEGREES;
     public int mouseSmoothnessPercent = DEFAULT_MOUSE_SMOOTHNESS_PERCENT;
     public boolean replayCompatibilityEnabled = DEFAULT_REPLAY_COMPATIBILITY_ENABLED;
+    public boolean vivecraftCompatibilityEnabled = DEFAULT_VIVECRAFT_COMPATIBILITY_ENABLED;
+    public double vivecraftBedRoomYOffset = DEFAULT_VIVECRAFT_BED_ROOM_Y_OFFSET;
     public boolean debugLogsEnabled = DEFAULT_DEBUG_LOGS_ENABLED;
 
     public int sleepWindVolumePercent = 40;
@@ -104,6 +110,12 @@ public final class SeamlessSleepClientConfig {
         mouseSmoothnessPercent = clampInt(mouseSmoothnessPercent, 0, 100, DEFAULT_MOUSE_SMOOTHNESS_PERCENT);
         sleepWindVolumePercent = clampInt(sleepWindVolumePercent, MIN_SOUND_VOLUME_PERCENT, MAX_SOUND_VOLUME_PERCENT, 40);
         soundtrackVolumePercent = clampInt(soundtrackVolumePercent, MIN_SOUND_VOLUME_PERCENT, MAX_SOUND_VOLUME_PERCENT, 40);
+        vivecraftBedRoomYOffset = clampRange(
+                vivecraftBedRoomYOffset,
+                MIN_VIVECRAFT_BED_ROOM_Y_OFFSET,
+                MAX_VIVECRAFT_BED_ROOM_Y_OFFSET,
+                DEFAULT_VIVECRAFT_BED_ROOM_Y_OFFSET
+        );
     }
 
     public double resolveSleepChatTextOpacityFactor() {

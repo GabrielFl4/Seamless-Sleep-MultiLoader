@@ -19,16 +19,24 @@ public final class VivecraftSleepingBodyOffsetCompensation {
     private static final float PLAYER_MODEL_BASE_SCALE = 0.9375F;
 
     private static final ThreadLocal<Boolean> SLEEPING_VR_BODY_SCOPE = new ThreadLocal<>();
+    private static final ThreadLocal<Double> SLEEPING_VR_BODY_ROOM_Y_OFFSET = new ThreadLocal<>();
 
     private VivecraftSleepingBodyOffsetCompensation() {
     }
 
     public static void begin(AvatarRenderState renderState) {
-        SLEEPING_VR_BODY_SCOPE.set(isSleepingWithBedOrientation(renderState));
+        boolean active = isSleepingWithBedOrientation(renderState);
+        SLEEPING_VR_BODY_SCOPE.set(active);
+        if (active) {
+            SLEEPING_VR_BODY_ROOM_Y_OFFSET.set(VivecraftClientCompat.vrBedRoomYOffsetForRenderedEntity(renderState.id));
+        } else {
+            SLEEPING_VR_BODY_ROOM_Y_OFFSET.remove();
+        }
     }
 
     public static void end() {
         SLEEPING_VR_BODY_SCOPE.remove();
+        SLEEPING_VR_BODY_ROOM_Y_OFFSET.remove();
     }
 
     public static void compensateWorldToModel(HumanoidRenderState renderState,
@@ -42,7 +50,8 @@ public final class VivecraftSleepingBodyOffsetCompensation {
             return;
         }
 
-        double roomYOffset = VivecraftClientCompat.vrBedRoomYOffset();
+        Double scopedRoomYOffset = SLEEPING_VR_BODY_ROOM_Y_OFFSET.get();
+        double roomYOffset = scopedRoomYOffset == null ? 0.0D : scopedRoomYOffset;
         if (roomYOffset == 0.0D) {
             return;
         }

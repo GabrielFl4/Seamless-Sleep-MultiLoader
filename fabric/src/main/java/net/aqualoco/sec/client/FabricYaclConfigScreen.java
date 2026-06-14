@@ -572,24 +572,57 @@ final class FabricYaclConfigScreen {
         );
         listenServer(session, ServerConfigField.BETTER_DAYS_COMPATIBILITY_ENABLED, betterDaysCompatibilityOption, value -> uiState.betterDaysCompatibilityEnabled = value);
 
-        OptionGroup compatibilityGroup = OptionGroup.createBuilder()
-                .name(Component.translatable("config.seamlesssleep.server.group.compatibility"))
-                .description(description(
-                        Component.translatable("config.seamlesssleep.server.group.compatibility.desc"),
-                        canEditServerConfig
-                ))
+        Option<Boolean> replayCompatibilityOption = buildToggle(
+                Component.translatable("config.seamlesssleep.misc.replay_compatibility"),
+                Component.translatable("config.seamlesssleep.misc.replay_compatibility.desc"),
+                Component.empty(),
+                true,
+                () -> cfg.replayCompatibilityEnabled,
+                value -> cfg.replayCompatibilityEnabled = value,
+                true
+        );
+
+        Option<Boolean> vivecraftCompatibilityOption = buildToggle(
+                Component.translatable("config.seamlesssleep.vivecraft.compatibility"),
+                Component.translatable("config.seamlesssleep.vivecraft.compatibility.desc"),
+                Component.empty(),
+                SeamlessSleepClientConfig.DEFAULT_VIVECRAFT_COMPATIBILITY_ENABLED,
+                () -> cfg.vivecraftCompatibilityEnabled,
+                value -> {
+                    cfg.vivecraftCompatibilityEnabled = value;
+                    VivecraftClientCompat.onVivecraftCompatibilityConfigChanged(value);
+                },
+                true
+        );
+
+        Option<Double> vivecraftBedRoomYOffsetOption = buildDoubleSlider(
+                Component.translatable("config.seamlesssleep.vivecraft.bed_room_y_offset"),
+                Component.translatable("config.seamlesssleep.vivecraft.bed_room_y_offset.desc"),
+                Component.translatable("config.seamlesssleep.vivecraft.bed_room_y_offset.disabled"),
+                SeamlessSleepClientConfig.DEFAULT_VIVECRAFT_BED_ROOM_Y_OFFSET,
+                SeamlessSleepClientConfig.MIN_VIVECRAFT_BED_ROOM_Y_OFFSET,
+                SeamlessSleepClientConfig.MAX_VIVECRAFT_BED_ROOM_Y_OFFSET,
+                0.05D,
+                () -> cfg.vivecraftBedRoomYOffset,
+                value -> cfg.vivecraftBedRoomYOffset = value,
+                cfg.vivecraftCompatibilityEnabled,
+                FabricYaclConfigScreen::formatBedRoomYOffsetValue
+        );
+
+        OptionGroup vivecraftCompatibilityGroup = OptionGroup.createBuilder()
+                .name(Component.translatable("config.seamlesssleep.client.group.vivecraft_compatibility"))
+                .description(OptionDescription.of(Component.translatable("config.seamlesssleep.client.group.vivecraft_compatibility.desc")))
                 .collapsed(false)
-                .option(betterDaysCompatibilityOption)
+                .option(vivecraftCompatibilityOption)
+                .option(vivecraftBedRoomYOffsetOption)
                 .build();
 
-        OptionGroup easterEggsGroup = OptionGroup.createBuilder()
-                .name(Component.translatable("config.seamlesssleep.server.group.easter_eggs"))
-                .description(description(
-                        Component.translatable("config.seamlesssleep.server.group.easter_eggs.desc"),
-                        canEditServerConfig
-                ))
+        OptionGroup compatibilityGroup = OptionGroup.createBuilder()
+                .name(Component.translatable("config.seamlesssleep.server.group.compatibility"))
+                .description(OptionDescription.of(Component.translatable("config.seamlesssleep.server.group.compatibility.desc")))
                 .collapsed(false)
-                .option(madeInHeavenChanceOption)
+                .option(betterDaysCompatibilityOption)
+                .option(replayCompatibilityOption)
                 .build();
 
         return ConfigCategory.createBuilder()
@@ -605,15 +638,6 @@ final class FabricYaclConfigScreen {
                         true
                 ))
                 .option(buildToggle(
-                        Component.translatable("config.seamlesssleep.misc.replay_compatibility"),
-                        Component.translatable("config.seamlesssleep.misc.replay_compatibility.desc"),
-                        Component.empty(),
-                        true,
-                        () -> cfg.replayCompatibilityEnabled,
-                        value -> cfg.replayCompatibilityEnabled = value,
-                        true
-                ))
-                .option(buildToggle(
                         Component.translatable("config.seamlesssleep.misc.disable_sounds_during_replay"),
                         Component.translatable("config.seamlesssleep.misc.disable_sounds_during_replay.desc"),
                         Component.empty(),
@@ -622,8 +646,9 @@ final class FabricYaclConfigScreen {
                         value -> cfg.disableSoundsDuringReplay = value,
                         true
                 ))
+                .option(madeInHeavenChanceOption)
+                .group(vivecraftCompatibilityGroup)
                 .group(compatibilityGroup)
-                .group(easterEggsGroup)
                 .build();
     }
 
@@ -1387,6 +1412,17 @@ final class FabricYaclConfigScreen {
     private static Component formatMultiplierValue(Double value) {
         double resolved = value == null ? 1.0D : value;
         return Component.literal(String.format(Locale.ROOT, "%.2fx", resolved));
+    }
+
+    private static Component formatBedRoomYOffsetValue(Double value) {
+        double resolved = value == null ? SeamlessSleepClientConfig.DEFAULT_VIVECRAFT_BED_ROOM_Y_OFFSET : value;
+        if (Math.abs(resolved) < 0.0001D) {
+            return Component.translatable("config.seamlesssleep.value.vanilla");
+        }
+        return Component.translatable(
+                "config.seamlesssleep.value.blocks",
+                String.format(Locale.ROOT, "%.2f", resolved)
+        );
     }
 
     private static final class ConflictAwareOptionDescription implements OptionDescription {

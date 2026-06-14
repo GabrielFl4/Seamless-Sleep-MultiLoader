@@ -13,11 +13,12 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Quaternionfc;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 
-// Shared Vivecraft wrist-panel geometry used by both the InteractModule hitbox and the debug render.
+// Shared Vivecraft wrist-panel geometry used by both the InteractModule hitbox and the line render.
 public final class VivecraftSleepWristPanel {
     private static final Identifier PANEL_ID = Identifier.fromNamespaceAndPath(Constants.MOD_ID, "sleep_indicator");
     private static final String VIVECRAFT_HOTBAR_MODULE_ID = "vivecraft:interactive_hotbar";
@@ -30,7 +31,7 @@ public final class VivecraftSleepWristPanel {
     // Moves the panel away from the arm surface along panelNormal.
     private static final float PANEL_TOP_OFFSET = 0.055F;
     // Moves the panel along the forearm axis.
-    private static final float PANEL_FOREARM_OFFSET = 0.000F;
+    private static final float PANEL_FOREARM_OFFSET = -0.1375F;
     // Moves the panel laterally inside its own plane.
     private static final float PANEL_SIDE_OFFSET = 0.0F;
     // Hitbox depth around the panel plane; higher is easier to hover, lower is more precise.
@@ -41,7 +42,14 @@ public final class VivecraftSleepWristPanel {
     private static InteractionHand hoveredHand;
     private static Object sleepIndicatorModuleProxy;
     private static long lastWakeRequestMillis;
+    private static int lastHoverPlayerTick = Integer.MIN_VALUE;
     private static boolean loggedPoseFailure;
+    private static boolean menuHandBridgeInitAttempted;
+    private static boolean menuHandBridgeReady;
+    private static boolean loggedMenuHandBridgeFailure;
+    private static Method dataHolderGetInstanceMethod;
+    private static Field menuHandMainField;
+    private static Field menuHandOffField;
 
     private VivecraftSleepWristPanel() {
     }
@@ -64,6 +72,41 @@ public final class VivecraftSleepWristPanel {
         return isSleepIndicatorModule(module) || hasModuleId(module, VIVECRAFT_HOTBAR_MODULE_ID);
     }
 
+    public static boolean shouldShowMenuHandMain() {
+        return shouldShowMenuHand(InteractionHand.MAIN_HAND);
+    }
+
+    public static boolean shouldShowMenuHandOff() {
+        return shouldShowMenuHand(InteractionHand.OFF_HAND);
+    }
+
+    public static void applyHoveredMenuHandToVivecraft() {
+        boolean showMain = shouldShowMenuHandMain();
+        boolean showOff = shouldShowMenuHandOff();
+        if (!showMain && !showOff) {
+            return;
+        }
+
+        try {
+            if (!ensureMenuHandBridgeReady()) {
+                return;
+            }
+
+            Object dataHolder = dataHolderGetInstanceMethod.invoke(null);
+            if (dataHolder == null) {
+                return;
+            }
+            if (showMain) {
+                menuHandMainField.setBoolean(dataHolder, true);
+            }
+            if (showOff) {
+                menuHandOffField.setBoolean(dataHolder, true);
+            }
+        } catch (ReflectiveOperationException | LinkageError | RuntimeException exception) {
+            logMenuHandBridgeFailure(exception);
+        }
+    }
+
     public static void submitRender(PoseStack poseStack,
                                     CameraRenderState cameraRenderState,
                                     SubmitNodeCollector submitNodeCollector) {
@@ -71,6 +114,7 @@ public final class VivecraftSleepWristPanel {
         LocalPlayer player = client.player;
         if (!isEligible(player) || client.options.hideGui) {
             hoveredHand = null;
+            lastHoverPlayerTick = Integer.MIN_VALUE;
             return;
         }
 
@@ -109,6 +153,7 @@ public final class VivecraftSleepWristPanel {
         }
 
         hoveredHand = hand;
+        lastHoverPlayerTick = player.tickCount;
         return true;
     }
 
@@ -151,7 +196,17 @@ public final class VivecraftSleepWristPanel {
     private static void clearHover(InteractionHand hand) {
         if (hoveredHand == hand) {
             hoveredHand = null;
+            lastHoverPlayerTick = Integer.MIN_VALUE;
         }
+    }
+
+    private static boolean shouldShowMenuHand(InteractionHand hand) {
+        Minecraft client = Minecraft.getInstance();
+        LocalPlayer player = client.player;
+        return !client.options.hideGui
+                && isEligible(player)
+                && hoveredHand == hand
+                && player.tickCount - lastHoverPlayerTick <= 1;
     }
 
     private static PanelPose resolvePanelPose(Object vrPose) {
@@ -255,6 +310,45 @@ public final class VivecraftSleepWristPanel {
 
         loggedPoseFailure = true;
         Constants.warn("Vivecraft wrist panel pose could not be resolved: {}", exception.getClass().getSimpleName());
+    }
+
+    private static boolean ensureMenuHandBridgeReady() {
+        if (menuHandBridgeInitAttempted) {
+            return menuHandBridgeReady;
+        }
+
+        menuHandBridgeInitAttempted = true;
+        try {
+            Class<?> dataHolderClass = resolveClass("org.vivecraft.client_vr.ClientDataHolderVR");
+            dataHolderGetInstanceMethod = dataHolderClass.getMethod("getInstance");
+            menuHandMainField = dataHolderClass.getField("menuHandMain");
+            menuHandOffField = dataHolderClass.getField("menuHandOff");
+            menuHandBridgeReady = true;
+        } catch (ReflectiveOperationException | LinkageError exception) {
+            menuHandBridgeReady = false;
+            logMenuHandBridgeFailure(exception);
+        }
+        return menuHandBridgeReady;
+    }
+
+    private static void logMenuHandBridgeFailure(Throwable exception) {
+        if (loggedMenuHandBridgeFailure) {
+            return;
+        }
+
+        loggedMenuHandBridgeFailure = true;
+        Constants.warn("Vivecraft menu hand bridge could not be resolved: {}", exception.getClass().getSimpleName());
+    }
+
+    private static Class<?> resolveClass(String className) throws ClassNotFoundException {
+        ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
+        if (contextClassLoader != null) {
+            try {
+                return Class.forName(className, false, contextClassLoader);
+            } catch (ClassNotFoundException ignored) {
+            }
+        }
+        return Class.forName(className, false, VivecraftSleepWristPanel.class.getClassLoader());
     }
 
     private static boolean hasModuleId(Object module, String expectedId) {

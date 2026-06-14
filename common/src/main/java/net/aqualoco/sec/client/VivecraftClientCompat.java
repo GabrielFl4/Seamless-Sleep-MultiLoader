@@ -2,31 +2,52 @@ package net.aqualoco.sec.client;
 
 import net.aqualoco.sec.Constants;
 import net.aqualoco.sec.compat.VivecraftCompat;
+import net.aqualoco.sec.config.SeamlessSleepClientConfig;
+import net.aqualoco.sec.config.SeamlessSleepClientConfigManager;
+import net.aqualoco.sec.network.VivecraftBedOffsetC2SPayload;
+import net.aqualoco.sec.network.VivecraftBedOffsetS2CPayload;
 import net.aqualoco.sec.network.VivecraftVrStatePayload;
 import net.aqualoco.sec.platform.Services;
+import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 import java.util.function.Consumer;
 
 // Client-only reflection bridge for Vivecraft public APIs. This keeps Seamless loadable without Vivecraft.
 public final class VivecraftClientCompat {
     private static final int VR_STATE_HEARTBEAT_TICKS = 100;
-    private static final double VR_BED_ROOM_Y_OFFSET = -1.35D;
+    private static final double DEFAULT_VR_BED_ROOM_Y_OFFSET = SeamlessSleepClientConfig.DEFAULT_VIVECRAFT_BED_ROOM_Y_OFFSET;
+    private static final double MIN_VR_BED_ROOM_Y_OFFSET = SeamlessSleepClientConfig.MIN_VIVECRAFT_BED_ROOM_Y_OFFSET;
+    private static final double MAX_VR_BED_ROOM_Y_OFFSET = SeamlessSleepClientConfig.MAX_VIVECRAFT_BED_ROOM_Y_OFFSET;
+    private static final double BED_OFFSET_SYNC_EPSILON = 1.0E-4D;
+    private static final int SCREEN_TRANSITION_CROUCH_WAKE_SUPPRESS_TICKS = 4;
 
     private static boolean clientApiInitAttempted;
     private static boolean clientApiReady;
     private static boolean playerApiInitAttempted;
     private static boolean playerApiReady;
+    private static boolean autoCalibrationInitAttempted;
+    private static boolean autoCalibrationReady;
+    private static boolean vrInputInitAttempted;
+    private static boolean vrInputReady;
     private static boolean clientIntegrationsRegistrationAttempted;
     private static boolean sleepIndicatorInteractModuleRegistered;
     private static boolean loggedClientApiFailure;
     private static boolean loggedPlayerApiFailure;
+    private static boolean loggedAutoCalibrationFailure;
+    private static boolean loggedVrInputFailure;
     private static boolean loggedClientRegistrationFailure;
     private static boolean loggedInvocationFailure;
 
@@ -38,6 +59,8 @@ public final class VivecraftClientCompat {
     private static Method isVrActiveMethod;
     @Nullable
     private static Method addClientRegistrationHandlerMethod;
+    @Nullable
+    private static Method getLatestRoomPoseMethod;
     @Nullable
     private static Method isLeftHandedMethod;
     @Nullable
@@ -54,9 +77,30 @@ public final class VivecraftClientCompat {
     @Nullable
     private static Method isVrPlayerMethod;
 
+    @Nullable
+    private static Method autoCalibrationGetPlayerHeightMethod;
+    @Nullable
+    private static Method mcvrGetMethod;
+    @Nullable
+    private static Method mcvrGetInputActionMethod;
+    @Nullable
+    private static Method vrInputActionIsButtonChangedMethod;
+
     private static boolean hasSentVrState;
     private static boolean lastSentVrState;
     private static int ticksSinceVrStateSync = VR_STATE_HEARTBEAT_TICKS;
+    private static boolean localBedOffsetSessionActive;
+    @Nullable
+    private static UUID localBedOffsetPlayerId;
+    private static double localBedRoomYOffset = DEFAULT_VR_BED_ROOM_Y_OFFSET;
+    private static boolean hasSentBedOffsetState;
+    private static boolean lastSentBedOffsetActive;
+    private static double lastSentBedRoomYOffset = DEFAULT_VR_BED_ROOM_Y_OFFSET;
+    private static boolean lastManualCrouchKeyDown;
+    @Nullable
+    private static Screen lastManualCrouchScreen;
+    private static int screenTransitionCrouchWakeSuppressTicks;
+    private static final Map<UUID, Double> REMOTE_BED_ROOM_Y_OFFSETS = new HashMap<>();
 
     private VivecraftClientCompat() {
     }
@@ -83,6 +127,12 @@ public final class VivecraftClientCompat {
     }
 
     public static void tick(LocalPlayer player, boolean forceVrStateSync) {
+        if (!isVivecraftCompatibilityEnabled()) {
+            clearBedRoomYOffsetStateForDisabledConfig(player);
+            syncVrStateToServer(isVrActiveLocal(), forceVrStateSync);
+            return;
+        }
+        updateBedRoomYOffsetSession(player);
         syncVrStateToServer(isVrActiveLocal(), forceVrStateSync);
     }
 
@@ -90,6 +140,13 @@ public final class VivecraftClientCompat {
         hasSentVrState = false;
         lastSentVrState = false;
         ticksSinceVrStateSync = VR_STATE_HEARTBEAT_TICKS;
+        clearLocalBedRoomYOffsetSession();
+        hasSentBedOffsetState = false;
+        lastSentBedOffsetActive = false;
+        lastSentBedRoomYOffset = DEFAULT_VR_BED_ROOM_Y_OFFSET;
+        lastManualCrouchKeyDown = false;
+        clearCrouchWakeScreenSuppression();
+        REMOTE_BED_ROOM_Y_OFFSETS.clear();
     }
 
     public static void sendVrStateToServer(boolean force) {
@@ -115,24 +172,79 @@ public final class VivecraftClientCompat {
     }
 
     public static boolean shouldUseVrBedPolicy(@Nullable LocalPlayer player) {
-        return player != null && isVrActiveLocal();
+        return player != null && isVivecraftCompatibilityEnabled() && isVrActiveLocal();
+    }
+
+    public static void onVivecraftCompatibilityConfigChanged(boolean enabled) {
+        if (enabled) {
+            return;
+        }
+        clearBedRoomYOffsetStateForDisabledConfig(Minecraft.getInstance().player);
+        lastManualCrouchKeyDown = false;
+        clearCrouchWakeScreenSuppression();
     }
 
     public static boolean shouldApplyVrBedRoomYOffset() {
         Minecraft client = Minecraft.getInstance();
         LocalPlayer player = client.player;
-        return player != null
+        boolean managedVrBed = player != null
                 && client.level != null
                 && shouldUseVrBedPolicy(player)
                 && ClientBedWorkflow.isManagedBedState(player);
+        if (managedVrBed) {
+            ensureLocalBedRoomYOffsetSession(player);
+        }
+        return managedVrBed;
     }
 
     public static double vrBedRoomYOffset() {
-        return VR_BED_ROOM_Y_OFFSET;
+        if (!isVivecraftCompatibilityEnabled()) {
+            return 0.0D;
+        }
+        return localBedOffsetSessionActive ? localBedRoomYOffset : configuredVrBedRoomYOffset();
+    }
+
+    public static double vrBedRoomYOffsetForRenderedEntity(int entityId) {
+        if (!isVivecraftCompatibilityEnabled()) {
+            return 0.0D;
+        }
+
+        Minecraft client = Minecraft.getInstance();
+        if (client.level == null) {
+            return configuredVrBedRoomYOffset();
+        }
+
+        Entity entity = client.level.getEntity(entityId);
+        if (!(entity instanceof Player player)) {
+            return configuredVrBedRoomYOffset();
+        }
+
+        LocalPlayer localPlayer = client.player;
+        if (localPlayer != null && player.getUUID().equals(localPlayer.getUUID())) {
+            return vrBedRoomYOffset();
+        }
+
+        return REMOTE_BED_ROOM_Y_OFFSETS.getOrDefault(player.getUUID(), configuredVrBedRoomYOffset());
+    }
+
+    public static void applySyncedBedRoomYOffset(VivecraftBedOffsetS2CPayload payload) {
+        if (!isVivecraftCompatibilityEnabled()) {
+            REMOTE_BED_ROOM_Y_OFFSETS.clear();
+            return;
+        }
+        if (payload == null || payload.playerId() == null) {
+            return;
+        }
+
+        if (payload.active() && Double.isFinite(payload.yOffset())) {
+            REMOTE_BED_ROOM_Y_OFFSETS.put(payload.playerId(), clampBedRoomYOffset(payload.yOffset()));
+        } else {
+            REMOTE_BED_ROOM_Y_OFFSETS.remove(payload.playerId());
+        }
     }
 
     public static boolean shouldNeutralizeSleepBlackAlpha(float blackAlpha) {
-        if (blackAlpha <= 0.0F || !isVrActiveLocal()) {
+        if (blackAlpha <= 0.0F || !isVivecraftCompatibilityEnabled() || !isVrActiveLocal()) {
             return false;
         }
 
@@ -163,6 +275,35 @@ public final class VivecraftClientCompat {
             logInvocationFailure("Vivecraft remote player VR check failed", exception);
             return false;
         }
+    }
+
+    public static boolean shouldPreserveVrPlayerRender(Player player) {
+        return isVivecraftCompatibilityEnabled() && isVrPlayer(player);
+    }
+
+    public static boolean pollManualCrouchButtonPress() {
+        if (!isVivecraftCompatibilityEnabled() || !isVrActiveLocal()) {
+            lastManualCrouchKeyDown = false;
+            clearCrouchWakeScreenSuppression();
+            return false;
+        }
+
+        Minecraft client = Minecraft.getInstance();
+        boolean suppressForScreen = shouldSuppressCrouchWakeForScreenTransition(client);
+        Boolean vrActionPress = pollVrCrouchActionPress();
+        if (vrActionPress != null) {
+            return !suppressForScreen && vrActionPress;
+        }
+
+        boolean keyDown = client.options.keyShift.isDown();
+        if (suppressForScreen) {
+            lastManualCrouchKeyDown = keyDown;
+            return false;
+        }
+
+        boolean pressed = keyDown && !lastManualCrouchKeyDown;
+        lastManualCrouchKeyDown = keyDown;
+        return pressed;
     }
 
     public static boolean isLeftHandedLocal() {
@@ -213,6 +354,261 @@ public final class VivecraftClientCompat {
         return sleepIndicatorInteractModuleRegistered;
     }
 
+    private static void clearBedRoomYOffsetStateForDisabledConfig(@Nullable LocalPlayer player) {
+        UUID playerId = localBedOffsetPlayerId != null
+                ? localBedOffsetPlayerId
+                : player == null ? null : player.getUUID();
+        boolean hadActiveSession = localBedOffsetSessionActive;
+        clearLocalBedRoomYOffsetSession();
+        REMOTE_BED_ROOM_Y_OFFSETS.clear();
+        if (hadActiveSession) {
+            syncBedRoomYOffsetToServer(playerId, false, 0.0D);
+        }
+    }
+
+    private static void updateBedRoomYOffsetSession(@Nullable LocalPlayer player) {
+        boolean managedVrBed = player != null
+                && Minecraft.getInstance().level != null
+                && shouldUseVrBedPolicy(player)
+                && ClientBedWorkflow.isManagedBedState(player);
+        if (managedVrBed) {
+            ensureLocalBedRoomYOffsetSession(player);
+            return;
+        }
+
+        if (localBedOffsetSessionActive) {
+            UUID playerId = localBedOffsetPlayerId != null
+                    ? localBedOffsetPlayerId
+                    : player == null ? null : player.getUUID();
+            clearLocalBedRoomYOffsetSession();
+            syncBedRoomYOffsetToServer(playerId, false, configuredVrBedRoomYOffset());
+        }
+    }
+
+    private static void ensureLocalBedRoomYOffsetSession(LocalPlayer player) {
+        UUID playerId = player.getUUID();
+        if (localBedOffsetSessionActive && playerId.equals(localBedOffsetPlayerId)) {
+            return;
+        }
+
+        localBedOffsetSessionActive = true;
+        localBedOffsetPlayerId = playerId;
+        localBedRoomYOffset = computeEffectiveBedRoomYOffset();
+        REMOTE_BED_ROOM_Y_OFFSETS.put(playerId, localBedRoomYOffset);
+        syncBedRoomYOffsetToServer(playerId, true, localBedRoomYOffset);
+    }
+
+    private static void clearLocalBedRoomYOffsetSession() {
+        if (localBedOffsetPlayerId != null) {
+            REMOTE_BED_ROOM_Y_OFFSETS.remove(localBedOffsetPlayerId);
+        }
+        localBedOffsetSessionActive = false;
+        localBedOffsetPlayerId = null;
+        localBedRoomYOffset = configuredVrBedRoomYOffset();
+    }
+
+    private static double computeEffectiveBedRoomYOffset() {
+        double baseOffset = configuredVrBedRoomYOffset();
+        if (baseOffset == 0.0D) {
+            return 0.0D;
+        }
+
+        Double currentHeight = currentRoomHeadHeight();
+        Double calibratedHeight = calibratedPlayerHeight();
+        if (currentHeight == null || calibratedHeight == null) {
+            return baseOffset;
+        }
+
+        double rawCompensation = calibratedHeight - currentHeight;
+        double dynamicCompensation = clamp(
+                rawCompensation,
+                MIN_VR_BED_ROOM_Y_OFFSET - baseOffset,
+                MAX_VR_BED_ROOM_Y_OFFSET - baseOffset
+        );
+        return clampBedRoomYOffset(baseOffset + dynamicCompensation);
+    }
+
+    private static double configuredVrBedRoomYOffset() {
+        if (!isVivecraftCompatibilityEnabled()) {
+            return 0.0D;
+        }
+        return clampBedRoomYOffset(SeamlessSleepClientConfigManager.get().vivecraftBedRoomYOffset);
+    }
+
+    private static double clampBedRoomYOffset(double value) {
+        return clamp(value, MIN_VR_BED_ROOM_Y_OFFSET, MAX_VR_BED_ROOM_Y_OFFSET);
+    }
+
+    private static boolean isVivecraftCompatibilityEnabled() {
+        return SeamlessSleepClientConfigManager.get().vivecraftCompatibilityEnabled;
+    }
+
+    private static boolean shouldSuppressCrouchWakeForScreenTransition(Minecraft client) {
+        Screen currentScreen = client.screen;
+        if (currentScreen != lastManualCrouchScreen) {
+            lastManualCrouchScreen = currentScreen;
+            screenTransitionCrouchWakeSuppressTicks = SCREEN_TRANSITION_CROUCH_WAKE_SUPPRESS_TICKS;
+        }
+
+        if (currentScreen != null) {
+            return true;
+        }
+
+        if (screenTransitionCrouchWakeSuppressTicks > 0) {
+            screenTransitionCrouchWakeSuppressTicks--;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static void clearCrouchWakeScreenSuppression() {
+        lastManualCrouchScreen = null;
+        screenTransitionCrouchWakeSuppressTicks = 0;
+    }
+
+    @Nullable
+    private static Boolean pollVrCrouchActionPress() {
+        if (!ensureVrInputReady()
+                || mcvrGetMethod == null
+                || mcvrGetInputActionMethod == null
+                || vrInputActionIsButtonChangedMethod == null) {
+            return null;
+        }
+
+        try {
+            Object mcvr = mcvrGetMethod.invoke(null);
+            if (mcvr == null) {
+                return null;
+            }
+            KeyMapping sneakKey = Minecraft.getInstance().options.keyShift;
+            Object action = mcvrGetInputActionMethod.invoke(mcvr, sneakKey);
+            if (action == null) {
+                return null;
+            }
+            Object changed = vrInputActionIsButtonChangedMethod.invoke(action);
+            return changed instanceof Boolean changedBool ? changedBool : null;
+        } catch (ReflectiveOperationException | LinkageError | RuntimeException exception) {
+            logInvocationFailure("Vivecraft crouch input action lookup failed", exception);
+            return null;
+        }
+    }
+
+    private static double clamp(double value, double min, double max) {
+        return Math.max(min, Math.min(max, value));
+    }
+
+    @Nullable
+    private static Double currentRoomHeadHeight() {
+        Object pose = invokeClientPoseMethod(getLatestRoomPoseMethod, "Vivecraft latest room pose lookup failed");
+        if (pose == null) {
+            return null;
+        }
+
+        try {
+            Object head = pose.getClass().getMethod("getHead").invoke(pose);
+            if (head == null) {
+                return null;
+            }
+            Object pos = head.getClass().getMethod("getPos").invoke(head);
+            if (pos instanceof Vec3 vec3 && Double.isFinite(vec3.y)) {
+                return vec3.y;
+            }
+        } catch (ReflectiveOperationException | LinkageError | RuntimeException exception) {
+            logInvocationFailure("Vivecraft room HMD height lookup failed", exception);
+        }
+        return null;
+    }
+
+    @Nullable
+    private static Double calibratedPlayerHeight() {
+        if (!ensureAutoCalibrationReady() || autoCalibrationGetPlayerHeightMethod == null) {
+            return null;
+        }
+
+        try {
+            Object value = autoCalibrationGetPlayerHeightMethod.invoke(null);
+            if (value instanceof Number number) {
+                double height = number.doubleValue();
+                return Double.isFinite(height) && height > 0.0D ? height : null;
+            }
+        } catch (ReflectiveOperationException | LinkageError | RuntimeException exception) {
+            logInvocationFailure("Vivecraft calibrated height lookup failed", exception);
+        }
+        return null;
+    }
+
+    private static boolean ensureAutoCalibrationReady() {
+        if (autoCalibrationInitAttempted) {
+            return autoCalibrationReady;
+        }
+
+        autoCalibrationInitAttempted = true;
+        try {
+            Class<?> autoCalibrationClass = resolveClass("org.vivecraft.client_vr.settings.AutoCalibration");
+            autoCalibrationGetPlayerHeightMethod = autoCalibrationClass.getMethod("getPlayerHeight");
+            autoCalibrationReady = true;
+        } catch (ReflectiveOperationException | LinkageError exception) {
+            autoCalibrationReady = false;
+            if (!loggedAutoCalibrationFailure) {
+                loggedAutoCalibrationFailure = true;
+                Constants.warn("Vivecraft AutoCalibration could not be resolved. Dynamic VR bed height will use the base offset: {}", rootMessage(exception));
+            }
+        }
+
+        return autoCalibrationReady;
+    }
+
+    private static boolean ensureVrInputReady() {
+        if (vrInputInitAttempted) {
+            return vrInputReady;
+        }
+
+        vrInputInitAttempted = true;
+        try {
+            Class<?> mcvrClass = resolveClass("org.vivecraft.client_vr.provider.MCVR");
+            Class<?> vrInputActionClass = resolveClass("org.vivecraft.client_vr.provider.openvr_lwjgl.VRInputAction");
+            mcvrGetMethod = mcvrClass.getMethod("get");
+            mcvrGetInputActionMethod = mcvrClass.getMethod("getInputAction", KeyMapping.class);
+            vrInputActionIsButtonChangedMethod = vrInputActionClass.getMethod("isButtonChanged");
+            vrInputReady = true;
+        } catch (ReflectiveOperationException | LinkageError exception) {
+            vrInputReady = false;
+            if (!loggedVrInputFailure) {
+                loggedVrInputFailure = true;
+                Constants.warn("Vivecraft VR input action API could not be resolved. VR crouch wake will use key state fallback: {}", rootMessage(exception));
+            }
+        }
+
+        return vrInputReady;
+    }
+
+    private static void syncBedRoomYOffsetToServer(@Nullable UUID playerId, boolean active, double yOffset) {
+        if (playerId == null) {
+            return;
+        }
+        if (active && !isVivecraftCompatibilityEnabled()) {
+            return;
+        }
+        if (hasSentBedOffsetState
+                && lastSentBedOffsetActive == active
+                && Math.abs(lastSentBedRoomYOffset - yOffset) < BED_OFFSET_SYNC_EPSILON) {
+            return;
+        }
+
+        try {
+            if (!Services.NETWORK.canSendToServer(VivecraftBedOffsetC2SPayload.ID)) {
+                return;
+            }
+            Services.NETWORK.sendToServer(new VivecraftBedOffsetC2SPayload(active, yOffset));
+            hasSentBedOffsetState = true;
+            lastSentBedOffsetActive = active;
+            lastSentBedRoomYOffset = yOffset;
+        } catch (RuntimeException exception) {
+            logInvocationFailure("Failed to sync Vivecraft bed room offset to server", exception);
+        }
+    }
+
     private static void syncVrStateToServer(boolean vrActive, boolean force) {
         if (!force && hasSentVrState && lastSentVrState == vrActive && ticksSinceVrStateSync < VR_STATE_HEARTBEAT_TICKS) {
             ticksSinceVrStateSync++;
@@ -244,6 +640,7 @@ public final class VivecraftClientCompat {
             clientApi = clientApiInstanceMethod.invoke(null);
             isVrActiveMethod = clientApiClass.getMethod("isVRActive");
             addClientRegistrationHandlerMethod = optionalMethod(clientApiClass, "addClientRegistrationHandler", Consumer.class);
+            getLatestRoomPoseMethod = optionalMethod(clientApiClass, "getLatestRoomPose");
             isLeftHandedMethod = optionalMethod(clientApiClass, "isLeftHanded");
             getPreTickWorldPoseMethod = optionalMethod(clientApiClass, "getPreTickWorldPose");
             getWorldRenderPoseMethod = optionalMethod(clientApiClass, "getWorldRenderPose");

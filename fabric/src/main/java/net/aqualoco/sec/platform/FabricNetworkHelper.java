@@ -14,6 +14,8 @@ import net.aqualoco.sec.network.ServerConfigUpdateResultS2CPayload;
 import net.aqualoco.sec.network.ServerHelloS2CPayload;
 import net.aqualoco.sec.network.SleepAnimationStartPayload;
 import net.aqualoco.sec.network.SleepAnimationStopPayload;
+import net.aqualoco.sec.network.VivecraftBedOffsetC2SPayload;
+import net.aqualoco.sec.network.VivecraftBedOffsetS2CPayload;
 import net.aqualoco.sec.network.VivecraftVrStatePayload;
 import net.aqualoco.sec.compat.VivecraftCompat;
 import net.aqualoco.sec.platform.services.INetworkHelper;
@@ -64,6 +66,10 @@ public class FabricNetworkHelper implements INetworkHelper {
                 ServerHelloS2CPayload.ID,
                 ServerHelloS2CPayload.CODEC
         );
+        PayloadTypeRegistry.playS2C().register(
+                VivecraftBedOffsetS2CPayload.ID,
+                VivecraftBedOffsetS2CPayload.CODEC
+        );
         PayloadTypeRegistry.playC2S().register(
                 ClientHelloC2SPayload.ID,
                 ClientHelloC2SPayload.CODEC
@@ -84,6 +90,10 @@ public class FabricNetworkHelper implements INetworkHelper {
                 VivecraftVrStatePayload.ID,
                 VivecraftVrStatePayload.CODEC
         );
+        PayloadTypeRegistry.playC2S().register(
+                VivecraftBedOffsetC2SPayload.ID,
+                VivecraftBedOffsetC2SPayload.CODEC
+        );
         ServerPlayNetworking.registerGlobalReceiver(
                 BedLookSyncPayload.ID,
                 (payload, context) -> context.server().execute(
@@ -94,6 +104,12 @@ public class FabricNetworkHelper implements INetworkHelper {
                 VivecraftVrStatePayload.ID,
                 (payload, context) -> context.server().execute(
                         () -> VivecraftCompat.handleClientVrState(context.player(), payload)
+                )
+        );
+        ServerPlayNetworking.registerGlobalReceiver(
+                VivecraftBedOffsetC2SPayload.ID,
+                (payload, context) -> context.server().execute(
+                        () -> VivecraftCompat.handleClientBedOffset(context.player(), payload)
                 )
         );
         ServerPlayNetworking.registerGlobalReceiver(
