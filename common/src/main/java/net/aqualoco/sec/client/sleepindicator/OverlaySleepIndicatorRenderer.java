@@ -35,6 +35,10 @@ public final class OverlaySleepIndicatorRenderer implements SleepIndicatorRender
 
     @Override
     public void render(GuiGraphics graphics, SleepIndicatorContext context, float tickDelta) {
+        render(new GuiSleepIndicatorDrawSurface(graphics), context, tickDelta);
+    }
+
+    public void render(SleepIndicatorDrawSurface surface, SleepIndicatorContext context, float tickDelta) {
         Minecraft client = context.client();
         Component text = resolveText(context.visualContext());
 
@@ -46,7 +50,7 @@ public final class OverlaySleepIndicatorRenderer implements SleepIndicatorRender
             return;
         }
         int color = (alpha << 24) | 0x00FFFFFF;
-        graphics.drawString(client.font, text, 0, 0, color, true);
+        surface.drawString(client.font, text, 0, 0, color, true);
     }
 
     private static Component resolveText(SleepAnimationVisualContext visualContext) {

@@ -74,6 +74,11 @@
   "config.seamlesssleep.vivecraft.bed_room_y_offset": "Offset de Altura na Cama",
   "config.seamlesssleep.vivecraft.bed_room_y_offset.desc": "Offset Y base da room do Vivecraft enquanto dorme em VR. Valores mais negativos abaixam a visao na cama antes da compensacao dinamica de altura. 0.0 mantem a altura vanilla.",
   "config.seamlesssleep.vivecraft.bed_room_y_offset.disabled": "Ative a Compatibilidade Vivecraft para ajustar o offset de altura da cama.",
+  "config.seamlesssleep.vivecraft.wrist_indicator_visibility": "Visibilidade do Indicador no Pulso",
+  "config.seamlesssleep.vivecraft.wrist_indicator_visibility.desc": "Controla quando o Relogio de Bioma e o Timestamp aparecem no pulso do Vivecraft. Texto continua apenas durante a animacao de sono.",
+  "config.seamlesssleep.vivecraft.wrist_indicator_visibility.disabled": "Ative a Compatibilidade Vivecraft para ajustar a visibilidade do indicador no pulso.",
+  "config.seamlesssleep.vivecraft.wrist_indicator_visibility.always": "Sempre",
+  "config.seamlesssleep.vivecraft.wrist_indicator_visibility.sleeping": "Dormindo",
 
   "config.seamlesssleep.sleep.clears_weather": "Chance de Limpar Clima",
   "config.seamlesssleep.sleep.clears_weather.desc": "Chance de limpar chuva e trovões após dormir.",

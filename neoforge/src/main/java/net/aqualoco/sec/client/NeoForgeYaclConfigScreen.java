@@ -24,6 +24,7 @@ import net.aqualoco.sec.client.sleepindicator.SleepIndicatorAnchor;
 import net.aqualoco.sec.client.sleepindicator.SleepIndicatorMode;
 import net.aqualoco.sec.client.sleepindicator.SleepIndicatorVisibility;
 import net.aqualoco.sec.client.sleepindicator.TimestampStyle;
+import net.aqualoco.sec.client.sleepindicator.VivecraftWristIndicatorVisibility;
 import net.aqualoco.sec.client.sleepvisual.SleepZzzConfigBridge;
 import net.aqualoco.sec.client.sleepvisual.SleepZzzStyle;
 import net.aqualoco.sec.config.ServerConfigMutationService;
@@ -608,6 +609,19 @@ public final class NeoForgeYaclConfigScreen {
                 cfg.vivecraftCompatibilityEnabled,
                 NeoForgeYaclConfigScreen::formatBedRoomYOffsetValue
         );
+        Option<VivecraftWristIndicatorVisibility> vivecraftWristIndicatorVisibilityOption = buildEnumOption(
+                Component.translatable("config.seamlesssleep.vivecraft.wrist_indicator_visibility"),
+                Component.translatable("config.seamlesssleep.vivecraft.wrist_indicator_visibility.desc"),
+                Component.translatable("config.seamlesssleep.vivecraft.wrist_indicator_visibility.disabled"),
+                SeamlessSleepClientConfig.DEFAULT_VIVECRAFT_WRIST_INDICATOR_VISIBILITY,
+                VivecraftWristIndicatorVisibility.class,
+                () -> cfg.vivecraftWristIndicatorVisibility,
+                value -> cfg.vivecraftWristIndicatorVisibility = value == null
+                        ? SeamlessSleepClientConfig.DEFAULT_VIVECRAFT_WRIST_INDICATOR_VISIBILITY
+                        : value,
+                cfg.vivecraftCompatibilityEnabled,
+                value -> enumText("config.seamlesssleep.vivecraft.wrist_indicator_visibility", value)
+        );
 
         OptionGroup vivecraftCompatibilityGroup = OptionGroup.createBuilder()
                 .name(Component.translatable("config.seamlesssleep.client.group.vivecraft_compatibility"))
@@ -615,6 +629,7 @@ public final class NeoForgeYaclConfigScreen {
                 .collapsed(false)
                 .option(vivecraftCompatibilityOption)
                 .option(vivecraftBedRoomYOffsetOption)
+                .option(vivecraftWristIndicatorVisibilityOption)
                 .build();
 
         OptionGroup compatibilityGroup = OptionGroup.createBuilder()

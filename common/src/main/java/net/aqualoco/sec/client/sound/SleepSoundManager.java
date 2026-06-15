@@ -118,6 +118,7 @@ public final class SleepSoundManager {
         activePhase = payload.phase() == null ? SleepAnimationPhase.RUNNING : payload.phase();
         activeSoundMode = SleepAnimationSoundMode.canonical(payload.soundMode());
         boolean freshPayload = isFreshPayload(payload);
+        MadeInHeavenMusicSuppression.update(shouldSuppressMadeInHeavenMusic(client));
 
         if (shouldSuppressAllAudio(client)) {
             stopWindLoop(WIND_STOP_FADE_TICKS);
@@ -161,18 +162,21 @@ public final class SleepSoundManager {
 
         stopWindLoop(WIND_STOP_FADE_TICKS);
         stopMadeInHeavenMainSound(MADE_IN_HEAVEN_MAIN_FADE_OUT_CANCEL_TICKS);
+        MadeInHeavenMusicSuppression.update(false);
         resetSessionState("sleep_stop_" + payload.reason().name().toLowerCase(Locale.ROOT));
         audioEnvironment.reset();
     }
 
     public static void tick(Minecraft client) {
         if (client == null) {
+            MadeInHeavenMusicSuppression.update(false);
             stopAllLoops();
             audioEnvironment.reset();
             return;
         }
 
         pruneStoppedSounds(client);
+        MadeInHeavenMusicSuppression.update(shouldSuppressMadeInHeavenMusic(client));
         if (shouldSuppressAllAudio(client)) {
             stopAllLoops();
             stopMadeInHeavenMainSound(MADE_IN_HEAVEN_MAIN_FADE_OUT_CANCEL_TICKS);
@@ -218,6 +222,7 @@ public final class SleepSoundManager {
         stopAllLoops();
         Minecraft client = Minecraft.getInstance();
         stopMadeInHeavenMainSound(MADE_IN_HEAVEN_MAIN_FADE_OUT_CANCEL_TICKS);
+        MadeInHeavenMusicSuppression.update(false);
         stopOneShotSounds(client);
         resetSessionState(reason);
         audioEnvironment.reset();
@@ -937,6 +942,28 @@ public final class SleepSoundManager {
         return client != null
                 && config.disableSoundsDuringReplay
                 && ReplayPlaybackCompat.isReplayPlaybackActive();
+    }
+
+    private static boolean shouldSuppressMadeInHeavenMusic(Minecraft client) {
+        if (client == null
+                || client.level == null
+                || client.player == null
+                || activeSessionId < 0L
+                || activeMode != SleepAnimationMode.MADE_IN_HEAVEN_BED
+                || shouldSuppressAllAudio(client)) {
+            return false;
+        }
+
+        if (activePhase != SleepAnimationPhase.RUNNING && activePhase != SleepAnimationPhase.BRAKING) {
+            return false;
+        }
+
+        ClientSleepAnimationState sleepState = SeamlessSleepClientState.SLEEP_ANIMATION;
+        if (sleepState == null || !sleepState.isActive()) {
+            return false;
+        }
+
+        return SeamlessSleepClientConfigManager.get().soundtrackVolumePercent > 0;
     }
 
     private static float soundtrackVolume(SeamlessSleepClientConfig config, float multiplier) {

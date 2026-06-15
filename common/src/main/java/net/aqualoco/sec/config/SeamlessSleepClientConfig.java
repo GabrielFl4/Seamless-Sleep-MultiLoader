@@ -4,6 +4,7 @@ import net.aqualoco.sec.client.sleepindicator.SleepIndicatorAnchor;
 import net.aqualoco.sec.client.sleepindicator.SleepIndicatorMode;
 import net.aqualoco.sec.client.sleepindicator.SleepIndicatorVisibility;
 import net.aqualoco.sec.client.sleepindicator.TimestampStyle;
+import net.aqualoco.sec.client.sleepindicator.VivecraftWristIndicatorVisibility;
 import net.aqualoco.sec.client.sleepvisual.SleepZzzConfigBridge;
 
 // Client-side visual settings with validation bounds for safe values.
@@ -31,6 +32,7 @@ public final class SeamlessSleepClientConfig {
     private static final boolean DEFAULT_REPLAY_COMPATIBILITY_ENABLED = true;
     public static final boolean DEFAULT_VIVECRAFT_COMPATIBILITY_ENABLED = true;
     public static final double DEFAULT_VIVECRAFT_BED_ROOM_Y_OFFSET = -1.25D;
+    public static final VivecraftWristIndicatorVisibility DEFAULT_VIVECRAFT_WRIST_INDICATOR_VISIBILITY = VivecraftWristIndicatorVisibility.SLEEPING;
     public static final double MIN_VIVECRAFT_BED_ROOM_Y_OFFSET = -2.0D;
     public static final double MAX_VIVECRAFT_BED_ROOM_Y_OFFSET = 0.0D;
     private static final boolean DEFAULT_DEBUG_LOGS_ENABLED = false;
@@ -59,6 +61,7 @@ public final class SeamlessSleepClientConfig {
     public boolean replayCompatibilityEnabled = DEFAULT_REPLAY_COMPATIBILITY_ENABLED;
     public boolean vivecraftCompatibilityEnabled = DEFAULT_VIVECRAFT_COMPATIBILITY_ENABLED;
     public double vivecraftBedRoomYOffset = DEFAULT_VIVECRAFT_BED_ROOM_Y_OFFSET;
+    public VivecraftWristIndicatorVisibility vivecraftWristIndicatorVisibility = DEFAULT_VIVECRAFT_WRIST_INDICATOR_VISIBILITY;
     public boolean debugLogsEnabled = DEFAULT_DEBUG_LOGS_ENABLED;
 
     public int sleepWindVolumePercent = 40;
@@ -79,6 +82,9 @@ public final class SeamlessSleepClientConfig {
         }
         if (timestampStyle == null) {
             timestampStyle = TimestampStyle.DAY_FIRST;
+        }
+        if (vivecraftWristIndicatorVisibility == null) {
+            vivecraftWristIndicatorVisibility = DEFAULT_VIVECRAFT_WRIST_INDICATOR_VISIBILITY;
         }
         if (sleepIndicatorMode == SleepIndicatorMode.TEXT) {
             sleepIndicatorVisibility = SleepIndicatorVisibility.SLEEP;

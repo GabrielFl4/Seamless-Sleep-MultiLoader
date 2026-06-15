@@ -38,7 +38,8 @@ public final class SleepIndicatorSystem {
         if (client.options.hideGui) {
             return;
         }
-        if (VivecraftClientCompat.shouldUseVrBedPolicy(player) && ClientBedWorkflow.isManagedBedState(player)) {
+        if (VivecraftClientCompat.shouldUseVrBedPolicy(player)) {
+            PRESENTATION.reset();
             return;
         }
 

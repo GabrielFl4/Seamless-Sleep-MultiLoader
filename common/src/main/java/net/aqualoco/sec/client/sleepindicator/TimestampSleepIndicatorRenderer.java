@@ -52,6 +52,10 @@ public final class TimestampSleepIndicatorRenderer implements SleepIndicatorRend
 
     @Override
     public void render(GuiGraphics graphics, SleepIndicatorContext context, float tickDelta) {
+        render(new GuiSleepIndicatorDrawSurface(graphics), context, tickDelta);
+    }
+
+    public void render(SleepIndicatorDrawSurface surface, SleepIndicatorContext context, float tickDelta) {
         TimestampRenderState state = resolveState(context);
         Font font = context.client().font;
         int color = withAlpha(context.alpha(), state.rgb());
@@ -63,7 +67,7 @@ public final class TimestampSleepIndicatorRenderer implements SleepIndicatorRend
         int randomizationStep = state.randomizeTime() ? timeRandomizationStep(System.nanoTime()) : 0;
         int x = 0;
         x += drawString(
-                graphics,
+                surface,
                 font,
                 text.prefix(),
                 x,
@@ -74,10 +78,10 @@ public final class TimestampSleepIndicatorRenderer implements SleepIndicatorRend
                 randomizationStep,
                 DIMENSION_TIME_RANDOMIZATION_SEED
         );
-        drawDayDigits(graphics, font, state, x, context.alpha());
+        drawDayDigits(surface, font, state, x, context.alpha());
         x += font.width(textComponent(text.dayDigits()));
         drawString(
-                graphics,
+                surface,
                 font,
                 text.suffix(),
                 x,
@@ -127,7 +131,7 @@ public final class TimestampSleepIndicatorRenderer implements SleepIndicatorRend
     }
 
     private void drawDayDigits(
-            GuiGraphics graphics,
+            SleepIndicatorDrawSurface surface,
             Font font,
             TimestampRenderState state,
             int startX,
@@ -137,7 +141,7 @@ public final class TimestampSleepIndicatorRenderer implements SleepIndicatorRend
         Component dayComponent = textComponent(dayDigits);
         int normalColor = withAlpha(baseAlpha, state.rgb());
         if (!isDayAnimationActive() || this.previousDayString.length() != dayDigits.length()) {
-            graphics.drawString(font, dayComponent, startX, 0, normalColor, state.shadow());
+            surface.drawString(font, dayComponent, startX, 0, normalColor, state.shadow());
             return;
         }
 
@@ -146,7 +150,7 @@ public final class TimestampSleepIndicatorRenderer implements SleepIndicatorRend
         float eased = easeOutCubic(progress);
         if (progress >= 1.0F) {
             this.dayAnimationStartMs = -1L;
-            graphics.drawString(font, dayComponent, startX, 0, normalColor, state.shadow());
+            surface.drawString(font, dayComponent, startX, 0, normalColor, state.shadow());
             return;
         }
 
@@ -154,7 +158,7 @@ public final class TimestampSleepIndicatorRenderer implements SleepIndicatorRend
             String currentDigit = dayDigits.substring(i, i + 1);
             int digitX = startX + font.width(textComponent(dayDigits.substring(0, i)));
             if (i >= this.animatedDayDigits.length || !this.animatedDayDigits[i]) {
-                graphics.drawString(font, textComponent(currentDigit), digitX, 0, normalColor, state.shadow());
+                surface.drawString(font, textComponent(currentDigit), digitX, 0, normalColor, state.shadow());
                 continue;
             }
 
@@ -163,8 +167,8 @@ public final class TimestampSleepIndicatorRenderer implements SleepIndicatorRend
             int currentColor = withAlpha(baseAlpha * eased, state.rgb());
             int previousY = Math.round(eased * DAY_ANIMATION_TRAVEL);
             int currentY = -Math.round((1.0F - eased) * DAY_ANIMATION_TRAVEL);
-            graphics.drawString(font, textComponent(previousDigit), digitX, previousY, previousColor, state.shadow());
-            graphics.drawString(font, textComponent(currentDigit), digitX, currentY, currentColor, state.shadow());
+            surface.drawString(font, textComponent(previousDigit), digitX, previousY, previousColor, state.shadow());
+            surface.drawString(font, textComponent(currentDigit), digitX, currentY, currentColor, state.shadow());
         }
     }
 
@@ -194,7 +198,7 @@ public final class TimestampSleepIndicatorRenderer implements SleepIndicatorRend
     }
 
     private static int drawString(
-            GuiGraphics graphics,
+            SleepIndicatorDrawSurface surface,
             Font font,
             String text,
             int x,
@@ -212,7 +216,7 @@ public final class TimestampSleepIndicatorRenderer implements SleepIndicatorRend
         Component component = textComponent(randomizeTime
                 ? randomizeTimeText(text, randomizationStep, seed)
                 : text);
-        graphics.drawString(font, component, x, y, color, shadow);
+        surface.drawString(font, component, x, y, color, shadow);
         return font.width(component);
     }
 

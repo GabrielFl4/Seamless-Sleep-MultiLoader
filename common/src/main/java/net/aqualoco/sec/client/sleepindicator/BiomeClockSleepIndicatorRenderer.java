@@ -12,7 +12,6 @@ import net.aqualoco.sec.client.sleepindicator.biomeclock.BiomeClockWeatherKind;
 import net.aqualoco.sec.client.sleepindicator.biomeclock.BiomeClockWeatherResolver;
 import net.aqualoco.sec.client.sleepindicator.biomeclock.BiomeClockWeatherVisualState;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
@@ -277,6 +276,10 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
 
     @Override
     public void render(GuiGraphics graphics, SleepIndicatorContext context, float tickDelta) {
+        render(new GuiSleepIndicatorDrawSurface(graphics), context, tickDelta);
+    }
+
+    public void render(SleepIndicatorDrawSurface graphics, SleepIndicatorContext context, float tickDelta) {
         long nowNanos = System.nanoTime();
         this.sceneState.update(BiomeClockSceneResolver.resolve(context), nowNanos);
 
@@ -313,7 +316,7 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
     }
 
     private void renderNormalClockContent(
-            GuiGraphics graphics,
+            SleepIndicatorDrawSurface graphics,
             SleepIndicatorContext context,
             long nowNanos
     ) {
@@ -428,26 +431,26 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
         renderLightning(graphics, context, lightningFrame);
     }
 
-    private void renderCavernsScene(GuiGraphics graphics, SleepIndicatorContext context, long nowNanos) {
+    private void renderCavernsScene(SleepIndicatorDrawSurface graphics, SleepIndicatorContext context, long nowNanos) {
         int frameIndex = animationFrame(nowNanos, CAVERN_ANIMATION_FPS, CAVERNS.length);
         drawCircularFullTexture(graphics, CAVERNS[frameIndex], whiteWithAlpha(context.alpha()));
     }
 
-    private void renderNetherScene(GuiGraphics graphics, SleepIndicatorContext context, long nowNanos) {
+    private void renderNetherScene(SleepIndicatorDrawSurface graphics, SleepIndicatorContext context, long nowNanos) {
         int frameIndex = animationFrame(nowNanos, NETHER_BACKGROUND_FPS, NETHER.length);
         drawCircularFullTexture(graphics, NETHER[frameIndex], whiteWithAlpha(context.alpha()));
         renderGlitchedSun(graphics, NETHER_SUN, context, nowNanos, NETHER_GLITCH_SEED);
         renderNoiseLayer(graphics, context, nowNanos, NETHER_NOISE_BASE_ALPHA, NETHER_NOISE_SPIKE_ALPHA, NETHER_GLITCH_SEED);
     }
 
-    private void renderEndScene(GuiGraphics graphics, SleepIndicatorContext context, long nowNanos) {
+    private void renderEndScene(SleepIndicatorDrawSurface graphics, SleepIndicatorContext context, long nowNanos) {
         int frameIndex = animationFrame(nowNanos, END_BACKGROUND_FPS, END.length);
         drawCircularFullTexture(graphics, END[frameIndex], whiteWithAlpha(context.alpha()));
         renderGlitchedSun(graphics, END_SUN, context, nowNanos, END_GLITCH_SEED);
         renderNoiseLayer(graphics, context, nowNanos, END_NOISE_BASE_ALPHA, END_NOISE_SPIKE_ALPHA, END_GLITCH_SEED);
     }
 
-    private void renderUnknownDimensionScene(GuiGraphics graphics, SleepIndicatorContext context, long nowNanos) {
+    private void renderUnknownDimensionScene(SleepIndicatorDrawSurface graphics, SleepIndicatorContext context, long nowNanos) {
         int flickerStep = temporalStep(nowNanos, NOISE_JITTER_FPS);
         float backgroundPulse = random01(flickerStep, UNKNOWN_GLITCH_SEED + 7) * 0.05F;
         int backgroundColor = colorWithAlpha(
@@ -459,7 +462,7 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
     }
 
     private void renderGlitchedSun(
-            GuiGraphics graphics,
+            SleepIndicatorDrawSurface graphics,
             Identifier texture,
             SleepIndicatorContext context,
             long nowNanos,
@@ -489,7 +492,7 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
     }
 
     private void renderNoiseLayer(
-            GuiGraphics graphics,
+            SleepIndicatorDrawSurface graphics,
             SleepIndicatorContext context,
             long nowNanos,
             float baseAlpha,
@@ -505,18 +508,17 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
         }
 
         float destinationOffsetY = noiseDestinationOffsetY(nowNanos);
+        int color = whiteWithAlpha(context.alpha() * alpha);
         if (destinationOffsetY != 0.0F) {
-            graphics.pose().pushMatrix();
-            graphics.pose().translate(0.0F, destinationOffsetY);
-            try {
-                drawNoiseTexture(graphics, frameIndex, sourceY, whiteWithAlpha(context.alpha() * alpha));
-            } finally {
-                graphics.pose().popMatrix();
-            }
+            graphics.withTranslation(
+                    0.0F,
+                    destinationOffsetY,
+                    () -> drawNoiseTexture(graphics, frameIndex, sourceY, color)
+            );
             return;
         }
 
-        drawNoiseTexture(graphics, frameIndex, sourceY, whiteWithAlpha(context.alpha() * alpha));
+        drawNoiseTexture(graphics, frameIndex, sourceY, color);
     }
 
     private static int noiseSourceY(long nowNanos, int seed) {
@@ -543,7 +545,7 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
         return (float) (-fractionalPixel * NOISE_DESTINATION_SUBPIXEL_OFFSET_SCALE);
     }
 
-    private static void drawNoiseTexture(GuiGraphics graphics, int frameIndex, int sourceY, int color) {
+    private static void drawNoiseTexture(SleepIndicatorDrawSurface graphics, int frameIndex, int sourceY, int color) {
         drawCircularTexture(
                 graphics,
                 NOISE[frameIndex],
@@ -559,7 +561,7 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
         );
     }
 
-    private void renderSkyFromClient(GuiGraphics graphics, SleepIndicatorContext context) {
+    private void renderSkyFromClient(SleepIndicatorDrawSurface graphics, SleepIndicatorContext context) {
         int skyBase = ARGB.opaque(context.skyColor());
         int topColor = ARGB.scaleRGB(skyBase, SKY_TOP_DARKEN);
         int horizonColor = ARGB.srgbLerp(SKY_HORIZON_LIGHTEN, skyBase, ARGB.color(255, 255, 255));
@@ -578,7 +580,7 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
         }, 0, 0, 0, 0, CLOCK_SIZE, CLOCK_SIZE);
     }
 
-    private void renderSkyLight(GuiGraphics graphics, SleepIndicatorContext context) {
+    private void renderSkyLight(SleepIndicatorDrawSurface graphics, SleepIndicatorContext context) {
         float nightFactor = computeNightFactor(context.normalizedDayTime());
         float alphaMultiplier = Mth.lerp(nightFactor, SKY_LIGHT_DAY_ALPHA, SKY_LIGHT_NIGHT_ALPHA_MULTIPLIER);
         drawCircularTexture(
@@ -596,7 +598,7 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
         );
     }
 
-    private void renderStars(GuiGraphics graphics, SleepIndicatorContext context, long nowNanos) {
+    private void renderStars(SleepIndicatorDrawSurface graphics, SleepIndicatorContext context, long nowNanos) {
         float nightAlpha = smoothstepRange(0.02F, 0.55F, context.starBrightness());
         float rainDim = Mth.lerp(Mth.clamp(context.rainLevel(), 0.0F, 1.0F), 1.0F, STAR_RAIN_VISIBILITY);
         float thunderDim = Mth.lerp(Mth.clamp(context.thunderLevel(), 0.0F, 1.0F), 1.0F, STAR_THUNDER_VISIBILITY);
@@ -615,7 +617,7 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
     }
 
     private void renderPrecipitation(
-            GuiGraphics graphics,
+            SleepIndicatorDrawSurface graphics,
             SleepIndicatorContext context,
             BiomeClockWeatherKind weatherKind,
             long nowNanos,
@@ -678,7 +680,7 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
     }
 
     private void renderWeatherClouds(
-            GuiGraphics graphics,
+            SleepIndicatorDrawSurface graphics,
             SleepIndicatorContext context,
             BiomeClockWeatherKind weatherKind
     ) {
@@ -729,7 +731,7 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
         );
     }
 
-    private void renderLightning(GuiGraphics graphics, SleepIndicatorContext context, int lightningFrame) {
+    private void renderLightning(SleepIndicatorDrawSurface graphics, SleepIndicatorContext context, int lightningFrame) {
         if (lightningFrame < 0 || lightningFrame >= LIGHTNING.length) {
             return;
         }
@@ -749,7 +751,7 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
         );
     }
 
-    private void renderZzzLayer(GuiGraphics graphics, SleepIndicatorContext context, long nowNanos) {
+    private void renderZzzLayer(SleepIndicatorDrawSurface graphics, SleepIndicatorContext context, long nowNanos) {
         float presence = updateZzzPresence(context, nowNanos);
         float alpha = presence * context.alpha();
         if (alpha <= 0.001F) {
@@ -760,7 +762,7 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
         drawFullTexture(graphics, ZZZ[frameIndex], whiteWithAlpha(alpha));
     }
 
-    private void renderBiomeLayer(GuiGraphics graphics, SleepIndicatorContext context, float darkeningAlpha) {
+    private void renderBiomeLayer(SleepIndicatorDrawSurface graphics, SleepIndicatorContext context, float darkeningAlpha) {
         BiomeClockCategory fromCategory = this.biomeTransition.fromCategory();
         BiomeClockCategory toCategory = this.biomeTransition.toCategory();
         float fromAlpha = this.biomeTransition.fromAlpha();
@@ -781,11 +783,11 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
         }
     }
 
-    private static void drawBiomeTexture(GuiGraphics graphics, BiomeClockCategory category, float alpha) {
+    private static void drawBiomeTexture(SleepIndicatorDrawSurface graphics, BiomeClockCategory category, float alpha) {
         drawCircularFullTexture(graphics, biomeTexture(category), whiteWithAlpha(alpha));
     }
 
-    private static void drawBiomeDarkening(GuiGraphics graphics, BiomeClockCategory category, float alpha) {
+    private static void drawBiomeDarkening(SleepIndicatorDrawSurface graphics, BiomeClockCategory category, float alpha) {
         drawCircularFullTexture(graphics, biomeTexture(category), colorWithAlpha(alpha, BIOME_DARKEN_TINT_RGB));
     }
 
@@ -1051,7 +1053,7 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
         return centerY + size * 0.5F;
     }
 
-    private static void drawCircularFullTexture(GuiGraphics graphics, Identifier texture, int color) {
+    private static void drawCircularFullTexture(SleepIndicatorDrawSurface graphics, Identifier texture, int color) {
         drawCircularTexture(
                 graphics,
                 texture,
@@ -1067,13 +1069,12 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
         );
     }
 
-    private static void drawFullTexture(GuiGraphics graphics, Identifier texture, int color) {
+    private static void drawFullTexture(SleepIndicatorDrawSurface graphics, Identifier texture, int color) {
         if ((color >>> 24) <= 0) {
             return;
         }
 
         graphics.blit(
-                RenderPipelines.GUI_TEXTURED,
                 texture,
                 0,
                 0,
@@ -1087,7 +1088,7 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
         );
     }
 
-    private static void fillCircularColor(GuiGraphics graphics, int color) {
+    private static void fillCircularColor(SleepIndicatorDrawSurface graphics, int color) {
         if ((color >>> 24) <= 0) {
             return;
         }
@@ -1105,7 +1106,7 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
     }
 
     private static void drawCircularTexture(
-            GuiGraphics graphics,
+            SleepIndicatorDrawSurface graphics,
             Identifier texture,
             int destX,
             int destY,
@@ -1117,7 +1118,6 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
             int textureHeight
     ) {
         forEachCircularSlice((sliceX, sliceY, sliceWidth, u, v) -> graphics.blit(
-                RenderPipelines.GUI_TEXTURED,
                 texture,
                 sliceX,
                 sliceY,
@@ -1131,7 +1131,7 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
     }
 
     private static void drawCircularTextureClippedToHorizon(
-            GuiGraphics graphics,
+            SleepIndicatorDrawSurface graphics,
             Identifier texture,
             int destX,
             int destY,
@@ -1144,7 +1144,6 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
             int maxVisibleYExclusive
     ) {
         forEachCircularSlice((sliceX, sliceY, sliceWidth, u, v) -> graphics.blit(
-                RenderPipelines.GUI_TEXTURED,
                 texture,
                 sliceX,
                 sliceY,
@@ -1158,7 +1157,7 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
     }
 
     private static void drawCircularTextureScaled(
-            GuiGraphics graphics,
+            SleepIndicatorDrawSurface graphics,
             Identifier texture,
             int destX,
             int destY,
@@ -1182,7 +1181,7 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
     }
 
     private static void drawCircularTextureScaled(
-            GuiGraphics graphics,
+            SleepIndicatorDrawSurface graphics,
             Identifier texture,
             int destX,
             int destY,
@@ -1207,7 +1206,7 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
     }
 
     private static void drawCircularTextureScaled(
-            GuiGraphics graphics,
+            SleepIndicatorDrawSurface graphics,
             Identifier texture,
             int destX,
             int destY,
@@ -1237,7 +1236,6 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
 
             if (color == -1) {
                 graphics.blit(
-                        RenderPipelines.GUI_TEXTURED,
                         texture,
                         sliceX,
                         sliceY,
@@ -1252,7 +1250,6 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
                 );
             } else {
                 graphics.blit(
-                        RenderPipelines.GUI_TEXTURED,
                         texture,
                         sliceX,
                         sliceY,
@@ -1271,7 +1268,7 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
     }
 
     private static void drawCircularTexture(
-            GuiGraphics graphics,
+            SleepIndicatorDrawSurface graphics,
             Identifier texture,
             int destX,
             int destY,
@@ -1288,7 +1285,6 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
         }
 
         forEachCircularSlice((sliceX, sliceY, sliceWidth, u, v) -> graphics.blit(
-                RenderPipelines.GUI_TEXTURED,
                 texture,
                 sliceX,
                 sliceY,

@@ -1,12 +1,11 @@
 package net.aqualoco.sec.client;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.aqualoco.sec.Constants;
+import net.aqualoco.sec.client.sleepindicator.VivecraftSleepWristIndicatorRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.SubmitNodeCollector;
-import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.state.CameraRenderState;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.InteractionHand;
@@ -18,13 +17,13 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 
-// Shared Vivecraft wrist-panel geometry used by both the InteractModule hitbox and the line render.
+// Shared Vivecraft wrist-panel geometry used by both the InteractModule hitbox and the indicator render.
 public final class VivecraftSleepWristPanel {
     private static final Identifier PANEL_ID = Identifier.fromNamespaceAndPath(Constants.MOD_ID, "sleep_indicator");
     private static final String VIVECRAFT_HOTBAR_MODULE_ID = "vivecraft:interactive_hotbar";
     private static final int INTERACT_PRIORITY_AFTER_HOTBAR = 100;
 
-    // Physical square size in meters/blocks before Vivecraft world scale.
+    // Physical square size for the approved plane and hitbox before Vivecraft world scale.
     private static final float PANEL_SIZE = 0.10F;
     // 1.0 tries one side of the wrist; -1.0 flips the panel to the opposite side.
     private static final float PANEL_TOP_NORMAL_SIGN = 1.0F;
@@ -36,7 +35,6 @@ public final class VivecraftSleepWristPanel {
     private static final float PANEL_SIDE_OFFSET = 0.0F;
     // Hitbox depth around the panel plane; higher is easier to hover, lower is more precise.
     private static final float PANEL_NORMAL_TOLERANCE = 0.055F;
-    private static final float PANEL_LINE_WIDTH = 2.0F;
     private static final long WAKE_COOLDOWN_MS = 200L;
 
     private static InteractionHand hoveredHand;
@@ -112,10 +110,18 @@ public final class VivecraftSleepWristPanel {
                                     SubmitNodeCollector submitNodeCollector) {
         Minecraft client = Minecraft.getInstance();
         LocalPlayer player = client.player;
-        if (!isEligible(player) || client.options.hideGui) {
-            hoveredHand = null;
-            lastHoverPlayerTick = Integer.MIN_VALUE;
+        if (!isRenderEligible(player) || client.options.hideGui) {
+            clearHoverState();
+            VivecraftSleepWristIndicatorRenderer.resetTransientState();
             return;
+        }
+        if (!isTargetWristHandModeled()) {
+            clearHoverState();
+            VivecraftSleepWristIndicatorRenderer.resetTransientState();
+            return;
+        }
+        if (!isInteractionEligible(player)) {
+            clearHoverState();
         }
 
         PanelPose panel = resolvePanelPose(VivecraftClientCompat.getWorldRenderPose());
@@ -123,25 +129,17 @@ public final class VivecraftSleepWristPanel {
             return;
         }
 
-        boolean active = hoveredHand != null;
-        Vec3 cameraPos = cameraRenderState.pos;
-
-        poseStack.pushPose();
-        poseStack.translate(
-                panel.center.x() - cameraPos.x(),
-                panel.center.y() - cameraPos.y(),
-                panel.center.z() - cameraPos.z()
-        );
-        submitNodeCollector.submitCustomGeometry(
+        VivecraftSleepWristIndicatorRenderer.submitRender(
                 poseStack,
-                RenderTypes.lines(),
-                (pose, vertexConsumer) -> drawPanel(pose, vertexConsumer, panel, active)
+                cameraRenderState,
+                submitNodeCollector,
+                panel,
+                isHoveredRecently(player)
         );
-        poseStack.popPose();
     }
 
     private static boolean isActive(LocalPlayer player, InteractionHand hand, Vec3 handPosition) {
-        if (!isEligible(player) || hand != interactorHand()) {
+        if (!isInteractionEligible(player) || hand != interactorHand()) {
             clearHover(hand);
             return false;
         }
@@ -158,7 +156,7 @@ public final class VivecraftSleepWristPanel {
     }
 
     private static boolean press(LocalPlayer player, InteractionHand hand) {
-        if (!isEligible(player) || hand != interactorHand()) {
+        if (!isInteractionEligible(player) || hand != interactorHand()) {
             return false;
         }
 
@@ -178,11 +176,19 @@ public final class VivecraftSleepWristPanel {
         clearHover(hand);
     }
 
-    private static boolean isEligible(LocalPlayer player) {
+    private static boolean isRenderEligible(LocalPlayer player) {
+        return player != null
+                && Minecraft.getInstance().level != null
+                && VivecraftClientCompat.shouldUseVrBedPolicy(player);
+    }
+
+    private static boolean isInteractionEligible(LocalPlayer player) {
         return player != null
                 && Minecraft.getInstance().level != null
                 && VivecraftClientCompat.shouldUseVrBedPolicy(player)
-                && ClientBedWorkflow.isManagedBedState(player);
+                && ClientBedWorkflow.isManagedBedState(player)
+                && isTargetWristHandModeled()
+                && VivecraftSleepWristIndicatorRenderer.shouldRenderForPlayer(player);
     }
 
     private static InteractionHand wristHand() {
@@ -193,18 +199,49 @@ public final class VivecraftSleepWristPanel {
         return wristHand() == InteractionHand.MAIN_HAND ? InteractionHand.OFF_HAND : InteractionHand.MAIN_HAND;
     }
 
+    private static boolean isTargetWristHandModeled() {
+        return !isMenuHandActive(wristHand());
+    }
+
+    private static boolean isMenuHandActive(InteractionHand hand) {
+        try {
+            if (!ensureMenuHandBridgeReady()) {
+                return false;
+            }
+
+            Object dataHolder = dataHolderGetInstanceMethod.invoke(null);
+            if (dataHolder == null) {
+                return false;
+            }
+
+            Field field = hand == InteractionHand.MAIN_HAND ? menuHandMainField : menuHandOffField;
+            return field.getBoolean(dataHolder);
+        } catch (ReflectiveOperationException | LinkageError | RuntimeException exception) {
+            logMenuHandBridgeFailure(exception);
+            return false;
+        }
+    }
+
     private static void clearHover(InteractionHand hand) {
         if (hoveredHand == hand) {
-            hoveredHand = null;
-            lastHoverPlayerTick = Integer.MIN_VALUE;
+            clearHoverState();
         }
+    }
+
+    private static void clearHoverState() {
+        hoveredHand = null;
+        lastHoverPlayerTick = Integer.MIN_VALUE;
+    }
+
+    public static boolean isHoveredRecently(LocalPlayer player) {
+        return player != null && hoveredHand != null && player.tickCount - lastHoverPlayerTick <= 1;
     }
 
     private static boolean shouldShowMenuHand(InteractionHand hand) {
         Minecraft client = Minecraft.getInstance();
         LocalPlayer player = client.player;
         return !client.options.hideGui
-                && isEligible(player)
+                && isInteractionEligible(player)
                 && hoveredHand == hand
                 && player.tickCount - lastHoverPlayerTick <= 1;
     }
@@ -260,47 +297,6 @@ public final class VivecraftSleepWristPanel {
 
     private static boolean isUsableAxis(Vec3 axis) {
         return axis.lengthSqr() > 1.0E-6D;
-    }
-
-    private static void drawPanel(PoseStack.Pose pose, VertexConsumer vertexConsumer, PanelPose panel, boolean active) {
-        Vec3 x = panel.horizontal.scale(panel.halfSize);
-        Vec3 y = panel.vertical.scale(panel.halfSize);
-        Vec3 bottomLeft = x.scale(-1.0D).add(y.scale(-1.0D));
-        Vec3 bottomRight = x.add(y.scale(-1.0D));
-        Vec3 topRight = x.add(y);
-        Vec3 topLeft = x.scale(-1.0D).add(y);
-
-        int red = active ? 80 : 255;
-        int green = active ? 255 : 210;
-        int blue = active ? 120 : 40;
-        int alpha = 255;
-
-        line(vertexConsumer, pose, bottomLeft, bottomRight, panel.normal, red, green, blue, alpha);
-        line(vertexConsumer, pose, bottomRight, topRight, panel.normal, red, green, blue, alpha);
-        line(vertexConsumer, pose, topRight, topLeft, panel.normal, red, green, blue, alpha);
-        line(vertexConsumer, pose, topLeft, bottomLeft, panel.normal, red, green, blue, alpha);
-        line(vertexConsumer, pose, bottomLeft, topRight, panel.normal, 60, 180, 255, alpha);
-        line(vertexConsumer, pose, bottomRight, topLeft, panel.normal, 60, 180, 255, alpha);
-        line(vertexConsumer, pose, Vec3.ZERO, panel.normal.scale(0.045D), panel.normal, 255, 80, 180, alpha);
-    }
-
-    private static void line(VertexConsumer vertexConsumer,
-                             PoseStack.Pose pose,
-                             Vec3 start,
-                             Vec3 end,
-                             Vec3 normal,
-                             int red,
-                             int green,
-                             int blue,
-                             int alpha) {
-        vertexConsumer.addVertex(pose, (float) start.x(), (float) start.y(), (float) start.z())
-                .setColor(red, green, blue, alpha)
-                .setNormal(pose, (float) normal.x(), (float) normal.y(), (float) normal.z())
-                .setLineWidth(PANEL_LINE_WIDTH);
-        vertexConsumer.addVertex(pose, (float) end.x(), (float) end.y(), (float) end.z())
-                .setColor(red, green, blue, alpha)
-                .setNormal(pose, (float) normal.x(), (float) normal.y(), (float) normal.z())
-                .setLineWidth(PANEL_LINE_WIDTH);
     }
 
     private static void logPoseFailure(Throwable exception) {
@@ -364,7 +360,7 @@ public final class VivecraftSleepWristPanel {
         }
     }
 
-    private record PanelPose(
+    public record PanelPose(
             Vec3 center,
             Vec3 horizontal,
             Vec3 vertical,
