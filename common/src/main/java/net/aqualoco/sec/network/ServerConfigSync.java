@@ -59,7 +59,10 @@ public final class ServerConfigSync {
                 config.worldSleepAcceleration.vanillaOnlyAcceleration,
                 config.worldSleepAcceleration.processesAccelerationEnabled,
                 config.worldSleepAcceleration.processesSpeedPercent,
-                config.betterDaysCompatibilityEnabled
+                config.betterDaysCompatibilityEnabled,
+                config.worldSleepAcceleration.recheckIrrelevantNatureSectionsDuringAcceleration,
+                config.worldSleepAcceleration.accelerationTelemetryEnabled,
+                config.worldSleepAcceleration.vinesAndBambooAccelerationEnabled
         );
     }
 }

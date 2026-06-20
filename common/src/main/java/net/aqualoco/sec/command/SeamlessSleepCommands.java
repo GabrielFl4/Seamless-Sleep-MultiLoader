@@ -6,10 +6,13 @@ import com.mojang.brigadier.arguments.DoubleArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
+import net.aqualoco.sec.acceleration.WorldSleepAccelerationGovernorAction;
 import net.aqualoco.sec.acceleration.WorldSleepAccelerationGovernorSnapshot;
 import net.aqualoco.sec.acceleration.WorldSleepAccelerationManager;
 import net.aqualoco.sec.acceleration.WorldSleepAccelerationModuleStatus;
 import net.aqualoco.sec.acceleration.WorldSleepAccelerationStatus;
+import net.aqualoco.sec.acceleration.WorldSleepAccelerationTelemetry;
+import net.aqualoco.sec.acceleration.WorldSleepNatureSessionCache;
 import net.aqualoco.sec.Constants;
 import net.aqualoco.sec.SeamlessSleepCommon;
 import net.aqualoco.sec.config.ServerConfigMutationService;
@@ -243,6 +246,13 @@ public final class SeamlessSleepCommands {
                                         .executes(SeamlessSleepCommands::getWorldAccelerationCropsAndSaplings)
                                         .then(Commands.argument("value", BoolArgumentType.bool())
                                                 .executes(ctx -> setWorldAccelerationCropsAndSaplings(
+                                                        ctx,
+                                                        BoolArgumentType.getBool(ctx, "value")
+                                                ))))
+                                .then(Commands.literal("worldAccelerationVinesAndBamboo")
+                                        .executes(SeamlessSleepCommands::getWorldAccelerationVinesAndBamboo)
+                                        .then(Commands.argument("value", BoolArgumentType.bool())
+                                                .executes(ctx -> setWorldAccelerationVinesAndBamboo(
                                                         ctx,
                                                         BoolArgumentType.getBool(ctx, "value")
                                                 ))))
@@ -601,42 +611,176 @@ public final class SeamlessSleepCommands {
 
         SeamlessSleepServerConfig config = SeamlessSleepServerConfigManager.get();
         WorldSleepAccelerationStatus status = WorldSleepAccelerationManager.getStatus(overworld);
+        boolean telemetryEnabled =
+                config.worldSleepAcceleration.accelerationTelemetryEnabled;
+        WorldSleepAccelerationTelemetry.Snapshot telemetry = telemetryEnabled
+                ? WorldSleepAccelerationManager.getTelemetrySnapshot(overworld)
+                : null;
+        WorldSleepNatureSessionCache.Snapshot natureCache = telemetryEnabled
+                ? WorldSleepAccelerationManager.getNatureSessionCacheSnapshot(overworld)
+                : null;
+        boolean telemetrySessionPresent = telemetry != null && telemetry.sessionPresent();
+        SleepAnimationState sleepState = SeamlessSleepCommon.OVERWORLD_SLEEP_ANIMATION;
+        WorldSleepAccelerationModuleStatus natureStatus = status.getNature();
+        boolean liveRuntime = status.isActive();
+        String runtimeMode = liveRuntime
+                ? status.getMode().name()
+                : config.worldSleepAcceleration.mode == WorldSleepAccelerationMode.OFF
+                ? WorldSleepAccelerationMode.OFF.name()
+                : "INACTIVE";
+        String animationSource = sleepState.isActive()
+                ? sleepState.getMode().name() + "/" + sleepState.getPhase().name()
+                : "NONE";
+        String runtimePreset = liveRuntime
+                ? (status.getMode() == WorldSleepAccelerationMode.MANUAL
+                ? "MANUAL"
+                : status.getAutomaticMode().name())
+                : (config.worldSleepAcceleration.mode == WorldSleepAccelerationMode.MANUAL
+                ? "MANUAL"
+                : config.worldSleepAcceleration.automaticMode.name());
+        int effectiveSpeedPercent = liveRuntime
+                ? natureStatus.getEffectiveSpeedPercent()
+                : telemetrySessionPresent ? telemetry.sessionLastEffectiveSpeedPercent() : 0;
+        WorldSleepAccelerationGovernorAction governorAction = liveRuntime
+                ? status.getGovernorAction()
+                : telemetrySessionPresent
+                ? telemetry.sessionLastGovernorAction()
+                : WorldSleepAccelerationGovernorAction.NONE;
+        boolean emergencySuppressionActive = liveRuntime
+                ? natureStatus.isTemporarilySuppressed()
+                : telemetrySessionPresent && telemetry.sessionLastEmergencySuppressionActive();
+        double averageMspt = liveRuntime
+                ? status.getAverageMspt()
+                : telemetrySessionPresent ? telemetry.sessionLastAverageMspt() : status.getAverageMspt();
+        double p95Mspt = liveRuntime
+                ? status.getP95Mspt()
+                : telemetrySessionPresent ? telemetry.sessionLastP95Mspt() : status.getP95Mspt();
+        double healthPressure = liveRuntime
+                ? status.getGovernorSnapshot().getHealthPressure()
+                : telemetrySessionPresent ? telemetry.sessionLastHealthPressure() : 0.0D;
+        double smoothedPressure = liveRuntime
+                ? status.getGovernorSnapshot().getSmoothedPressure()
+                : telemetrySessionPresent ? telemetry.sessionLastSmoothedPressure() : 0.0D;
         context.getSource().sendSuccess(
                 () -> Component.literal(
-                        "World Acceleration -> mode "
+                        "World Acceleration -> configuredMode="
                                 + formatAccelerationMode(config.worldSleepAcceleration.mode)
-                                + ", automatic mode "
-                                + config.worldSleepAcceleration.automaticMode.name()
-                                + ", players affected "
-                                + config.worldSleepAcceleration.resolveEffectivePlayersAffected().name()
+                                + ", runtimeMode="
+                                + runtimeMode
+                                + ", source="
+                                + animationSource
+                                + ", preset="
+                                + runtimePreset
+                                + ", effectiveSpeedPercent="
+                                + effectiveSpeedPercent
+                                + ", governorAction="
+                                + governorAction.name()
+                                + ", emergencySuppressionActive="
+                                + emergencySuppressionActive
+                                + "."
+                ),
+                false
+        );
+        context.getSource().sendSuccess(
+                () -> Component.literal(String.format(
+                        Locale.ROOT,
+                        "Emergency guard -> active=%s, avg=%.2f MSPT, p95=%.2f MSPT, healthPressure=%s, smoothedPressure=%s; enter at pressure>=95%% plus avg>=55/p95>=70 for 20 ticks, or avg>=75/p95>=100 for 5 ticks; resume after minimum hold and 60 stable ticks.",
+                        emergencySuppressionActive,
+                        averageMspt,
+                        p95Mspt,
+                        formatPercent(healthPressure),
+                        formatPercent(smoothedPressure)
+                )),
+                false
+        );
+        context.getSource().sendSuccess(
+                () -> Component.literal(
+                        "Nature policy -> grassAndFoliage="
+                                + formatOnOff(config.worldSleepAcceleration.grassAndFoliageAccelerationEnabled)
+                                + ", cropsAndSaplings="
+                                + formatOnOff(config.worldSleepAcceleration.cropsAndSaplingsAccelerationEnabled)
+                                + ", vinesAndBamboo="
+                                + formatOnOff(config.worldSleepAcceleration.vinesAndBambooAccelerationEnabled)
+                                + ", kelp="
+                                + formatOnOff(config.worldSleepAcceleration.kelpAccelerationEnabled)
+                                + ", vanillaOnly="
+                                + formatOnOff(config.worldSleepAcceleration.vanillaOnlyAcceleration)
                                 + "."
                 ),
                 false
         );
 
         if (!status.isActive()) {
+            String inactiveReason = config.worldSleepAcceleration.mode == WorldSleepAccelerationMode.OFF
+                    ? "World acceleration is inactive because mode is OFF; nature and processes are disabled."
+                    : "World acceleration is currently inactive.";
             context.getSource().sendSuccess(
-                    () -> Component.literal("World acceleration is currently inactive."),
+                    () -> Component.literal(inactiveReason),
                     false
             );
-            return 1;
+        } else {
+            int randomTickSpeed = Math.max(0, overworld.getGameRules().get(GameRules.RANDOM_TICK_SPEED));
+            context.getSource().sendSuccess(
+                    () -> Component.literal(String.format(
+                            Locale.ROOT,
+                            "Nature workload -> randomTickSpeed=%d, visualWorldSleepRate=%.2fx, rawExtraAttemptsPerSection=%.2f, normalizedExtraAttemptsPerSection=%.2f, effectiveRandomTickRatePerSection=%.2f.",
+                            randomTickSpeed,
+                            status.getWorldSleepRate(),
+                            natureStatus.getRawNatureExtraAttemptsPerSection(),
+                            natureStatus.getNormalizedNatureExtraAttemptsPerSection(),
+                            randomTickSpeed + natureStatus.getNormalizedNatureExtraAttemptsPerSection()
+                    )),
+                    false
+            );
+            context.getSource().sendSuccess(
+                    () -> Component.literal(String.format(
+                            Locale.ROOT,
+                            "Nature normalizer -> applied=%s, reduction=%.2f%%, knee=%.2f, compressionScale=%.2f.",
+                            natureStatus.isNatureWorkloadNormalizationApplied(),
+                            natureStatus.getNatureWorkloadReductionPercent(),
+                            natureStatus.getNatureWorkloadKnee(),
+                            natureStatus.getNatureWorkloadCompressionScale()
+                    )),
+                    false
+            );
+            context.getSource().sendSuccess(
+                    () -> Component.literal(
+                            "Coverage -> effectiveRadius="
+                                    + natureStatus.getEffectiveRadiusChunks()
+                                    + "/"
+                                    + natureStatus.getConfiguredRadiusChunks()
+                                    + ", coveredChunks="
+                                    + natureStatus.getCoveredChunkCount()
+                                    + ", affectedPlayers="
+                                    + status.getActivePlayerCount()
+                                    + ", playersPolicy="
+                                    + status.getPlayersAffected().name()
+                                    + "."
+                    ),
+                    false
+            );
+            context.getSource().sendSuccess(() -> formatNatureLine(natureStatus), false);
+            context.getSource().sendSuccess(() -> formatProcessLine(status.getProcess()), false);
         }
 
-        context.getSource().sendSuccess(
-                () -> Component.literal(String.format(
-                        Locale.ROOT,
-                        "World rate %.2fx, avg %.2f MSPT, p95 %.2f MSPT, simulation distance %d, tracked players %d, governor %s.",
-                        status.getWorldSleepRate(),
-                        status.getAverageMspt(),
-                        status.getP95Mspt(),
-                        status.getSimulationDistance(),
-                        status.getActivePlayerCount(),
-                        status.getGovernorAction().name()
-                )),
-                false
-        );
-        context.getSource().sendSuccess(() -> formatNatureLine(status.getNature()), false);
-        context.getSource().sendSuccess(() -> formatProcessLine(status.getProcess()), false);
+        if (telemetryEnabled) {
+            sendAccelerationTelemetry(
+                    context,
+                    telemetry,
+                    natureCache,
+                    config.worldSleepAcceleration.recheckIrrelevantNatureSectionsDuringAcceleration,
+                    config.worldSleepAcceleration.grassAndFoliageAccelerationEnabled,
+                    config.worldSleepAcceleration.vinesAndBambooAccelerationEnabled,
+                    config.worldSleepAcceleration.kelpAccelerationEnabled
+            );
+        } else {
+            context.getSource().sendSuccess(
+                    () -> Component.literal(
+                            "World acceleration telemetry -> OFF. Detailed counters are not collected; enable Server > Advanced > World Acceleration Telemetry to diagnose a test session."
+                    ),
+                    false
+            );
+        }
         return 1;
     }
 
@@ -720,41 +864,274 @@ public final class SeamlessSleepCommands {
     }
 
     private static Component formatNatureLine(WorldSleepAccelerationModuleStatus status) {
+        if (status.isTemporarilySuppressed()) {
+            return Component.literal("Nature -> temporarily suppressed by the governor emergency health guard.");
+        }
         if (!status.isActive()) {
             return Component.literal("Nature -> inactive.");
         }
         return Component.literal(String.format(
                 Locale.ROOT,
-                "Nature -> radius %d/%d, speed %d%%/%d%%, extra attempts/section %.2f, covered chunks %d.",
+                "Nature -> radius %d/%d, speed %d%%/%d%%, raw/normalized extra attempts %.2f/%.2f, covered chunks %d.",
                 status.getEffectiveRadiusChunks(),
                 status.getConfiguredRadiusChunks(),
                 status.getEffectiveSpeedPercent(),
                 status.getConfiguredSpeedPercent(),
-                status.getExtraRandomTickAttemptsPerSection(),
+                status.getRawNatureExtraAttemptsPerSection(),
+                status.getNormalizedNatureExtraAttemptsPerSection(),
                 status.getCoveredChunkCount()
         ));
     }
 
     private static Component formatNatureGovernorLine(WorldSleepAccelerationModuleStatus status, int randomTickSpeed) {
+        if (status.isTemporarilySuppressed()) {
+            return Component.literal("Nature -> effective speed 0%; temporarily suppressed by the governor emergency health guard.");
+        }
         if (!status.isActive()) {
             return Component.literal("Nature -> inactive.");
         }
 
-        double totalAttempts = randomTickSpeed + status.getExtraRandomTickAttemptsPerSection();
+        double totalAttempts =
+                randomTickSpeed + status.getNormalizedNatureExtraAttemptsPerSection();
         return Component.literal(String.format(
                 Locale.ROOT,
-                "Nature -> action %s, radius %d/%d, speed %d%%/%d%%, extra/section %.2f (%d + frac %.2f), total/section %.2f, chunks %d.",
+                "Nature -> action %s, radius %d/%d, speed %d%%/%d%%, raw/normalized extra %.2f/%.2f (%d + frac %.2f), total/section %.2f, normalized=%s, chunks %d.",
                 status.getGovernorAction().name(),
                 status.getEffectiveRadiusChunks(),
                 status.getConfiguredRadiusChunks(),
                 status.getEffectiveSpeedPercent(),
                 status.getConfiguredSpeedPercent(),
-                status.getExtraRandomTickAttemptsPerSection(),
+                status.getRawNatureExtraAttemptsPerSection(),
+                status.getNormalizedNatureExtraAttemptsPerSection(),
                 status.getExtraRandomTickWholeAttemptsPerSection(),
                 status.getExtraRandomTickFractionalAttemptsPerSection(),
                 totalAttempts,
+                status.isNatureWorkloadNormalizationApplied(),
                 status.getCoveredChunkCount()
         ));
+    }
+
+    private static void sendAccelerationTelemetry(CommandContext<CommandSourceStack> context,
+                                                  WorldSleepAccelerationTelemetry.Snapshot telemetry,
+                                                  WorldSleepNatureSessionCache.Snapshot natureCache,
+                                                  boolean irrelevantSectionRecheckEnabled,
+                                                  boolean grassAndFoliageEnabled,
+                                                  boolean vinesAndBambooEnabled,
+                                                  boolean kelpEnabled) {
+        sendNatureCacheTelemetry(
+                context,
+                natureCache,
+                irrelevantSectionRecheckEnabled,
+                grassAndFoliageEnabled,
+                vinesAndBambooEnabled,
+                kelpEnabled
+        );
+        if (!telemetry.sessionPresent()) {
+            context.getSource().sendSuccess(
+                    () -> Component.literal("Nature telemetry -> no acceleration session recorded yet."),
+                    false
+            );
+            return;
+        }
+
+        WorldSleepAccelerationTelemetry.TickSnapshot tick = telemetry.lastTick();
+        context.getSource().sendSuccess(
+                () -> Component.literal(
+                        "Telemetry session -> active="
+                                + telemetry.sessionActive()
+                                + ", source="
+                                + (telemetry.sessionAnimationMode() == null
+                                ? "NONE"
+                                : telemetry.sessionAnimationMode().name())
+                                + ", runtimeMode="
+                                + telemetry.sessionRuntimeMode().name()
+                                + ", preset="
+                                + (telemetry.sessionRuntimeMode() == WorldSleepAccelerationMode.MANUAL
+                                ? "MANUAL"
+                                : telemetry.sessionAutomaticMode().name())
+                                + ", sessionId="
+                                + telemetry.sessionId()
+                                + ", startServerTick="
+                                + telemetry.sessionStartTick()
+                                + ", durationTicks="
+                                + telemetry.sessionDurationTicks()
+                                + ", lastActiveServerTick="
+                                + telemetry.sessionLastActiveTick()
+                                + "."
+                ),
+                false
+        );
+        context.getSource().sendSuccess(
+                () -> Component.literal(String.format(
+                        Locale.ROOT,
+                        "Telemetry last tick %d -> requested=%d, executedCoordinates=%d, blockStateReads=%d, rejectedByFilter=%d, acceptedRandomTicks=%d.",
+                        tick.serverTick(),
+                        tick.requestedAttempts(),
+                        tick.executedCoordinateAttempts(),
+                        tick.blockStateReads(),
+                        tick.rejectedByFilter(),
+                        tick.acceptedRandomTicks()
+                )),
+                false
+        );
+        context.getSource().sendSuccess(
+                () -> Component.literal(String.format(
+                        Locale.ROOT,
+                        "Telemetry last tick coverage -> chunksVisited=%d, sectionVisits=%d, attemptedRandomSectionVisits=%d, skippedEmptyOrNonRandom=%d, sectionRelevantSkips=%d, peakAttemptsPerSection=%d, avgAttemptsPerRandomSection=%.2f.",
+                        tick.chunksVisited(),
+                        tick.sectionsVisited(),
+                        tick.randomTickingSections(),
+                        tick.skippedSections(),
+                        tick.sectionRelevantSkips(),
+                        tick.peakAttemptsPerSection(),
+                        tick.averageAttemptsPerRandomTickingSection()
+                )),
+                false
+        );
+        context.getSource().sendSuccess(
+                () -> Component.literal(String.format(
+                        Locale.ROOT,
+                        "Telemetry last tick cache -> knownNegativeSkips=%d, knownPositiveHits=%d, unknownClassifications=%d.",
+                        tick.knownNegativeSkips(),
+                        tick.knownPositiveHits(),
+                        tick.unknownClassifications()
+                )),
+                false
+        );
+        context.getSource().sendSuccess(
+                () -> Component.literal(String.format(
+                        Locale.ROOT,
+                        "Telemetry session totals -> requested=%d, executedCoordinates=%d, blockStateReads=%d, rejectedByFilter=%d, acceptedRandomTicks=%d, chunksVisited=%d, sectionVisits=%d, attemptedRandomSectionVisits=%d, skippedEmptyOrNonRandom=%d, sectionRelevantSkips=%d.",
+                        telemetry.sessionRequestedAttempts(),
+                        telemetry.sessionExecutedCoordinateAttempts(),
+                        telemetry.sessionBlockStateReads(),
+                        telemetry.sessionRejectedByFilter(),
+                        telemetry.sessionAcceptedRandomTicks(),
+                        telemetry.sessionChunksVisited(),
+                        telemetry.sessionSectionsVisited(),
+                        telemetry.sessionRandomTickingSections(),
+                        telemetry.sessionSkippedSections(),
+                        telemetry.sessionSectionRelevantSkips()
+                )),
+                false
+        );
+        context.getSource().sendSuccess(
+                () -> Component.literal(String.format(
+                        Locale.ROOT,
+                        "Telemetry cache -> knownNegativeSkips=%d, knownPositiveHits=%d, unknownClassifications=%d, avoidedBlockStateReads=%s, acceptanceRate=%s.",
+                        telemetry.sessionKnownNegativeSkips(),
+                        telemetry.sessionKnownPositiveHits(),
+                        telemetry.sessionUnknownClassifications(),
+                        formatPercent(telemetry.avoidedBlockStateReadRate()),
+                        formatPercent(telemetry.acceptanceRate())
+                )),
+                false
+        );
+        context.getSource().sendSuccess(
+                () -> Component.literal(String.format(
+                        Locale.ROOT,
+                        "Telemetry session peaks/averages -> peakRequestedPerTick=%d, peakAttemptsPerSection=%d, avgAttemptsPerTick=%.2f, avgAcceptedRandomTicksPerTick=%.2f, avgAttemptsPerRandomSection=%.2f.",
+                        telemetry.sessionPeakRequestedAttemptsPerTick(),
+                        telemetry.sessionPeakAttemptsPerSection(),
+                        telemetry.averageAttemptsPerTick(),
+                        telemetry.averageAcceptedRandomTicksPerTick(),
+                        telemetry.averageAttemptsPerRandomTickingSection()
+                )),
+                false
+        );
+        context.getSource().sendSuccess(
+                () -> Component.literal(String.format(
+                        Locale.ROOT,
+                        "Telemetry normalizer -> lastRaw/Normalized=%.2f/%.2f, lastReduction=%.2f%%, peakRaw/Normalized=%.2f/%.2f, peakReduction=%.2f%%, knee=%.2f, compressionScale=%.2f, appliedLastTick=%s, appliedDuringSession=%s.",
+                        telemetry.sessionLastRawNatureExtraAttemptsPerSection(),
+                        telemetry.sessionLastNormalizedNatureExtraAttemptsPerSection(),
+                        telemetry.sessionLastNatureWorkloadReductionPercent(),
+                        telemetry.sessionPeakRawNatureExtraAttemptsPerSection(),
+                        telemetry.sessionNormalizedNatureExtraAttemptsAtRawPeak(),
+                        telemetry.sessionPeakNatureWorkloadReductionPercent(),
+                        telemetry.sessionNatureWorkloadKnee(),
+                        telemetry.sessionNatureWorkloadCompressionScale(),
+                        telemetry.sessionLastNatureWorkloadNormalizationApplied(),
+                        telemetry.sessionNatureWorkloadNormalizationEverApplied()
+                )),
+                false
+        );
+        context.getSource().sendSuccess(
+                () -> Component.literal(String.format(
+                        Locale.ROOT,
+                        "Telemetry last runtime -> speed=%d%%, governorAction=%s, emergencySuppressionActive=%s, randomTickSpeed=%d, worldSleepRate=%.2fx, effectiveRandomTickRatePerSection=%.2f, radius=%d, coveredChunks=%d, affectedPlayers=%d.",
+                        telemetry.sessionLastEffectiveSpeedPercent(),
+                        telemetry.sessionLastGovernorAction().name(),
+                        telemetry.sessionLastEmergencySuppressionActive(),
+                        telemetry.sessionLastRandomTickSpeed(),
+                        telemetry.sessionLastWorldSleepRate(),
+                        telemetry.sessionLastEffectiveRandomTickRate(),
+                        telemetry.sessionLastEffectiveRadiusChunks(),
+                        telemetry.sessionLastCoveredChunkCount(),
+                        telemetry.sessionLastAffectedPlayerCount()
+                )),
+                false
+        );
+        context.getSource().sendSuccess(
+                () -> Component.literal(String.format(
+                        Locale.ROOT,
+                        "Telemetry last health -> avg=%.2f MSPT, p95=%.2f MSPT, healthPressure=%s, smoothedPressure=%s.",
+                        telemetry.sessionLastAverageMspt(),
+                        telemetry.sessionLastP95Mspt(),
+                        formatPercent(telemetry.sessionLastHealthPressure()),
+                        formatPercent(telemetry.sessionLastSmoothedPressure())
+                )),
+                false
+        );
+    }
+
+    private static void sendNatureCacheTelemetry(CommandContext<CommandSourceStack> context,
+                                                 WorldSleepNatureSessionCache.Snapshot natureCache,
+                                                 boolean irrelevantSectionRecheckEnabled,
+                                                 boolean grassAndFoliageEnabled,
+                                                 boolean vinesAndBambooEnabled,
+                                                 boolean kelpEnabled) {
+        context.getSource().sendSuccess(
+                () -> Component.literal(String.format(
+                        Locale.ROOT,
+                        "Nature cache capacity -> active=%s, trackedSections=%d/%d, positionalCachesUsed=%d/%d, estimatedCacheMemory=%.2f MiB, affectedPlayersForLimit=%d.",
+                        natureCache.active(),
+                        natureCache.trackedSections(),
+                        natureCache.maxTrackedSections(),
+                        natureCache.positionalCachesUsed(),
+                        natureCache.maxPositionalCaches(),
+                        natureCache.estimatedCacheMemoryMegabytes(),
+                        natureCache.affectedPlayersForLimit()
+                )),
+                false
+        );
+        context.getSource().sendSuccess(
+                () -> Component.literal(String.format(
+                        Locale.ROOT,
+                        "Nature cache saturation -> limitAtMinimum=%s, limitAtMaximum=%s, sectionTrackingLimitReached=%s, positionalCacheLimitReached=%s, fallbackToNormalPathCount=%d.",
+                        natureCache.positionalCacheLimitAtMinimum(),
+                        natureCache.positionalCacheLimitAtMaximum(),
+                        natureCache.sectionTrackingLimitReached(),
+                        natureCache.positionalCacheLimitReached(),
+                        natureCache.fallbackToNormalPathCount()
+                )),
+                false
+        );
+        context.getSource().sendSuccess(
+                () -> Component.literal(String.format(
+                        Locale.ROOT,
+                        "Nature section gate cache -> hits=%d, misses=%d, rechecks=%d, recheckConfigured=%s, sessionRecheckMode=%s, grassAndFoliage=%s, vinesAndBamboo=%s, kelp=%s.",
+                        natureCache.sectionRelevantCacheHits(),
+                        natureCache.sectionRelevantCacheMisses(),
+                        natureCache.sectionRelevantRechecks(),
+                        formatOnOff(irrelevantSectionRecheckEnabled),
+                        formatOnOff(natureCache.irrelevantSectionRecheckEnabled()),
+                        formatOnOff(grassAndFoliageEnabled),
+                        formatOnOff(vinesAndBambooEnabled),
+                        formatOnOff(kelpEnabled)
+                )),
+                false
+        );
     }
 
     private static Component formatProcessLine(WorldSleepAccelerationModuleStatus status) {
@@ -910,6 +1287,21 @@ public final class SeamlessSleepCommands {
         SeamlessSleepServerConfig config = SeamlessSleepServerConfigManager.get();
         config.worldSleepAcceleration.cropsAndSaplingsAccelerationEnabled = value;
         return saveAndSyncAcceleration(context, config, "Crops & Saplings Acceleration updated to " + formatOnOff(value) + ".");
+    }
+
+    private static int getWorldAccelerationVinesAndBamboo(CommandContext<CommandSourceStack> context) {
+        SeamlessSleepServerConfig config = SeamlessSleepServerConfigManager.get();
+        context.getSource().sendSuccess(
+                () -> Component.literal("Vines & Bamboo Acceleration is " + formatOnOff(config.worldSleepAcceleration.vinesAndBambooAccelerationEnabled) + "."),
+                false
+        );
+        return 1;
+    }
+
+    private static int setWorldAccelerationVinesAndBamboo(CommandContext<CommandSourceStack> context, boolean value) {
+        SeamlessSleepServerConfig config = SeamlessSleepServerConfigManager.get();
+        config.worldSleepAcceleration.vinesAndBambooAccelerationEnabled = value;
+        return saveAndSyncAcceleration(context, config, "Vines & Bamboo Acceleration updated to " + formatOnOff(value) + ".");
     }
 
     private static int getWorldAccelerationKelp(CommandContext<CommandSourceStack> context) {

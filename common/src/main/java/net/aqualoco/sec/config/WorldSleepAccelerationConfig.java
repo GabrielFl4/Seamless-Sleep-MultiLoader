@@ -5,6 +5,10 @@ import net.aqualoco.sec.acceleration.WorldSleepAccelerationFilterPolicy;
 public final class WorldSleepAccelerationConfig {
     public static final int DEFAULT_MANUAL_RADIUS_CHUNKS = 12;
     public static final int DEFAULT_MANUAL_SPEED_PERCENT = 100;
+    public static final boolean DEFAULT_GRASS_AND_FOLIAGE_ACCELERATION_ENABLED = false;
+    public static final boolean DEFAULT_VINES_AND_BAMBOO_ACCELERATION_ENABLED = false;
+    public static final boolean DEFAULT_RECHECK_IRRELEVANT_NATURE_SECTIONS_DURING_ACCELERATION = false;
+    public static final boolean DEFAULT_ACCELERATION_TELEMETRY_ENABLED = false;
     public static final boolean DEFAULT_VANILLA_ONLY_ACCELERATION = false;
     private static final int MAX_CONFIG_RADIUS_CHUNKS = 32;
     public int manualAccelerationRadiusChunks = DEFAULT_MANUAL_RADIUS_CHUNKS;
@@ -13,10 +17,15 @@ public final class WorldSleepAccelerationConfig {
     public WorldSleepAutomaticMode automaticMode = WorldSleepAutomaticMode.AGGRESSIVE;
     public WorldSleepAccelerationPlayersAffected playersAffected = WorldSleepAccelerationPlayersAffected.ALL_PLAYERS;
     public int manualAccelerationSpeedPercent = DEFAULT_MANUAL_SPEED_PERCENT;
-    public boolean grassAndFoliageAccelerationEnabled = true;
+    public boolean grassAndFoliageAccelerationEnabled = DEFAULT_GRASS_AND_FOLIAGE_ACCELERATION_ENABLED;
     public boolean cropsAndSaplingsAccelerationEnabled = true;
+    public boolean vinesAndBambooAccelerationEnabled =
+            DEFAULT_VINES_AND_BAMBOO_ACCELERATION_ENABLED;
     public boolean kelpAccelerationEnabled = false;
     public boolean vanillaOnlyAcceleration = DEFAULT_VANILLA_ONLY_ACCELERATION;
+    public boolean recheckIrrelevantNatureSectionsDuringAcceleration =
+            DEFAULT_RECHECK_IRRELEVANT_NATURE_SECTIONS_DURING_ACCELERATION;
+    public boolean accelerationTelemetryEnabled = DEFAULT_ACCELERATION_TELEMETRY_ENABLED;
     public boolean processesAccelerationEnabled = true;
     public int processesSpeedPercent = 100;
 
@@ -83,6 +92,7 @@ public final class WorldSleepAccelerationConfig {
     public boolean hasAnyNatureAccelerationEnabled() {
         return grassAndFoliageAccelerationEnabled
                 || cropsAndSaplingsAccelerationEnabled
+                || vinesAndBambooAccelerationEnabled
                 || kelpAccelerationEnabled;
     }
 
@@ -90,6 +100,7 @@ public final class WorldSleepAccelerationConfig {
         return new WorldSleepAccelerationFilterPolicy(
                 grassAndFoliageAccelerationEnabled,
                 cropsAndSaplingsAccelerationEnabled,
+                vinesAndBambooAccelerationEnabled,
                 kelpAccelerationEnabled,
                 vanillaOnlyAcceleration
         );

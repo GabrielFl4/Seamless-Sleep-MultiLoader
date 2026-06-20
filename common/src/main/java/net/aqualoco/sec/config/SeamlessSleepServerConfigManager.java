@@ -15,7 +15,7 @@ public final class SeamlessSleepServerConfigManager {
     private static final String FILE_NAME = "seamless_sleep-server.toml";
     private static final String LEGACY_JSON_FILE_NAME = "seamless_sleep-server.json";
     private static final String LEGACY_JSONC_FILE_NAME = "seamless_sleep-server.jsonc";
-    private static final int CONFIG_VERSION = 7;
+    private static final int CONFIG_VERSION = 10;
 
     public enum ReloadResult {
         SUCCESS,
@@ -264,6 +264,12 @@ public final class SeamlessSleepServerConfigManager {
                 "worldSleepAccelerationCropsAndSaplingsEnabled",
                 legacy.cropsAndSaplingsEnabled
         );
+        cfg.vinesAndBambooAccelerationEnabled = readBoolean(
+                file,
+                List.of("world_sleep_acceleration", "vines_and_bamboo_acceleration_enabled"),
+                "worldSleepAccelerationVinesAndBambooEnabled",
+                cfg.vinesAndBambooAccelerationEnabled
+        );
         cfg.kelpAccelerationEnabled = readBoolean(
                 file,
                 List.of("world_sleep_acceleration", "kelp_acceleration_enabled"),
@@ -275,6 +281,18 @@ public final class SeamlessSleepServerConfigManager {
                 List.of("world_sleep_acceleration", "vanilla_only_acceleration"),
                 "worldSleepAccelerationVanillaOnly",
                 legacy.vanillaOnlyAcceleration
+        );
+        cfg.recheckIrrelevantNatureSectionsDuringAcceleration = readBoolean(
+                file,
+                List.of("world_sleep_acceleration", "recheck_irrelevant_nature_sections_during_acceleration"),
+                "recheckIrrelevantNatureSectionsDuringAcceleration",
+                cfg.recheckIrrelevantNatureSectionsDuringAcceleration
+        );
+        cfg.accelerationTelemetryEnabled = readBoolean(
+                file,
+                List.of("world_sleep_acceleration", "telemetry_enabled"),
+                "worldSleepAccelerationTelemetryEnabled",
+                cfg.accelerationTelemetryEnabled
         );
         cfg.processesAccelerationEnabled = readBoolean(
                 file,
@@ -538,13 +556,17 @@ public final class SeamlessSleepServerConfigManager {
                 "manual_speed_percent",
                 Integer.toString(cfg.worldSleepAcceleration.manualAccelerationSpeedPercent));
         appendEntry(sb,
-                "Enable safe grass, spreadables, foliage and copper weathering acceleration for random ticks",
+                "Enable grass, spreadables, foliage and copper weathering acceleration. Heavy in dense natural worlds. Default: false",
                 "grass_and_foliage_acceleration_enabled",
                 Boolean.toString(cfg.worldSleepAcceleration.grassAndFoliageAccelerationEnabled));
         appendEntry(sb,
                 "Enable crop, farm and sapling acceleration for random ticks",
                 "crops_and_saplings_acceleration_enabled",
                 Boolean.toString(cfg.worldSleepAcceleration.cropsAndSaplingsAccelerationEnabled));
+        appendEntry(sb,
+                "Enable bamboo, jungle vines and cave vines/glow berry acceleration. Can be heavy in jungles and lush caves. Default: false",
+                "vines_and_bamboo_acceleration_enabled",
+                Boolean.toString(cfg.worldSleepAcceleration.vinesAndBambooAccelerationEnabled));
         appendEntry(sb,
                 "Enable kelp acceleration for random ticks",
                 "kelp_acceleration_enabled",
@@ -553,6 +575,14 @@ public final class SeamlessSleepServerConfigManager {
                 "When true, only vanilla blocks remain eligible for nature acceleration. Default: false",
                 "vanilla_only_acceleration",
                 Boolean.toString(cfg.worldSleepAcceleration.vanillaOnlyAcceleration));
+        appendEntry(sb,
+                "When true, nature sections marked irrelevant are rechecked every 20 ticks during the same acceleration session. Default: false",
+                "recheck_irrelevant_nature_sections_during_acceleration",
+                Boolean.toString(cfg.worldSleepAcceleration.recheckIrrelevantNatureSectionsDuringAcceleration));
+        appendEntry(sb,
+                "Collect detailed world acceleration counters for /sleep acceleration status. Adds hot-path diagnostic bookkeeping. Default: false",
+                "telemetry_enabled",
+                Boolean.toString(cfg.worldSleepAcceleration.accelerationTelemetryEnabled));
         appendEntry(sb,
                 "Enable furnace, smoker and blast furnace acceleration during sleep",
                 "processes_acceleration_enabled",

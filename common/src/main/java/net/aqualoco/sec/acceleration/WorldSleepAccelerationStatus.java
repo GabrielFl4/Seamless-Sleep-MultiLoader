@@ -23,7 +23,9 @@ public final class WorldSleepAccelerationStatus {
             WorldSleepAccelerationGovernorSnapshot.INACTIVE,
             WorldSleepAccelerationModuleStatus.INACTIVE,
             WorldSleepAccelerationModuleStatus.INACTIVE,
-            false
+            false,
+            null,
+            null
     );
 
     private final boolean active;
@@ -42,6 +44,8 @@ public final class WorldSleepAccelerationStatus {
     private final WorldSleepAccelerationModuleStatus nature;
     private final WorldSleepAccelerationModuleStatus process;
     private final boolean processesTemporarilySuppressed;
+    private final WorldSleepAccelerationTelemetry telemetry;
+    private final WorldSleepNatureSessionCache natureSessionCache;
 
     public WorldSleepAccelerationStatus(boolean active,
                                         ResourceKey<Level> dimension,
@@ -58,7 +62,9 @@ public final class WorldSleepAccelerationStatus {
                                         WorldSleepAccelerationGovernorSnapshot governorSnapshot,
                                         WorldSleepAccelerationModuleStatus nature,
                                         WorldSleepAccelerationModuleStatus process,
-                                        boolean processesTemporarilySuppressed) {
+                                        boolean processesTemporarilySuppressed,
+                                        WorldSleepAccelerationTelemetry telemetry,
+                                        WorldSleepNatureSessionCache natureSessionCache) {
         this.active = active;
         this.dimension = dimension;
         this.activePlayerCount = activePlayerCount;
@@ -75,6 +81,8 @@ public final class WorldSleepAccelerationStatus {
         this.nature = nature;
         this.process = process;
         this.processesTemporarilySuppressed = processesTemporarilySuppressed;
+        this.telemetry = telemetry;
+        this.natureSessionCache = natureSessionCache;
     }
 
     public boolean isActive() {
@@ -139,5 +147,13 @@ public final class WorldSleepAccelerationStatus {
 
     public boolean isProcessesTemporarilySuppressed() {
         return processesTemporarilySuppressed;
+    }
+
+    public WorldSleepAccelerationTelemetry getTelemetry() {
+        return telemetry;
+    }
+
+    public WorldSleepNatureSessionCache getNatureSessionCache() {
+        return natureSessionCache;
     }
 }

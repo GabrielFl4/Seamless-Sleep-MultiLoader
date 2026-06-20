@@ -105,12 +105,11 @@ public abstract class ForgeAbstractFurnaceBlockEntityAccelerationMixin {
                 && processStatus.isActive()
                 && processStatus.coversChunk(ChunkPos.asLong(pos))
                 && processStatus.getEffectiveTickMultiplier() > 1.0D;
-        boolean continueLockedCycle = mixin.seamlesssleep$cycleLocked && mixin.cookingTimer > 0;
 
-        if (!accelerationActive && !continueLockedCycle) {
+        if (!accelerationActive) {
             mixin.seamlesssleep$resetIdleBurnCarry();
-            if (mixin.cookingTimer <= 0) {
-                mixin.seamlesssleep$unlockCycle();
+            if (mixin.seamlesssleep$releaseLockedCycleToVanilla(level)) {
+                BlockEntitySetChangedInvoker.seamlesssleep$invokeSetChanged(level, pos, state);
             }
             return;
         }
@@ -120,7 +119,7 @@ public abstract class ForgeAbstractFurnaceBlockEntityAccelerationMixin {
                 level,
                 pos,
                 state,
-                accelerationActive ? processStatus.getEffectiveTickMultiplier() : 1.0D
+                processStatus.getEffectiveTickMultiplier()
         );
     }
 
@@ -315,12 +314,43 @@ public abstract class ForgeAbstractFurnaceBlockEntityAccelerationMixin {
 
     @Unique
     private boolean seamlesssleep$restoreUnlockedCookTime(ServerLevel level) {
-        int restoredCookTime = getTotalCookTime(level, (AbstractFurnaceBlockEntity) (Object) this);
+        int restoredCookTime = Math.max(
+                1,
+                getTotalCookTime(level, (AbstractFurnaceBlockEntity) (Object) this)
+        );
         if (this.cookingTotalTime == restoredCookTime) {
             return false;
         }
         this.cookingTotalTime = restoredCookTime;
         return true;
+    }
+
+    @Unique
+    private boolean seamlesssleep$releaseLockedCycleToVanilla(ServerLevel level) {
+        if (!this.seamlesssleep$cycleLocked) {
+            return false;
+        }
+
+        int acceleratedTotalTime = Math.max(1, this.cookingTotalTime);
+        int acceleratedRemaining = Math.max(0, acceleratedTotalTime - this.cookingTimer);
+        int restoredCookTime = Math.max(
+                1,
+                getTotalCookTime(level, (AbstractFurnaceBlockEntity) (Object) this)
+        );
+        // Preserve approximately the same remaining vanilla work when acceleration
+        // is disabled instead of finishing the already-compressed cycle at high speed.
+        int restoredRemaining = Mth.clamp(
+                (int) Math.ceil(acceleratedRemaining * Math.max(1.0D, this.seamlesssleep$lockedCycleMultiplier)),
+                0,
+                restoredCookTime
+        );
+        int restoredProgress = Mth.clamp(restoredCookTime - restoredRemaining, 0, Math.max(0, restoredCookTime - 1));
+        boolean changed = this.cookingTotalTime != restoredCookTime || this.cookingTimer != restoredProgress;
+
+        this.cookingTotalTime = restoredCookTime;
+        this.cookingTimer = restoredProgress;
+        seamlesssleep$unlockCycle();
+        return changed;
     }
 
     @Unique

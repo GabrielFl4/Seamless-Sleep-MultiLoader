@@ -58,7 +58,10 @@ public final class RemoteServerConfigClientState {
                 payload.vanillaOnlyAcceleration(),
                 payload.processesAccelerationEnabled(),
                 payload.processesSpeedPercent(),
-                payload.betterDaysCompatibilityEnabled()
+                payload.betterDaysCompatibilityEnabled(),
+                payload.recheckIrrelevantNatureSectionsDuringAcceleration(),
+                payload.worldSleepAccelerationTelemetryEnabled(),
+                payload.vinesAndBambooAccelerationEnabled()
         );
 
         Listener listener = activeListener();

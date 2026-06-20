@@ -28,11 +28,17 @@ import net.minecraft.world.level.block.state.BlockState;
 
 public final class WorldSleepRandomTickFilters {
     private static final byte UNCACHED_FLAGS = (byte) -1;
-    private static final byte FLAG_GRASS_AND_FOLIAGE = 1;
-    private static final byte FLAG_CROPS_AND_SAPLINGS = 1 << 1;
-    private static final byte FLAG_KELP = 1 << 2;
-    private static final byte FLAG_VANILLA = 1 << 3;
-    private static final byte FLAG_EXCLUDED = 1 << 4;
+    static final byte FLAG_GRASS_AND_FOLIAGE = 1;
+    static final byte FLAG_CROPS_AND_SAPLINGS = 1 << 1;
+    static final byte FLAG_KELP = 1 << 2;
+    static final byte FLAG_VINES_AND_BAMBOO = 1 << 3;
+    private static final byte FLAG_VANILLA = 1 << 4;
+    private static final byte FLAG_EXCLUDED = 1 << 5;
+    private static final int CATEGORY_MASK =
+            FLAG_GRASS_AND_FOLIAGE
+                    | FLAG_CROPS_AND_SAPLINGS
+                    | FLAG_KELP
+                    | FLAG_VINES_AND_BAMBOO;
 
     private static final String[] MODDED_GRASS_AND_FOLIAGE_HINTS = {
             "blossom",
@@ -92,8 +98,25 @@ public final class WorldSleepRandomTickFilters {
     private WorldSleepRandomTickFilters() {
     }
 
-    public static boolean isEligible(WorldSleepAccelerationFilterPolicy policy, BlockState state) {
-        if (policy == null || !policy.isAnyEnabled() || state == null || !state.isRandomlyTicking()) {
+    static boolean isEligible(int allowedCategoryMask, boolean vanillaOnly, BlockState state) {
+        if (allowedCategoryMask == 0 || state == null || !state.isRandomlyTicking()) {
+            return false;
+        }
+        byte flags = getOrComputeFlags(state.getBlock());
+        if ((flags & FLAG_EXCLUDED) != 0) {
+            return false;
+        }
+
+        if (vanillaOnly && (flags & FLAG_VANILLA) == 0) {
+            return false;
+        }
+        return (flags & allowedCategoryMask) != 0;
+    }
+
+    static boolean mayContainRelevantState(int allowedCategoryMask,
+                                           boolean vanillaOnly,
+                                           BlockState state) {
+        if (allowedCategoryMask == 0 || state == null || !state.isRandomlyTicking()) {
             return false;
         }
 
@@ -102,17 +125,18 @@ public final class WorldSleepRandomTickFilters {
             return false;
         }
 
-        if (policy.isVanillaOnly() && (flags & FLAG_VANILLA) == 0) {
+        boolean vanilla = (flags & FLAG_VANILLA) != 0;
+        if (vanillaOnly && !vanilla) {
             return false;
         }
+        if ((flags & allowedCategoryMask) != 0) {
+            return true;
+        }
 
-        if (policy.isCropsAndSaplingsEnabled() && (flags & FLAG_CROPS_AND_SAPLINGS) != 0) {
-            return true;
-        }
-        if (policy.isGrassAndFoliageEnabled() && (flags & FLAG_GRASS_AND_FOLIAGE) != 0) {
-            return true;
-        }
-        return policy.isKelpEnabled() && (flags & FLAG_KELP) != 0;
+        // Preserve compatibility for unclassified modded random-ticking blocks.
+        // They still pass through the normal position filter, but they cannot make
+        // the section gate incorrectly discard a potentially supported mod block.
+        return !vanillaOnly && !vanilla && (flags & CATEGORY_MASK) == 0;
     }
 
     private static byte getOrComputeFlags(Block block) {
@@ -141,11 +165,20 @@ public final class WorldSleepRandomTickFilters {
             flags |= FLAG_KELP;
         }
 
-        if (isFarmLikeBlock(block) || isModdedCandidate(block, MODDED_CROPS_AND_SAPLINGS_HINTS)) {
+        boolean vinesAndBamboo = isVanillaVinesAndBambooBlock(block);
+        if (vinesAndBamboo) {
+            flags |= FLAG_VINES_AND_BAMBOO;
+        }
+
+        if (!vinesAndBamboo
+                && (isFarmLikeBlock(block)
+                || isModdedCandidate(block, MODDED_CROPS_AND_SAPLINGS_HINTS))) {
             flags |= FLAG_CROPS_AND_SAPLINGS;
         }
 
-        if (isGrassAndFoliageBlock(block) || isModdedCandidate(block, MODDED_GRASS_AND_FOLIAGE_HINTS)) {
+        if (!vinesAndBamboo
+                && (isGrassAndFoliageBlock(block)
+                || isModdedCandidate(block, MODDED_GRASS_AND_FOLIAGE_HINTS))) {
             flags |= FLAG_GRASS_AND_FOLIAGE;
         }
 
@@ -174,6 +207,22 @@ public final class WorldSleepRandomTickFilters {
                 || block instanceof CocoaBlock
                 || block instanceof SweetBerryBushBlock
                 || block instanceof MangrovePropaguleBlock;
+    }
+
+    private static boolean isVanillaVinesAndBambooBlock(Block block) {
+        Identifier id = BuiltInRegistries.BLOCK.getKey(block);
+        if (id == null || !"minecraft".equals(id.getNamespace())) {
+            return false;
+        }
+        return switch (id.getPath()) {
+            case "bamboo",
+                 "bamboo_sapling",
+                 "vine",
+                 "cave_vines",
+                 "cave_vines_plant",
+                 "mangrove_propagule" -> true;
+            default -> false;
+        };
     }
 
     private static boolean isVanillaBlock(Block block) {

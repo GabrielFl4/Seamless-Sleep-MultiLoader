@@ -15,10 +15,17 @@ public final class SeamlessSleepServerConfigSnapshot {
     private static WorldSleepAccelerationPlayersAffected worldSleepAccelerationPlayersAffected = WorldSleepAccelerationPlayersAffected.ALL_PLAYERS;
     private static int manualAccelerationRadiusChunks = WorldSleepAccelerationConfig.DEFAULT_MANUAL_RADIUS_CHUNKS;
     private static int manualAccelerationSpeedPercent = WorldSleepAccelerationConfig.DEFAULT_MANUAL_SPEED_PERCENT;
-    private static boolean grassAndFoliageAccelerationEnabled = true;
+    private static boolean grassAndFoliageAccelerationEnabled =
+            WorldSleepAccelerationConfig.DEFAULT_GRASS_AND_FOLIAGE_ACCELERATION_ENABLED;
     private static boolean cropsAndSaplingsAccelerationEnabled = true;
+    private static boolean vinesAndBambooAccelerationEnabled =
+            WorldSleepAccelerationConfig.DEFAULT_VINES_AND_BAMBOO_ACCELERATION_ENABLED;
     private static boolean kelpAccelerationEnabled = false;
     private static boolean vanillaOnlyAcceleration = WorldSleepAccelerationConfig.DEFAULT_VANILLA_ONLY_ACCELERATION;
+    private static boolean recheckIrrelevantNatureSectionsDuringAcceleration =
+            WorldSleepAccelerationConfig.DEFAULT_RECHECK_IRRELEVANT_NATURE_SECTIONS_DURING_ACCELERATION;
+    private static boolean worldSleepAccelerationTelemetryEnabled =
+            WorldSleepAccelerationConfig.DEFAULT_ACCELERATION_TELEMETRY_ENABLED;
     private static boolean processesAccelerationEnabled = true;
     private static int processesSpeedPercent = 100;
     private static boolean betterDaysCompatibilityEnabled = SeamlessSleepServerConfig.DEFAULT_BETTER_DAYS_COMPATIBILITY_ENABLED;
@@ -46,7 +53,10 @@ public final class SeamlessSleepServerConfigSnapshot {
                               boolean vanillaOnly,
                               boolean processesEnabled,
                               int processesSpeedPercentValue,
-                              boolean betterDaysCompatibilityEnabledValue) {
+                              boolean betterDaysCompatibilityEnabledValue,
+                              boolean recheckIrrelevantNatureSectionsDuringAccelerationValue,
+                              boolean worldSleepAccelerationTelemetryEnabledValue,
+                              boolean vinesAndBambooAccelerationEnabledValue) {
         sleepWeatherClearChancePercent = weatherClearChancePercent;
         sleepAnimationDurationMultiplier = durationMultiplier;
         fallAsleepDelayTicks = SeamlessSleepServerConfig.clampInt(
@@ -66,11 +76,15 @@ public final class SeamlessSleepServerConfigSnapshot {
         manualAccelerationSpeedPercent = manualSpeedPercent;
         grassAndFoliageAccelerationEnabled = grassAndFoliageEnabled;
         cropsAndSaplingsAccelerationEnabled = cropsAndSaplingsEnabled;
+        vinesAndBambooAccelerationEnabled = vinesAndBambooAccelerationEnabledValue;
         kelpAccelerationEnabled = kelpEnabled;
         vanillaOnlyAcceleration = vanillaOnly;
         processesAccelerationEnabled = processesEnabled;
         processesSpeedPercent = processesSpeedPercentValue;
         betterDaysCompatibilityEnabled = betterDaysCompatibilityEnabledValue;
+        recheckIrrelevantNatureSectionsDuringAcceleration =
+                recheckIrrelevantNatureSectionsDuringAccelerationValue;
+        worldSleepAccelerationTelemetryEnabled = worldSleepAccelerationTelemetryEnabledValue;
         initialized = true;
     }
 
@@ -92,10 +106,17 @@ public final class SeamlessSleepServerConfigSnapshot {
         worldSleepAccelerationPlayersAffected = WorldSleepAccelerationPlayersAffected.ALL_PLAYERS;
         manualAccelerationRadiusChunks = WorldSleepAccelerationConfig.DEFAULT_MANUAL_RADIUS_CHUNKS;
         manualAccelerationSpeedPercent = WorldSleepAccelerationConfig.DEFAULT_MANUAL_SPEED_PERCENT;
-        grassAndFoliageAccelerationEnabled = true;
+        grassAndFoliageAccelerationEnabled =
+                WorldSleepAccelerationConfig.DEFAULT_GRASS_AND_FOLIAGE_ACCELERATION_ENABLED;
         cropsAndSaplingsAccelerationEnabled = true;
+        vinesAndBambooAccelerationEnabled =
+                WorldSleepAccelerationConfig.DEFAULT_VINES_AND_BAMBOO_ACCELERATION_ENABLED;
         kelpAccelerationEnabled = false;
         vanillaOnlyAcceleration = WorldSleepAccelerationConfig.DEFAULT_VANILLA_ONLY_ACCELERATION;
+        recheckIrrelevantNatureSectionsDuringAcceleration =
+                WorldSleepAccelerationConfig.DEFAULT_RECHECK_IRRELEVANT_NATURE_SECTIONS_DURING_ACCELERATION;
+        worldSleepAccelerationTelemetryEnabled =
+                WorldSleepAccelerationConfig.DEFAULT_ACCELERATION_TELEMETRY_ENABLED;
         processesAccelerationEnabled = true;
         processesSpeedPercent = 100;
         betterDaysCompatibilityEnabled = SeamlessSleepServerConfig.DEFAULT_BETTER_DAYS_COMPATIBILITY_ENABLED;
@@ -162,12 +183,24 @@ public final class SeamlessSleepServerConfigSnapshot {
         return cropsAndSaplingsAccelerationEnabled;
     }
 
+    public static boolean isVinesAndBambooAccelerationEnabled() {
+        return vinesAndBambooAccelerationEnabled;
+    }
+
     public static boolean isKelpAccelerationEnabled() {
         return kelpAccelerationEnabled;
     }
 
     public static boolean isVanillaOnlyAcceleration() {
         return vanillaOnlyAcceleration;
+    }
+
+    public static boolean isRecheckIrrelevantNatureSectionsDuringAcceleration() {
+        return recheckIrrelevantNatureSectionsDuringAcceleration;
+    }
+
+    public static boolean isWorldSleepAccelerationTelemetryEnabled() {
+        return worldSleepAccelerationTelemetryEnabled;
     }
 
     public static boolean isProcessesAccelerationEnabled() {

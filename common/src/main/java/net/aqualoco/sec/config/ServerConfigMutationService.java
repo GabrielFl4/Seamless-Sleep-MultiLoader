@@ -195,10 +195,19 @@ public final class ServerConfigMutationService {
                     parseBoolean(value, field);
             case CROPS_AND_SAPLINGS_ACCELERATION_ENABLED -> config.worldSleepAcceleration.cropsAndSaplingsAccelerationEnabled =
                     parseBoolean(value, field);
+            case VINES_AND_BAMBOO_ACCELERATION_ENABLED ->
+                    config.worldSleepAcceleration.vinesAndBambooAccelerationEnabled =
+                            parseBoolean(value, field);
             case KELP_ACCELERATION_ENABLED -> config.worldSleepAcceleration.kelpAccelerationEnabled =
                     parseBoolean(value, field);
             case VANILLA_ONLY_ACCELERATION -> config.worldSleepAcceleration.vanillaOnlyAcceleration =
                     parseBoolean(value, field);
+            case RECHECK_IRRELEVANT_NATURE_SECTIONS_DURING_ACCELERATION ->
+                    config.worldSleepAcceleration.recheckIrrelevantNatureSectionsDuringAcceleration =
+                            parseBoolean(value, field);
+            case WORLD_SLEEP_ACCELERATION_TELEMETRY_ENABLED ->
+                    config.worldSleepAcceleration.accelerationTelemetryEnabled =
+                            parseBoolean(value, field);
             case PROCESSES_ACCELERATION_ENABLED -> config.worldSleepAcceleration.processesAccelerationEnabled =
                     parseBoolean(value, field);
             case PROCESSES_SPEED_PERCENT -> config.worldSleepAcceleration.processesSpeedPercent =
@@ -270,8 +279,14 @@ public final class ServerConfigMutationService {
         target.worldSleepAcceleration.manualAccelerationSpeedPercent = source.worldSleepAcceleration.manualAccelerationSpeedPercent;
         target.worldSleepAcceleration.grassAndFoliageAccelerationEnabled = source.worldSleepAcceleration.grassAndFoliageAccelerationEnabled;
         target.worldSleepAcceleration.cropsAndSaplingsAccelerationEnabled = source.worldSleepAcceleration.cropsAndSaplingsAccelerationEnabled;
+        target.worldSleepAcceleration.vinesAndBambooAccelerationEnabled =
+                source.worldSleepAcceleration.vinesAndBambooAccelerationEnabled;
         target.worldSleepAcceleration.kelpAccelerationEnabled = source.worldSleepAcceleration.kelpAccelerationEnabled;
         target.worldSleepAcceleration.vanillaOnlyAcceleration = source.worldSleepAcceleration.vanillaOnlyAcceleration;
+        target.worldSleepAcceleration.recheckIrrelevantNatureSectionsDuringAcceleration =
+                source.worldSleepAcceleration.recheckIrrelevantNatureSectionsDuringAcceleration;
+        target.worldSleepAcceleration.accelerationTelemetryEnabled =
+                source.worldSleepAcceleration.accelerationTelemetryEnabled;
         target.worldSleepAcceleration.processesAccelerationEnabled = source.worldSleepAcceleration.processesAccelerationEnabled;
         target.worldSleepAcceleration.processesSpeedPercent = source.worldSleepAcceleration.processesSpeedPercent;
     }

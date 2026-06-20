@@ -5,6 +5,7 @@ import net.aqualoco.sec.config.SeamlessSleepServerConfig;
 import net.aqualoco.sec.config.SleepEligibilityMode;
 import net.aqualoco.sec.config.WorldSleepAccelerationMode;
 import net.aqualoco.sec.config.WorldSleepAccelerationPlayersAffected;
+import net.aqualoco.sec.config.WorldSleepAccelerationConfig;
 import net.aqualoco.sec.config.WorldSleepAutomaticMode;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
@@ -31,7 +32,10 @@ public record ServerConfigSyncPayload(int sleepWeatherClearChancePercent,
                                       boolean vanillaOnlyAcceleration,
                                       boolean processesAccelerationEnabled,
                                       int processesSpeedPercent,
-                                      boolean betterDaysCompatibilityEnabled) implements CustomPacketPayload {
+                                      boolean betterDaysCompatibilityEnabled,
+                                      boolean recheckIrrelevantNatureSectionsDuringAcceleration,
+                                      boolean worldSleepAccelerationTelemetryEnabled,
+                                      boolean vinesAndBambooAccelerationEnabled) implements CustomPacketPayload {
 
     public static final Type<ServerConfigSyncPayload> ID =
             new Type<>(Identifier.fromNamespaceAndPath(Constants.MOD_ID, "server_config_sync"));
@@ -63,6 +67,9 @@ public record ServerConfigSyncPayload(int sleepWeatherClearChancePercent,
         buf.writeBoolean(payload.processesAccelerationEnabled());
         buf.writeVarInt(payload.processesSpeedPercent());
         buf.writeBoolean(payload.betterDaysCompatibilityEnabled());
+        buf.writeBoolean(payload.recheckIrrelevantNatureSectionsDuringAcceleration());
+        buf.writeBoolean(payload.worldSleepAccelerationTelemetryEnabled());
+        buf.writeBoolean(payload.vinesAndBambooAccelerationEnabled());
     }
 
     private static ServerConfigSyncPayload read(FriendlyByteBuf buf) {
@@ -115,6 +122,15 @@ public record ServerConfigSyncPayload(int sleepWeatherClearChancePercent,
         boolean betterDaysCompatibilityEnabled = buf.readableBytes() > 0
                 ? buf.readBoolean()
                 : SeamlessSleepServerConfig.DEFAULT_BETTER_DAYS_COMPATIBILITY_ENABLED;
+        boolean recheckIrrelevantNatureSections = buf.readableBytes() > 0
+                ? buf.readBoolean()
+                : WorldSleepAccelerationConfig.DEFAULT_RECHECK_IRRELEVANT_NATURE_SECTIONS_DURING_ACCELERATION;
+        boolean accelerationTelemetryEnabled = buf.readableBytes() > 0
+                ? buf.readBoolean()
+                : WorldSleepAccelerationConfig.DEFAULT_ACCELERATION_TELEMETRY_ENABLED;
+        boolean vinesAndBambooEnabled = buf.readableBytes() > 0
+                ? buf.readBoolean()
+                : WorldSleepAccelerationConfig.DEFAULT_VINES_AND_BAMBOO_ACCELERATION_ENABLED;
         return new ServerConfigSyncPayload(
                 weatherClearChancePercent,
                 durationMultiplier,
@@ -135,7 +151,10 @@ public record ServerConfigSyncPayload(int sleepWeatherClearChancePercent,
                 vanillaOnlyAcceleration,
                 processesEnabled,
                 processesSpeedPercent,
-                betterDaysCompatibilityEnabled
+                betterDaysCompatibilityEnabled,
+                recheckIrrelevantNatureSections,
+                accelerationTelemetryEnabled,
+                vinesAndBambooEnabled
         );
     }
 
@@ -186,7 +205,10 @@ public record ServerConfigSyncPayload(int sleepWeatherClearChancePercent,
                 vanillaOnlyAcceleration,
                 processesEnabled,
                 processesSpeedPercent,
-                SeamlessSleepServerConfig.DEFAULT_BETTER_DAYS_COMPATIBILITY_ENABLED
+                SeamlessSleepServerConfig.DEFAULT_BETTER_DAYS_COMPATIBILITY_ENABLED,
+                WorldSleepAccelerationConfig.DEFAULT_RECHECK_IRRELEVANT_NATURE_SECTIONS_DURING_ACCELERATION,
+                WorldSleepAccelerationConfig.DEFAULT_ACCELERATION_TELEMETRY_ENABLED,
+                WorldSleepAccelerationConfig.DEFAULT_VINES_AND_BAMBOO_ACCELERATION_ENABLED
         );
     }
 

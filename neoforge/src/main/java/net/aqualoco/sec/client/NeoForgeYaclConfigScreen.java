@@ -355,7 +355,7 @@ public final class NeoForgeYaclConfigScreen {
                         "config.seamlesssleep.world_acceleration.grass_and_foliage.command"
                 ),
                 Component.empty(),
-                true,
+                WorldSleepAccelerationConfig.DEFAULT_GRASS_AND_FOLIAGE_ACCELERATION_ENABLED,
                 () -> uiState.boundGrassAndFoliageAccelerationEnabled,
                 value -> uiState.boundGrassAndFoliageAccelerationEnabled = value,
                 canEditServerConfig && uiState.mode != WorldSleepAccelerationMode.OFF,
@@ -375,6 +375,20 @@ public final class NeoForgeYaclConfigScreen {
                 canEditServerConfig && uiState.mode != WorldSleepAccelerationMode.OFF,
                 session,
                 ServerConfigField.CROPS_AND_SAPLINGS_ACCELERATION_ENABLED
+        );
+        Option<Boolean> vinesAndBambooOption = buildToggle(
+                Component.translatable("config.seamlesssleep.world_acceleration.vines_and_bamboo"),
+                serverDescription(
+                        Component.translatable("config.seamlesssleep.world_acceleration.vines_and_bamboo.desc"),
+                        "config.seamlesssleep.world_acceleration.vines_and_bamboo.command"
+                ),
+                Component.empty(),
+                WorldSleepAccelerationConfig.DEFAULT_VINES_AND_BAMBOO_ACCELERATION_ENABLED,
+                () -> uiState.boundVinesAndBambooAccelerationEnabled,
+                value -> uiState.boundVinesAndBambooAccelerationEnabled = value,
+                canEditServerConfig && uiState.mode != WorldSleepAccelerationMode.OFF,
+                session,
+                ServerConfigField.VINES_AND_BAMBOO_ACCELERATION_ENABLED
         );
         Option<Boolean> kelpOption = buildToggle(
                 Component.translatable("config.seamlesssleep.world_acceleration.kelp"),
@@ -446,6 +460,7 @@ public final class NeoForgeYaclConfigScreen {
                 automaticModeOption,
                 grassOption,
                 cropsOption,
+                vinesAndBambooOption,
                 kelpOption,
                 vanillaOnlyOption,
                 processesOption,
@@ -477,6 +492,7 @@ public final class NeoForgeYaclConfigScreen {
         });
         listenServer(session, ServerConfigField.GRASS_AND_FOLIAGE_ACCELERATION_ENABLED, grassOption, value -> uiState.grassAndFoliageAccelerationEnabled = value);
         listenServer(session, ServerConfigField.CROPS_AND_SAPLINGS_ACCELERATION_ENABLED, cropsOption, value -> uiState.cropsAndSaplingsAccelerationEnabled = value);
+        listenServer(session, ServerConfigField.VINES_AND_BAMBOO_ACCELERATION_ENABLED, vinesAndBambooOption, value -> uiState.vinesAndBambooAccelerationEnabled = value);
         listenServer(session, ServerConfigField.KELP_ACCELERATION_ENABLED, kelpOption, value -> uiState.kelpAccelerationEnabled = value);
         listenServer(session, ServerConfigField.VANILLA_ONLY_ACCELERATION, vanillaOnlyOption, value -> uiState.vanillaOnlyAcceleration = value);
         listenServer(session, ServerConfigField.PROCESSES_ACCELERATION_ENABLED, processesOption, value -> {
@@ -518,6 +534,7 @@ public final class NeoForgeYaclConfigScreen {
                 .option(automaticModeOption)
                 .option(grassOption)
                 .option(cropsOption)
+                .option(vinesAndBambooOption)
                 .option(kelpOption)
                 .option(vanillaOnlyOption)
                 .option(processesOption)
@@ -572,6 +589,48 @@ public final class NeoForgeYaclConfigScreen {
                 ServerConfigField.BETTER_DAYS_COMPATIBILITY_ENABLED
         );
         listenServer(session, ServerConfigField.BETTER_DAYS_COMPATIBILITY_ENABLED, betterDaysCompatibilityOption, value -> uiState.betterDaysCompatibilityEnabled = value);
+
+        Option<Boolean> recheckIrrelevantNatureSectionsOption = buildToggle(
+                Component.translatable("config.seamlesssleep.world_acceleration.recheck_irrelevant_sections"),
+                serverDescription(
+                        Component.translatable("config.seamlesssleep.world_acceleration.recheck_irrelevant_sections.desc"),
+                        "config.seamlesssleep.world_acceleration.recheck_irrelevant_sections.command"
+                ),
+                Component.empty(),
+                WorldSleepAccelerationConfig.DEFAULT_RECHECK_IRRELEVANT_NATURE_SECTIONS_DURING_ACCELERATION,
+                () -> uiState.boundRecheckIrrelevantNatureSectionsDuringAcceleration,
+                value -> uiState.boundRecheckIrrelevantNatureSectionsDuringAcceleration = value,
+                canEditServerConfig,
+                session,
+                ServerConfigField.RECHECK_IRRELEVANT_NATURE_SECTIONS_DURING_ACCELERATION
+        );
+        listenServer(
+                session,
+                ServerConfigField.RECHECK_IRRELEVANT_NATURE_SECTIONS_DURING_ACCELERATION,
+                recheckIrrelevantNatureSectionsOption,
+                value -> uiState.recheckIrrelevantNatureSectionsDuringAcceleration = value
+        );
+
+        Option<Boolean> accelerationTelemetryOption = buildToggle(
+                Component.translatable("config.seamlesssleep.world_acceleration.telemetry"),
+                serverDescription(
+                        Component.translatable("config.seamlesssleep.world_acceleration.telemetry.desc"),
+                        "config.seamlesssleep.world_acceleration.telemetry.command"
+                ),
+                Component.empty(),
+                WorldSleepAccelerationConfig.DEFAULT_ACCELERATION_TELEMETRY_ENABLED,
+                () -> uiState.boundAccelerationTelemetryEnabled,
+                value -> uiState.boundAccelerationTelemetryEnabled = value,
+                canEditServerConfig,
+                session,
+                ServerConfigField.WORLD_SLEEP_ACCELERATION_TELEMETRY_ENABLED
+        );
+        listenServer(
+                session,
+                ServerConfigField.WORLD_SLEEP_ACCELERATION_TELEMETRY_ENABLED,
+                accelerationTelemetryOption,
+                value -> uiState.accelerationTelemetryEnabled = value
+        );
 
         Option<Boolean> replayCompatibilityOption = buildToggle(
                 Component.translatable("config.seamlesssleep.misc.replay_compatibility"),
@@ -662,6 +721,8 @@ public final class NeoForgeYaclConfigScreen {
                         true
                 ))
                 .option(madeInHeavenChanceOption)
+                .option(recheckIrrelevantNatureSectionsOption)
+                .option(accelerationTelemetryOption)
                 .group(vivecraftCompatibilityGroup)
                 .group(compatibilityGroup)
                 .build();
@@ -952,6 +1013,7 @@ public final class NeoForgeYaclConfigScreen {
                                                    Option<WorldSleepAutomaticMode> automaticModeOption,
                                                    Option<Boolean> grassOption,
                                                    Option<Boolean> cropsOption,
+                                                   Option<Boolean> vinesAndBambooOption,
                                                    Option<Boolean> kelpOption,
                                                    Option<Boolean> vanillaOnlyOption,
                                                    Option<Boolean> processesOption,
@@ -966,6 +1028,7 @@ public final class NeoForgeYaclConfigScreen {
         automaticModeOption.setAvailable(automaticModeAvailable);
         grassOption.setAvailable(systemEnabled);
         cropsOption.setAvailable(systemEnabled);
+        vinesAndBambooOption.setAvailable(systemEnabled);
         kelpOption.setAvailable(systemEnabled);
         vanillaOnlyOption.setAvailable(systemEnabled);
         processesOption.setAvailable(systemEnabled);
@@ -1905,8 +1968,11 @@ public final class NeoForgeYaclConfigScreen {
         private int manualAccelerationSpeedPercent;
         private boolean grassAndFoliageAccelerationEnabled;
         private boolean cropsAndSaplingsAccelerationEnabled;
+        private boolean vinesAndBambooAccelerationEnabled;
         private boolean kelpAccelerationEnabled;
         private boolean vanillaOnlyAcceleration;
+        private boolean recheckIrrelevantNatureSectionsDuringAcceleration;
+        private boolean accelerationTelemetryEnabled;
         private boolean processesAccelerationEnabled;
         private int processesSpeedPercent;
         private int boundSleepWeatherClearChancePercent;
@@ -1924,8 +1990,11 @@ public final class NeoForgeYaclConfigScreen {
         private WorldSleepAutomaticMode boundAutomaticMode;
         private boolean boundGrassAndFoliageAccelerationEnabled;
         private boolean boundCropsAndSaplingsAccelerationEnabled;
+        private boolean boundVinesAndBambooAccelerationEnabled;
         private boolean boundKelpAccelerationEnabled;
         private boolean boundVanillaOnlyAcceleration;
+        private boolean boundRecheckIrrelevantNatureSectionsDuringAcceleration;
+        private boolean boundAccelerationTelemetryEnabled;
         private boolean boundProcessesAccelerationEnabled;
         private int boundProcessesSpeedPercent;
 
@@ -1950,8 +2019,13 @@ public final class NeoForgeYaclConfigScreen {
             state.manualAccelerationSpeedPercent = serverCfg.worldSleepAcceleration.manualAccelerationSpeedPercent;
             state.grassAndFoliageAccelerationEnabled = serverCfg.worldSleepAcceleration.grassAndFoliageAccelerationEnabled;
             state.cropsAndSaplingsAccelerationEnabled = serverCfg.worldSleepAcceleration.cropsAndSaplingsAccelerationEnabled;
+            state.vinesAndBambooAccelerationEnabled = serverCfg.worldSleepAcceleration.vinesAndBambooAccelerationEnabled;
             state.kelpAccelerationEnabled = serverCfg.worldSleepAcceleration.kelpAccelerationEnabled;
             state.vanillaOnlyAcceleration = serverCfg.worldSleepAcceleration.vanillaOnlyAcceleration;
+            state.recheckIrrelevantNatureSectionsDuringAcceleration =
+                    serverCfg.worldSleepAcceleration.recheckIrrelevantNatureSectionsDuringAcceleration;
+            state.accelerationTelemetryEnabled =
+                    serverCfg.worldSleepAcceleration.accelerationTelemetryEnabled;
             state.processesAccelerationEnabled = serverCfg.worldSleepAcceleration.processesAccelerationEnabled;
             state.processesSpeedPercent = serverCfg.worldSleepAcceleration.processesSpeedPercent;
             state.snapshotBoundValues();
@@ -1975,8 +2049,13 @@ public final class NeoForgeYaclConfigScreen {
             state.manualAccelerationSpeedPercent = SeamlessSleepServerConfigSnapshot.getManualAccelerationSpeedPercent();
             state.grassAndFoliageAccelerationEnabled = SeamlessSleepServerConfigSnapshot.isGrassAndFoliageAccelerationEnabled();
             state.cropsAndSaplingsAccelerationEnabled = SeamlessSleepServerConfigSnapshot.isCropsAndSaplingsAccelerationEnabled();
+            state.vinesAndBambooAccelerationEnabled = SeamlessSleepServerConfigSnapshot.isVinesAndBambooAccelerationEnabled();
             state.kelpAccelerationEnabled = SeamlessSleepServerConfigSnapshot.isKelpAccelerationEnabled();
             state.vanillaOnlyAcceleration = SeamlessSleepServerConfigSnapshot.isVanillaOnlyAcceleration();
+            state.recheckIrrelevantNatureSectionsDuringAcceleration =
+                    SeamlessSleepServerConfigSnapshot.isRecheckIrrelevantNatureSectionsDuringAcceleration();
+            state.accelerationTelemetryEnabled =
+                    SeamlessSleepServerConfigSnapshot.isWorldSleepAccelerationTelemetryEnabled();
             state.processesAccelerationEnabled = SeamlessSleepServerConfigSnapshot.isProcessesAccelerationEnabled();
             state.processesSpeedPercent = SeamlessSleepServerConfigSnapshot.getProcessesSpeedPercent();
             state.snapshotBoundValues();
@@ -2006,8 +2085,12 @@ public final class NeoForgeYaclConfigScreen {
             this.manualAccelerationSpeedPercent = source.manualAccelerationSpeedPercent;
             this.grassAndFoliageAccelerationEnabled = source.grassAndFoliageAccelerationEnabled;
             this.cropsAndSaplingsAccelerationEnabled = source.cropsAndSaplingsAccelerationEnabled;
+            this.vinesAndBambooAccelerationEnabled = source.vinesAndBambooAccelerationEnabled;
             this.kelpAccelerationEnabled = source.kelpAccelerationEnabled;
             this.vanillaOnlyAcceleration = source.vanillaOnlyAcceleration;
+            this.recheckIrrelevantNatureSectionsDuringAcceleration =
+                    source.recheckIrrelevantNatureSectionsDuringAcceleration;
+            this.accelerationTelemetryEnabled = source.accelerationTelemetryEnabled;
             this.processesAccelerationEnabled = source.processesAccelerationEnabled;
             this.processesSpeedPercent = source.processesSpeedPercent;
             this.snapshotBoundValues();
@@ -2033,8 +2116,12 @@ public final class NeoForgeYaclConfigScreen {
             this.boundAutomaticMode = this.automaticMode == null ? WorldSleepAutomaticMode.AGGRESSIVE : this.automaticMode;
             this.boundGrassAndFoliageAccelerationEnabled = this.grassAndFoliageAccelerationEnabled;
             this.boundCropsAndSaplingsAccelerationEnabled = this.cropsAndSaplingsAccelerationEnabled;
+            this.boundVinesAndBambooAccelerationEnabled = this.vinesAndBambooAccelerationEnabled;
             this.boundKelpAccelerationEnabled = this.kelpAccelerationEnabled;
             this.boundVanillaOnlyAcceleration = this.vanillaOnlyAcceleration;
+            this.boundRecheckIrrelevantNatureSectionsDuringAcceleration =
+                    this.recheckIrrelevantNatureSectionsDuringAcceleration;
+            this.boundAccelerationTelemetryEnabled = this.accelerationTelemetryEnabled;
             this.boundProcessesAccelerationEnabled = this.processesAccelerationEnabled;
             this.boundProcessesSpeedPercent = Mth.clamp(this.processesSpeedPercent, 0, 100);
         }
@@ -2101,8 +2188,12 @@ public final class NeoForgeYaclConfigScreen {
                 case MANUAL_ACCELERATION_SPEED_PERCENT -> Mth.clamp(manualAccelerationSpeedPercent, 0, 100);
                 case GRASS_AND_FOLIAGE_ACCELERATION_ENABLED -> grassAndFoliageAccelerationEnabled;
                 case CROPS_AND_SAPLINGS_ACCELERATION_ENABLED -> cropsAndSaplingsAccelerationEnabled;
+                case VINES_AND_BAMBOO_ACCELERATION_ENABLED -> vinesAndBambooAccelerationEnabled;
                 case KELP_ACCELERATION_ENABLED -> kelpAccelerationEnabled;
                 case VANILLA_ONLY_ACCELERATION -> vanillaOnlyAcceleration;
+                case RECHECK_IRRELEVANT_NATURE_SECTIONS_DURING_ACCELERATION ->
+                        recheckIrrelevantNatureSectionsDuringAcceleration;
+                case WORLD_SLEEP_ACCELERATION_TELEMETRY_ENABLED -> accelerationTelemetryEnabled;
                 case PROCESSES_ACCELERATION_ENABLED -> processesAccelerationEnabled;
                 case PROCESSES_SPEED_PERCENT -> Mth.clamp(processesSpeedPercent, 0, 100);
             };
@@ -2135,8 +2226,13 @@ public final class NeoForgeYaclConfigScreen {
                 case MANUAL_ACCELERATION_SPEED_PERCENT -> manualAccelerationSpeedPercent = (Integer) value;
                 case GRASS_AND_FOLIAGE_ACCELERATION_ENABLED -> grassAndFoliageAccelerationEnabled = (Boolean) value;
                 case CROPS_AND_SAPLINGS_ACCELERATION_ENABLED -> cropsAndSaplingsAccelerationEnabled = (Boolean) value;
+                case VINES_AND_BAMBOO_ACCELERATION_ENABLED -> vinesAndBambooAccelerationEnabled = (Boolean) value;
                 case KELP_ACCELERATION_ENABLED -> kelpAccelerationEnabled = (Boolean) value;
                 case VANILLA_ONLY_ACCELERATION -> vanillaOnlyAcceleration = (Boolean) value;
+                case RECHECK_IRRELEVANT_NATURE_SECTIONS_DURING_ACCELERATION ->
+                        recheckIrrelevantNatureSectionsDuringAcceleration = (Boolean) value;
+                case WORLD_SLEEP_ACCELERATION_TELEMETRY_ENABLED ->
+                        accelerationTelemetryEnabled = (Boolean) value;
                 case PROCESSES_ACCELERATION_ENABLED -> processesAccelerationEnabled = (Boolean) value;
                 case PROCESSES_SPEED_PERCENT -> processesSpeedPercent = (Integer) value;
             }
@@ -2165,8 +2261,13 @@ public final class NeoForgeYaclConfigScreen {
             serverCfg.worldSleepAcceleration.manualAccelerationSpeedPercent = manualAccelerationSpeedPercent;
             serverCfg.worldSleepAcceleration.grassAndFoliageAccelerationEnabled = grassAndFoliageAccelerationEnabled;
             serverCfg.worldSleepAcceleration.cropsAndSaplingsAccelerationEnabled = cropsAndSaplingsAccelerationEnabled;
+            serverCfg.worldSleepAcceleration.vinesAndBambooAccelerationEnabled = vinesAndBambooAccelerationEnabled;
             serverCfg.worldSleepAcceleration.kelpAccelerationEnabled = kelpAccelerationEnabled;
             serverCfg.worldSleepAcceleration.vanillaOnlyAcceleration = vanillaOnlyAcceleration;
+            serverCfg.worldSleepAcceleration.recheckIrrelevantNatureSectionsDuringAcceleration =
+                    recheckIrrelevantNatureSectionsDuringAcceleration;
+            serverCfg.worldSleepAcceleration.accelerationTelemetryEnabled =
+                    accelerationTelemetryEnabled;
             serverCfg.worldSleepAcceleration.processesAccelerationEnabled = processesAccelerationEnabled;
             serverCfg.worldSleepAcceleration.processesSpeedPercent = processesSpeedPercent;
         }
