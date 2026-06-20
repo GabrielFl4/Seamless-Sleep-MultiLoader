@@ -85,6 +85,18 @@ public final class VivecraftClientCompat {
     private static Method mcvrGetInputActionMethod;
     @Nullable
     private static Method vrInputActionIsButtonChangedMethod;
+    private static final ClassValue<RoomPoseAccessor> ROOM_POSE_ACCESSORS = new ClassValue<>() {
+        @Override
+        protected RoomPoseAccessor computeValue(Class<?> type) {
+            return new RoomPoseAccessor(optionalMethod(type, "getHead"));
+        }
+    };
+    private static final ClassValue<HeadPoseAccessor> HEAD_POSE_ACCESSORS = new ClassValue<>() {
+        @Override
+        protected HeadPoseAccessor computeValue(Class<?> type) {
+            return new HeadPoseAccessor(optionalMethod(type, "getPos"));
+        }
+    };
 
     private static boolean hasSentVrState;
     private static boolean lastSentVrState;
@@ -506,11 +518,19 @@ public final class VivecraftClientCompat {
         }
 
         try {
-            Object head = pose.getClass().getMethod("getHead").invoke(pose);
+            Method getHeadMethod = ROOM_POSE_ACCESSORS.get(pose.getClass()).getHead();
+            if (getHeadMethod == null) {
+                return null;
+            }
+            Object head = getHeadMethod.invoke(pose);
             if (head == null) {
                 return null;
             }
-            Object pos = head.getClass().getMethod("getPos").invoke(head);
+            Method getPosMethod = HEAD_POSE_ACCESSORS.get(head.getClass()).getPos();
+            if (getPosMethod == null) {
+                return null;
+            }
+            Object pos = getPosMethod.invoke(head);
             if (pos instanceof Vec3 vec3 && Double.isFinite(vec3.y)) {
                 return vec3.y;
             }
@@ -762,5 +782,11 @@ public final class VivecraftClientCompat {
         }
         String message = root.getMessage();
         return root.getClass().getSimpleName() + (message == null || message.isBlank() ? "" : ": " + message);
+    }
+
+    private record RoomPoseAccessor(Method getHead) {
+    }
+
+    private record HeadPoseAccessor(Method getPos) {
     }
 }

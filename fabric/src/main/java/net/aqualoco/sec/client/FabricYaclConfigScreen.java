@@ -768,14 +768,18 @@ final class FabricYaclConfigScreen {
     }
 
     private static OptionGroup buildSleepIndicatorGroup(SeamlessSleepClientConfig cfg) {
+        SleepIndicatorUiState uiState = SleepIndicatorUiState.from(cfg);
         Option<SleepIndicatorMode> modeOption = buildEnumOption(
                 Component.translatable("config.seamlesssleep.sleep_indicator.mode"),
                 Component.translatable("config.seamlesssleep.sleep_indicator.mode.desc"),
                 Component.empty(),
                 SleepIndicatorMode.BIOME_CLOCK,
                 SleepIndicatorMode.class,
-                () -> cfg.sleepIndicatorMode,
-                value -> cfg.sleepIndicatorMode = value == null ? SleepIndicatorMode.BIOME_CLOCK : value,
+                () -> uiState.mode,
+                value -> {
+                    uiState.mode = value == null ? SleepIndicatorMode.BIOME_CLOCK : value;
+                    cfg.sleepIndicatorMode = uiState.mode;
+                },
                 true,
                 value -> enumText("config.seamlesssleep.sleep_indicator.mode", value)
         );
@@ -785,8 +789,11 @@ final class FabricYaclConfigScreen {
                 Component.empty(),
                 SleepIndicatorAnchor.TOP_LEFT,
                 SleepIndicatorAnchor.class,
-                () -> cfg.sleepIndicatorAnchor,
-                value -> cfg.sleepIndicatorAnchor = value == null ? SleepIndicatorAnchor.TOP_LEFT : value,
+                () -> uiState.anchor,
+                value -> {
+                    uiState.anchor = value == null ? SleepIndicatorAnchor.TOP_LEFT : value;
+                    cfg.sleepIndicatorAnchor = uiState.anchor;
+                },
                 true,
                 value -> enumText("config.seamlesssleep.sleep_indicator.anchor", value)
         );
@@ -796,8 +803,11 @@ final class FabricYaclConfigScreen {
                 Component.empty(),
                 SleepIndicatorVisibility.BED,
                 SleepIndicatorVisibility.class,
-                () -> cfg.sleepIndicatorVisibility,
-                value -> cfg.sleepIndicatorVisibility = value == null ? SleepIndicatorVisibility.BED : value,
+                () -> uiState.visibility,
+                value -> {
+                    uiState.visibility = value == null ? SleepIndicatorVisibility.BED : value;
+                    cfg.sleepIndicatorVisibility = uiState.visibility;
+                },
                 true,
                 value -> enumText("config.seamlesssleep.sleep_indicator.visibility", value)
         );
@@ -809,8 +819,11 @@ final class FabricYaclConfigScreen {
                 0.25D,
                 4.0D,
                 0.05D,
-                () -> cfg.sleepIndicatorScale,
-                value -> cfg.sleepIndicatorScale = value,
+                () -> uiState.scale,
+                value -> {
+                    uiState.scale = value;
+                    cfg.sleepIndicatorScale = value;
+                },
                 true,
                 FabricYaclConfigScreen::formatMultiplierValue
         );
@@ -820,8 +833,11 @@ final class FabricYaclConfigScreen {
                 Component.empty(),
                 TimestampStyle.DAY_FIRST,
                 TimestampStyle.class,
-                () -> cfg.timestampStyle,
-                value -> cfg.timestampStyle = value == null ? TimestampStyle.DAY_FIRST : value,
+                () -> uiState.timestampStyle,
+                value -> {
+                    uiState.timestampStyle = value == null ? TimestampStyle.DAY_FIRST : value;
+                    cfg.timestampStyle = uiState.timestampStyle;
+                },
                 true,
                 value -> enumText("config.seamlesssleep.sleep_indicator.timestamp.style", value)
         );
@@ -830,10 +846,13 @@ final class FabricYaclConfigScreen {
                 Component.translatable("config.seamlesssleep.sleep_indicator.timestamp.color.desc"),
                 Component.empty(),
                 new Color(SeamlessSleepClientConfig.DEFAULT_TIMESTAMP_COLOR | 0xFF000000, true),
-                () -> new Color((cfg.timestampColor & 0x00FFFFFF) | 0xFF000000, true),
-                value -> cfg.timestampColor = value == null
-                        ? SeamlessSleepClientConfig.DEFAULT_TIMESTAMP_COLOR
-                        : value.getRGB() & 0x00FFFFFF,
+                () -> new Color((uiState.timestampColor & 0x00FFFFFF) | 0xFF000000, true),
+                value -> {
+                    uiState.timestampColor = value == null
+                            ? SeamlessSleepClientConfig.DEFAULT_TIMESTAMP_COLOR
+                            : value.getRGB() & 0x00FFFFFF;
+                    cfg.timestampColor = uiState.timestampColor;
+                },
                 true
         );
         Runnable refreshIndicatorOptions = () -> {
@@ -877,6 +896,26 @@ final class FabricYaclConfigScreen {
                 .option(timestampStyleOption)
                 .option(timestampColorOption)
                 .build();
+    }
+
+    private static final class SleepIndicatorUiState {
+        private SleepIndicatorMode mode;
+        private SleepIndicatorAnchor anchor;
+        private SleepIndicatorVisibility visibility;
+        private double scale;
+        private TimestampStyle timestampStyle;
+        private int timestampColor;
+
+        private static SleepIndicatorUiState from(SeamlessSleepClientConfig cfg) {
+            SleepIndicatorUiState state = new SleepIndicatorUiState();
+            state.mode = cfg.sleepIndicatorMode;
+            state.anchor = cfg.sleepIndicatorAnchor;
+            state.visibility = cfg.sleepIndicatorVisibility;
+            state.scale = cfg.sleepIndicatorScale;
+            state.timestampStyle = cfg.timestampStyle;
+            state.timestampColor = cfg.timestampColor;
+            return state;
+        }
     }
 
     private static OptionGroup buildSleepZzzGroup(SeamlessSleepClientConfig cfg) {

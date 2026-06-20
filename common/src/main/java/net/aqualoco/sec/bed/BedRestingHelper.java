@@ -4,10 +4,8 @@ import net.aqualoco.sec.config.SeamlessSleepServerConfig;
 import net.aqualoco.sec.config.SeamlessSleepServerConfigManager;
 import net.aqualoco.sec.config.SleepEligibilityMode;
 import net.aqualoco.sec.compat.VivecraftCompat;
-import net.aqualoco.sec.network.BedHudNetworking;
 import net.aqualoco.sec.sleep.SleepAnimationStates;
 import net.aqualoco.sec.sleep.SleepDimensionSupport;
-import net.aqualoco.sec.sleep.SleepStatusUpdateSuppression;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.ChatFormatting;
@@ -168,14 +166,14 @@ public final class BedRestingHelper {
     }
 
     public static void syncManagedSleepState(ServerPlayer player, boolean countedForSleep) {
-        if (player instanceof BedRestingPlayer restingPlayer) {
-            restingPlayer.seamlesssleep$setCountedForSleep(countedForSleep);
-        }
-
+        setManagedSleepStateWithoutSleepingListUpdate(player, countedForSleep);
         ServerLevel level = (ServerLevel) player.level();
         level.updateSleepingPlayerList();
-        if (!SleepStatusUpdateSuppression.isNaturalFinishWakeSuppressed()) {
-            BedHudNetworking.syncSleepProgress(level);
+    }
+
+    public static void setManagedSleepStateWithoutSleepingListUpdate(ServerPlayer player, boolean countedForSleep) {
+        if (player instanceof BedRestingPlayer restingPlayer) {
+            restingPlayer.seamlesssleep$setCountedForSleep(countedForSleep);
         }
     }
 

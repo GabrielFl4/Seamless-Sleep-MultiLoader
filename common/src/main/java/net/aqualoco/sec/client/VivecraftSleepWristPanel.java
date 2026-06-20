@@ -48,6 +48,27 @@ public final class VivecraftSleepWristPanel {
     private static Method dataHolderGetInstanceMethod;
     private static Field menuHandMainField;
     private static Field menuHandOffField;
+    private static final ClassValue<PanelPoseAccessor> PANEL_POSE_ACCESSORS = new ClassValue<>() {
+        @Override
+        protected PanelPoseAccessor computeValue(Class<?> type) {
+            return new PanelPoseAccessor(findPublicMethod(type, "getHand", InteractionHand.class));
+        }
+    };
+    private static final ClassValue<HandPoseAccessor> HAND_POSE_ACCESSORS = new ClassValue<>() {
+        @Override
+        protected HandPoseAccessor computeValue(Class<?> type) {
+            return new HandPoseAccessor(
+                    findPublicMethod(type, "getPos"),
+                    findPublicMethod(type, "getRotation")
+            );
+        }
+    };
+    private static final ClassValue<ModuleIdAccessor> MODULE_ID_ACCESSORS = new ClassValue<>() {
+        @Override
+        protected ModuleIdAccessor computeValue(Class<?> type) {
+            return new ModuleIdAccessor(findPublicMethod(type, "getId"));
+        }
+    };
 
     private VivecraftSleepWristPanel() {
     }
@@ -252,13 +273,23 @@ public final class VivecraftSleepWristPanel {
         }
 
         try {
-            Object handData = vrPose.getClass().getMethod("getHand", InteractionHand.class).invoke(vrPose, wristHand());
+            Method getHandMethod = PANEL_POSE_ACCESSORS.get(vrPose.getClass()).getHand();
+            if (getHandMethod == null) {
+                logPoseFailure("NoSuchMethodException");
+                return null;
+            }
+            Object handData = getHandMethod.invoke(vrPose, wristHand());
             if (handData == null) {
                 return null;
             }
 
-            Vec3 handPos = (Vec3) handData.getClass().getMethod("getPos").invoke(handData);
-            Quaternionfc rotation = (Quaternionfc) handData.getClass().getMethod("getRotation").invoke(handData);
+            HandPoseAccessor handAccessor = HAND_POSE_ACCESSORS.get(handData.getClass());
+            if (!handAccessor.available()) {
+                logPoseFailure("NoSuchMethodException");
+                return null;
+            }
+            Vec3 handPos = (Vec3) handAccessor.getPos().invoke(handData);
+            Quaternionfc rotation = (Quaternionfc) handAccessor.getRotation().invoke(handData);
             float worldScale = VivecraftClientCompat.getWorldScale();
 
             Vec3 sideAxis = axis(rotation, -1.0F, 0.0F, 0.0F);
@@ -283,7 +314,7 @@ public final class VivecraftSleepWristPanel {
             float normalTolerance = PANEL_NORMAL_TOLERANCE * worldScale;
             return new PanelPose(center, panelHorizontal, panelVertical, panelNormal, halfSize, normalTolerance);
         } catch (ReflectiveOperationException | ClassCastException | LinkageError exception) {
-            logPoseFailure(exception);
+            logPoseFailure(exception.getClass().getSimpleName());
             return null;
         }
     }
@@ -299,13 +330,13 @@ public final class VivecraftSleepWristPanel {
         return axis.lengthSqr() > 1.0E-6D;
     }
 
-    private static void logPoseFailure(Throwable exception) {
+    private static void logPoseFailure(String failureType) {
         if (loggedPoseFailure) {
             return;
         }
 
         loggedPoseFailure = true;
-        Constants.warn("Vivecraft wrist panel pose could not be resolved: {}", exception.getClass().getSimpleName());
+        Constants.warn("Vivecraft wrist panel pose could not be resolved: {}", failureType);
     }
 
     private static boolean ensureMenuHandBridgeReady() {
@@ -352,11 +383,23 @@ public final class VivecraftSleepWristPanel {
             return false;
         }
 
+        Method getIdMethod = MODULE_ID_ACCESSORS.get(module.getClass()).getId();
+        if (getIdMethod == null) {
+            return false;
+        }
         try {
-            Object id = module.getClass().getMethod("getId").invoke(module);
+            Object id = getIdMethod.invoke(module);
             return id != null && expectedId.equals(id.toString());
         } catch (ReflectiveOperationException | LinkageError | RuntimeException ignored) {
             return false;
+        }
+    }
+
+    private static Method findPublicMethod(Class<?> owner, String name, Class<?>... parameterTypes) {
+        try {
+            return owner.getMethod(name, parameterTypes);
+        } catch (NoSuchMethodException | LinkageError | RuntimeException ignored) {
+            return null;
         }
     }
 
@@ -374,6 +417,18 @@ public final class VivecraftSleepWristPanel {
                     && Math.abs(delta.dot(vertical)) <= halfSize
                     && Math.abs(delta.dot(normal)) <= normalTolerance;
         }
+    }
+
+    private record PanelPoseAccessor(Method getHand) {
+    }
+
+    private record HandPoseAccessor(Method getPos, Method getRotation) {
+        private boolean available() {
+            return getPos != null && getRotation != null;
+        }
+    }
+
+    private record ModuleIdAccessor(Method getId) {
     }
 
     private static final class SleepIndicatorInteractModuleHandler implements InvocationHandler {

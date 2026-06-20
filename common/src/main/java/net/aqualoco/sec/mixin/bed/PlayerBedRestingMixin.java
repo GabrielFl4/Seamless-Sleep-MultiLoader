@@ -112,7 +112,11 @@ public abstract class PlayerBedRestingMixin implements BedRestingPlayer {
             return;
         }
 
-        BedRestingHelper.syncManagedSleepState(serverPlayer, false);
+        if (updateLevelForSleepingPlayers) {
+            BedRestingHelper.setManagedSleepStateWithoutSleepingListUpdate(serverPlayer, false);
+        } else {
+            BedRestingHelper.syncManagedSleepState(serverPlayer, false);
+        }
         this.seamlesssleep$resetFallAsleepDelayCounter();
     }
 

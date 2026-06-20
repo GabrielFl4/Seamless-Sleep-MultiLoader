@@ -27,6 +27,7 @@ public final class VivecraftCompat {
 
     private static final Map<UUID, Boolean> SERVER_VR_STATES = new HashMap<>();
     private static final Map<UUID, Double> SERVER_BED_ROOM_Y_OFFSETS = new HashMap<>();
+    private static volatile Boolean vivecraftLoaded;
     private static boolean detectedLogged;
 
     private VivecraftCompat() {
@@ -39,6 +40,22 @@ public final class VivecraftCompat {
     }
 
     public static boolean isVivecraftLoaded() {
+        Boolean cached = vivecraftLoaded;
+        if (cached != null) {
+            return cached;
+        }
+
+        synchronized (VivecraftCompat.class) {
+            cached = vivecraftLoaded;
+            if (cached == null) {
+                cached = detectVivecraft();
+                vivecraftLoaded = cached;
+            }
+        }
+        return cached;
+    }
+
+    private static boolean detectVivecraft() {
         try {
             if (Services.PLATFORM.isModLoaded(MOD_ID)) {
                 return true;

@@ -20,6 +20,18 @@ public final class VivecraftSleepingBodyOffsetCompensation {
 
     private static final ThreadLocal<Boolean> SLEEPING_VR_BODY_SCOPE = new ThreadLocal<>();
     private static final ThreadLocal<Double> SLEEPING_VR_BODY_ROOM_Y_OFFSET = new ThreadLocal<>();
+    private static final ClassValue<RotInfoAccessors> ROT_INFO_ACCESSORS = new ClassValue<>() {
+        @Override
+        protected RotInfoAccessors computeValue(Class<?> type) {
+            return new RotInfoAccessors(findPublicField(type, "worldScale"), findPublicField(type, "heightScale"));
+        }
+    };
+    private static final ClassValue<TotalScaleAccessor> TOTAL_SCALE_ACCESSORS = new ClassValue<>() {
+        @Override
+        protected TotalScaleAccessor computeValue(Class<?> type) {
+            return new TotalScaleAccessor(findPublicMethod(type, "vivecraft$getTotalScale"));
+        }
+    };
 
     private VivecraftSleepingBodyOffsetCompensation() {
     }
@@ -56,10 +68,12 @@ public final class VivecraftSleepingBodyOffsetCompensation {
             return;
         }
 
+        RotInfoAccessors rotInfoAccessors = ROT_INFO_ACCESSORS.get(rotInfo.getClass());
         float coordinateScale = useWorldScale
-                ? readFloatField(rotInfo, "worldScale", 1.0F)
+                ? readFloatField(rotInfo, rotInfoAccessors.worldScale(), 1.0F)
                 : readTotalScale(renderState);
-        float modelScale = PLAYER_MODEL_BASE_SCALE * readFloatField(rotInfo, "heightScale", 1.0F);
+        float modelScale = PLAYER_MODEL_BASE_SCALE
+                * readFloatField(rotInfo, rotInfoAccessors.heightScale(), 1.0F);
         if (!isUsableScale(coordinateScale) || !isUsableScale(modelScale)) {
             return;
         }
@@ -79,19 +93,24 @@ public final class VivecraftSleepingBodyOffsetCompensation {
                 && renderState.bedOrientation != null;
     }
 
-    private static float readFloatField(Object instance, String fieldName, float fallback) {
+    private static float readFloatField(Object instance, Field field, float fallback) {
+        if (field == null) {
+            return fallback;
+        }
         try {
-            Field field = instance.getClass().getField(fieldName);
             Object value = field.get(instance);
             return value instanceof Number number ? number.floatValue() : fallback;
-        } catch (ReflectiveOperationException | LinkageError | RuntimeException ignored) {
+        } catch (IllegalAccessException | LinkageError | RuntimeException ignored) {
             return fallback;
         }
     }
 
     private static float readTotalScale(HumanoidRenderState renderState) {
+        Method method = TOTAL_SCALE_ACCESSORS.get(renderState.getClass()).method();
+        if (method == null) {
+            return 1.0F;
+        }
         try {
-            Method method = renderState.getClass().getMethod("vivecraft$getTotalScale");
             Object value = method.invoke(renderState);
             return value instanceof Number number ? number.floatValue() : 1.0F;
         } catch (ReflectiveOperationException | LinkageError | RuntimeException ignored) {
@@ -99,7 +118,29 @@ public final class VivecraftSleepingBodyOffsetCompensation {
         }
     }
 
+    private static Field findPublicField(Class<?> owner, String name) {
+        try {
+            return owner.getField(name);
+        } catch (NoSuchFieldException | LinkageError | RuntimeException ignored) {
+            return null;
+        }
+    }
+
+    private static Method findPublicMethod(Class<?> owner, String name) {
+        try {
+            return owner.getMethod(name);
+        } catch (NoSuchMethodException | LinkageError | RuntimeException ignored) {
+            return null;
+        }
+    }
+
     private static boolean isUsableScale(float value) {
         return Float.isFinite(value) && Math.abs(value) > 1.0E-6F;
+    }
+
+    private record RotInfoAccessors(Field worldScale, Field heightScale) {
+    }
+
+    private record TotalScaleAccessor(Method method) {
     }
 }

@@ -25,7 +25,7 @@ public final class FlashbackCompat {
     }
 
     public static boolean isReplayPlaybackActive() {
-        if (!Services.PLATFORM.isModLoaded(FLASHBACK_MOD_ID)) {
+        if (!ModPresenceHolder.PRESENT) {
             return false;
         }
 
@@ -56,7 +56,7 @@ public final class FlashbackCompat {
     }
 
     public static OptionalLong getReplayTimelineMillis() {
-        if (!Services.PLATFORM.isModLoaded(FLASHBACK_MOD_ID)) {
+        if (!ModPresenceHolder.PRESENT) {
             return OptionalLong.empty();
         }
 
@@ -147,5 +147,9 @@ public final class FlashbackCompat {
             loggedInvocationFailure = true;
             Constants.debug("Flashback reflection bridge invocation failed.", e);
         }
+    }
+
+    private static final class ModPresenceHolder {
+        private static final boolean PRESENT = Services.PLATFORM.isModLoaded(FLASHBACK_MOD_ID);
     }
 }

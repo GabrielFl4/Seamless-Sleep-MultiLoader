@@ -23,7 +23,7 @@ public final class BetterCloudsCompatBridge {
     }
 
     public static boolean isBridgeActive() {
-        if (!isBetterCloudsAvailable()) {
+        if (!AvailabilityHolder.AVAILABLE) {
             return false;
         }
 
@@ -48,7 +48,7 @@ public final class BetterCloudsCompatBridge {
         }
     }
 
-    private static boolean isBetterCloudsAvailable() {
+    private static boolean detectBetterClouds() {
         try {
             if (Services.PLATFORM.isModLoaded(BETTER_CLOUDS_MOD_ID)) {
                 return true;
@@ -58,6 +58,10 @@ public final class BetterCloudsCompatBridge {
 
         return hasClassResource(BETTER_CLOUDS_CLASS_RESOURCE, Thread.currentThread().getContextClassLoader())
                 || hasClassResource(BETTER_CLOUDS_CLASS_RESOURCE, BetterCloudsCompatBridge.class.getClassLoader());
+    }
+
+    private static final class AvailabilityHolder {
+        private static final boolean AVAILABLE = detectBetterClouds();
     }
 
     private static void ensureInitialized() {
