@@ -559,7 +559,7 @@ public final class SleepSoundManager {
         if (client == null) {
             return;
         }
-        windLoop = new SleepLoopSoundInstance(SleepSoundIds.SLEEP_WIND, SoundSource.AMBIENT, WIND_FADE_TICKS);
+        windLoop = new SleepLoopSoundInstance(SleepSoundIds.SLEEP_WIND, SoundSource.MASTER, WIND_FADE_TICKS);
         client.getSoundManager().play(windLoop);
     }
 
@@ -623,7 +623,7 @@ public final class SleepSoundManager {
 
         SoundInstance sound = new SimpleSoundInstance(
                 soundId,
-                SoundSource.AMBIENT,
+                SoundSource.MASTER,
                 clamp01(volume),
                 clamp(pitch, 0.5F, 2.0F),
                 RandomSource.create(),
@@ -747,7 +747,7 @@ public final class SleepSoundManager {
         }
         madeInHeavenMainSound = new SleepFadingSoundInstance(
                 SleepSoundIds.MADE_IN_HEAVEN_MAIN,
-                SoundSource.AMBIENT,
+                SoundSource.MASTER,
                 soundtrackVolume(config, MADE_IN_HEAVEN_MAIN_VOLUME),
                 MADE_IN_HEAVEN_MAIN_TECH_FADE_IN_TICKS
         );

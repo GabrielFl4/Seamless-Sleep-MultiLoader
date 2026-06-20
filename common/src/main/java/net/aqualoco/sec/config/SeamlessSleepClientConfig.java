@@ -35,6 +35,7 @@ public final class SeamlessSleepClientConfig {
     public static final VivecraftWristIndicatorVisibility DEFAULT_VIVECRAFT_WRIST_INDICATOR_VISIBILITY = VivecraftWristIndicatorVisibility.SLEEPING;
     public static final double MIN_VIVECRAFT_BED_ROOM_Y_OFFSET = -2.0D;
     public static final double MAX_VIVECRAFT_BED_ROOM_Y_OFFSET = 0.0D;
+    public static final int DEFAULT_SOUND_VOLUME_PERCENT = 50;
     private static final boolean DEFAULT_DEBUG_LOGS_ENABLED = false;
     private static final int MIN_SOUND_VOLUME_PERCENT = 0;
     private static final int MAX_SOUND_VOLUME_PERCENT = 100;
@@ -64,8 +65,8 @@ public final class SeamlessSleepClientConfig {
     public VivecraftWristIndicatorVisibility vivecraftWristIndicatorVisibility = DEFAULT_VIVECRAFT_WRIST_INDICATOR_VISIBILITY;
     public boolean debugLogsEnabled = DEFAULT_DEBUG_LOGS_ENABLED;
 
-    public int sleepWindVolumePercent = 40;
-    public int soundtrackVolumePercent = 40;
+    public int sleepWindVolumePercent = DEFAULT_SOUND_VOLUME_PERCENT;
+    public int soundtrackVolumePercent = DEFAULT_SOUND_VOLUME_PERCENT;
     public boolean disableSoundsDuringReplay = false;
 
     public void clamp() {
@@ -114,8 +115,18 @@ public final class SeamlessSleepClientConfig {
         sleepChatMaxLines = clampInt(sleepChatMaxLines, 0, 12, DEFAULT_CHAT_MAX_LINES);
         sleepCameraTiltDegrees = clampTiltDegrees(sleepCameraTiltDegrees, DEFAULT_TILT_DEGREES);
         mouseSmoothnessPercent = clampInt(mouseSmoothnessPercent, 0, 100, DEFAULT_MOUSE_SMOOTHNESS_PERCENT);
-        sleepWindVolumePercent = clampInt(sleepWindVolumePercent, MIN_SOUND_VOLUME_PERCENT, MAX_SOUND_VOLUME_PERCENT, 40);
-        soundtrackVolumePercent = clampInt(soundtrackVolumePercent, MIN_SOUND_VOLUME_PERCENT, MAX_SOUND_VOLUME_PERCENT, 40);
+        sleepWindVolumePercent = clampInt(
+                sleepWindVolumePercent,
+                MIN_SOUND_VOLUME_PERCENT,
+                MAX_SOUND_VOLUME_PERCENT,
+                DEFAULT_SOUND_VOLUME_PERCENT
+        );
+        soundtrackVolumePercent = clampInt(
+                soundtrackVolumePercent,
+                MIN_SOUND_VOLUME_PERCENT,
+                MAX_SOUND_VOLUME_PERCENT,
+                DEFAULT_SOUND_VOLUME_PERCENT
+        );
         vivecraftBedRoomYOffset = clampRange(
                 vivecraftBedRoomYOffset,
                 MIN_VIVECRAFT_BED_ROOM_Y_OFFSET,

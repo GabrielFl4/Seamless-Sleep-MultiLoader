@@ -58,7 +58,8 @@
     "compat.vivecraft.VivecraftVRPlayerMenuHandMixin",
     "compat.vivecraft.VivecraftVRPlayerModelSleepingOffsetMixin",
     "compat.vivecraft.VivecraftModelUtilsSleepingOffsetMixin",
-    "compat.reactivemusic.ReactiveMusicPlayerThreadDuckMixin"
+    "compat.reactivemusic.ReactiveMusicPlayerThreadDuckMixin",
+    "compat.subtleeffects.SubtleEffectsPlayerSleepingTickerMixin"
   ],
   "server": [],
   "injectors": {

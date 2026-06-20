@@ -18,6 +18,10 @@ public final class SleepZzzConfigBridge {
         return Mth.clamp(SeamlessSleepClientConfigManager.get().sleepZzzChance, 0, 100);
     }
 
+    public static boolean isEnabled() {
+        return chance() > 0;
+    }
+
     public static SleepZzzStyle style() {
         return parseStyle(SeamlessSleepClientConfigManager.get().sleepZzzStyle);
     }

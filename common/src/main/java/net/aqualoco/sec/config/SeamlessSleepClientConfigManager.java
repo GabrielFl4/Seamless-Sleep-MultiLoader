@@ -296,11 +296,11 @@ public final class SeamlessSleepClientConfigManager {
         appendSectionGap(sb, 2);
         appendSectionHeader(sb, "sounds");
         appendEntry(sb,
-                "Wind loop volume. Range: 0 to 100. Default: 40",
+                "Wind loop volume. Range: 0 to 100. Default: 50",
                 "sleepWindVolumePercent",
                 Integer.toString(cfg.sleepWindVolumePercent));
         appendEntry(sb,
-                "General soundtrack volume for timelapse and easter egg sounds. Range: 0 to 100. Default: 40",
+                "General soundtrack volume for timelapse and easter egg sounds. Range: 0 to 100. Default: 50",
                 "soundtrackVolumePercent",
                 Integer.toString(cfg.soundtrackVolumePercent));
         appendEntry(sb,

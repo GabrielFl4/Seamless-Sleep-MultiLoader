@@ -16,12 +16,16 @@ public final class SeamlessSleepMixinPlugin implements IMixinConfigPlugin {
 
     private static final String BETTER_CLOUDS_MOD_ID = "betterclouds";
     private static final String REACTIVE_MUSIC_MOD_ID = "reactive_music";
+    private static final String SUBTLE_EFFECTS_MOD_ID = "subtle_effects";
     private static final String BETTER_CLOUDS_MIXIN = "net.aqualoco.sec.mixin.client.render.compat.BetterCloudsRendererSleepAccelerationMixin";
     private static final String BETTER_CLOUDS_RENDERER_RESOURCE = "com/qendolin/betterclouds/clouds/Renderer.class";
     private static final String BETTER_DAYS_MIXIN = "net.aqualoco.sec.mixin.compat.BetterDaysSleepFeatureMixin";
     private static final String BETTER_DAYS_SLEEP_STATUS_MIXIN = "net.aqualoco.sec.mixin.compat.BetterDaysSleepStatusMixin";
     private static final String REACTIVE_MUSIC_PLAYER_THREAD_DUCK_MIXIN = "net.aqualoco.sec.mixin.compat.reactivemusic.ReactiveMusicPlayerThreadDuckMixin";
     private static final String REACTIVE_MUSIC_PLAYER_THREAD_RESOURCE = "circuitlord/reactivemusic/PlayerThread.class";
+    private static final String SUBTLE_EFFECTS_PLAYER_SLEEPING_TICKER_MIXIN = "net.aqualoco.sec.mixin.compat.subtleeffects.SubtleEffectsPlayerSleepingTickerMixin";
+    private static final String SUBTLE_EFFECTS_PLAYER_SLEEPING_TICKER_RESOURCE =
+            "einstein/subtle_effects/ticking/tickers/entity/sleeping/PlayerSleepingTicker.class";
     private static final String VIVECRAFT_POST_PROCESS_UBO_MIXIN = "net.aqualoco.sec.mixin.compat.vivecraft.VivecraftPostProcessUboMixin";
     private static final String VIVECRAFT_LOCAL_PLAYER_ROOM_Y_OFFSET_MIXIN = "net.aqualoco.sec.mixin.compat.vivecraft.VivecraftLocalPlayerRoomYOffsetMixin";
     private static final String VIVECRAFT_INTERACT_TRACKER_SLEEP_GATE_MIXIN = "net.aqualoco.sec.mixin.compat.vivecraft.VivecraftInteractTrackerSleepGateMixin";
@@ -35,6 +39,7 @@ public final class SeamlessSleepMixinPlugin implements IMixinConfigPlugin {
     private boolean betterDaysAvailable;
     private boolean betterDaysSleepStatusAvailable;
     private boolean reactiveMusicPlayerThreadAvailable;
+    private boolean subtleEffectsPlayerSleepingTickerAvailable;
     private boolean vivecraftPostProcessUboAvailable;
     private boolean vivecraftPlayerExtensionAvailable;
     private boolean vivecraftInteractTrackerAvailable;
@@ -47,6 +52,7 @@ public final class SeamlessSleepMixinPlugin implements IMixinConfigPlugin {
         betterDaysAvailable = isBetterDaysPresent();
         betterDaysSleepStatusAvailable = isBetterDaysSleepStatusPresent();
         reactiveMusicPlayerThreadAvailable = isReactiveMusicPlayerThreadPresent();
+        subtleEffectsPlayerSleepingTickerAvailable = isSubtleEffectsPlayerSleepingTickerPresent();
         vivecraftPostProcessUboAvailable = isVivecraftTargetPresent(VivecraftCompat.POST_PROCESS_UBO_RESOURCE);
         vivecraftPlayerExtensionAvailable = isVivecraftTargetPresent(VivecraftCompat.PLAYER_EXTENSION_RESOURCE);
         vivecraftInteractTrackerAvailable = isVivecraftTargetPresent(VivecraftCompat.INTERACT_TRACKER_RESOURCE);
@@ -74,6 +80,9 @@ public final class SeamlessSleepMixinPlugin implements IMixinConfigPlugin {
         }
         if (REACTIVE_MUSIC_PLAYER_THREAD_DUCK_MIXIN.equals(mixinClassName)) {
             return reactiveMusicPlayerThreadAvailable;
+        }
+        if (SUBTLE_EFFECTS_PLAYER_SLEEPING_TICKER_MIXIN.equals(mixinClassName)) {
+            return subtleEffectsPlayerSleepingTickerAvailable;
         }
         if (VIVECRAFT_POST_PROCESS_UBO_MIXIN.equals(mixinClassName)) {
             return vivecraftPostProcessUboAvailable;
@@ -157,6 +166,25 @@ public final class SeamlessSleepMixinPlugin implements IMixinConfigPlugin {
             Constants.warn("Reactive Music detected, but target {} was not found; Made in Heaven music ducking will not affect Reactive Music.", REACTIVE_MUSIC_PLAYER_THREAD_RESOURCE);
         }
         return targetPresent;
+    }
+
+    private boolean isSubtleEffectsPlayerSleepingTickerPresent() {
+        boolean modLoaded = isModLoaded(SUBTLE_EFFECTS_MOD_ID);
+        boolean targetPresent = hasClassResource(
+                SUBTLE_EFFECTS_PLAYER_SLEEPING_TICKER_RESOURCE,
+                Thread.currentThread().getContextClassLoader()
+        ) || hasClassResource(
+                SUBTLE_EFFECTS_PLAYER_SLEEPING_TICKER_RESOURCE,
+                SeamlessSleepMixinPlugin.class.getClassLoader()
+        );
+
+        if (modLoaded && !targetPresent) {
+            Constants.warn(
+                    "Subtle Effects detected, but target {} was not found; duplicate player sleeping Z suppression will not be applied.",
+                    SUBTLE_EFFECTS_PLAYER_SLEEPING_TICKER_RESOURCE
+            );
+        }
+        return modLoaded && targetPresent;
     }
 
     private boolean isVivecraftTargetPresent(String classResourcePath) {
