@@ -176,38 +176,6 @@ public abstract class ServerWorldSleepAnimationMixin {
             }
         }
 
-        if (state.getMode().requiresSleepers()
-                && state.getPhase() == SleepAnimationPhase.RUNNING
-                && !seamlesssleep$hasEnoughSleeping(self)) {
-            if (state.getMode() == SleepAnimationMode.MADE_IN_HEAVEN_BED && state.startBraking(self)) {
-                this.seamlesssleep$sleepAnimationWakePlayers = state.shouldWakePlayersOnFinish();
-                this.seamlesssleep$sleepAnimationResetWeather = false;
-                WorldSleepAccelerationManager.refreshForLevelTick(self);
-                SleepAnimationNetworking.sendStart(self, state);
-                Constants.debug("Made In Heaven bed animation braking: not enough players sleeping.");
-                return;
-            }
-            state.cancel();
-            this.seamlesssleep$sleepAnimationWakePlayers = false;
-            this.seamlesssleep$sleepAnimationResetWeather = false;
-            WorldSleepAccelerationManager.refreshForLevelTick(self);
-            SleepAnimationNetworking.sendStop(self, state, SleepAnimationStopReason.CANCELLED_NOT_ENOUGH_SLEEPERS);
-            Constants.debug("Sleep animation canceled: not enough players sleeping.");
-        }
-
-        if (!state.isActive()) {
-            return;
-        }
-
-        if (state.startMadeInHeavenAutoBraking(self)) {
-            this.seamlesssleep$sleepAnimationWakePlayers = state.shouldWakePlayersOnFinish();
-            this.seamlesssleep$sleepAnimationResetWeather = false;
-            WorldSleepAccelerationManager.refreshForLevelTick(self);
-            SleepAnimationNetworking.sendStart(self, state);
-            Constants.debug("Made In Heaven bed animation auto braking before final dawn.");
-            return;
-        }
-
         state.tick(self);
 
         if (state.consumeVisualFinishEvent()) {
@@ -226,6 +194,40 @@ public abstract class ServerWorldSleepAnimationMixin {
             if (!state.hasVisualFinishBeenAnnounced()) {
                 SleepAnimationNetworking.sendFinish(self, state);
             }
+            return;
+        }
+
+        if (!state.isActive()) {
+            return;
+        }
+
+        if (state.getMode().requiresSleepers()
+                && state.getPhase() == SleepAnimationPhase.RUNNING
+                && !seamlesssleep$hasEnoughSleeping(self)) {
+            if (state.getMode() == SleepAnimationMode.MADE_IN_HEAVEN_BED && state.startBraking(self)) {
+                this.seamlesssleep$sleepAnimationWakePlayers = state.shouldWakePlayersOnFinish();
+                this.seamlesssleep$sleepAnimationResetWeather = false;
+                WorldSleepAccelerationManager.refreshForLevelTick(self);
+                SleepAnimationNetworking.sendStart(self, state);
+                Constants.debug("Made In Heaven bed animation braking: not enough players sleeping.");
+                return;
+            }
+            state.cancel();
+            this.seamlesssleep$sleepAnimationWakePlayers = false;
+            this.seamlesssleep$sleepAnimationResetWeather = false;
+            WorldSleepAccelerationManager.refreshForLevelTick(self);
+            SleepAnimationNetworking.sendStop(self, state, SleepAnimationStopReason.CANCELLED_NOT_ENOUGH_SLEEPERS);
+            Constants.debug("Sleep animation canceled: not enough players sleeping.");
+            return;
+        }
+
+        if (state.startMadeInHeavenAutoBraking(self)) {
+            this.seamlesssleep$sleepAnimationWakePlayers = state.shouldWakePlayersOnFinish();
+            this.seamlesssleep$sleepAnimationResetWeather = false;
+            WorldSleepAccelerationManager.refreshForLevelTick(self);
+            SleepAnimationNetworking.sendStart(self, state);
+            Constants.debug("Made In Heaven bed animation auto braking before final dawn.");
+            return;
         }
     }
 

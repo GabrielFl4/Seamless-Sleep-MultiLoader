@@ -56,8 +56,7 @@ final class ForgeClientNetworkHandler implements ForgeNetworkHelper.ClientHandle
             return;
         }
 
-        SleepSoundManager.onSleepStart(payload);
-        SeamlessSleepClientState.SLEEP_ANIMATION.start(
+        boolean accepted = SeamlessSleepClientState.SLEEP_ANIMATION.start(
                 world,
                 payload.sessionId(),
                 payload.sequenceId(),
@@ -72,6 +71,9 @@ final class ForgeClientNetworkHandler implements ForgeNetworkHelper.ClientHandle
                 payload.serverGameTimeAtSend(),
                 payload.currentDayTime()
         );
+        if (accepted) {
+            SleepSoundManager.onSleepStart(payload);
+        }
     }
 
     @Override
@@ -84,15 +86,18 @@ final class ForgeClientNetworkHandler implements ForgeNetworkHelper.ClientHandle
             return;
         }
 
-        if (payload.reason() == SleepAnimationStopReason.FINISHED) {
-            BedHudMessageManager.suppressSleepProgressMessagesForFinish();
-        }
-        SeamlessSleepClientState.SLEEP_ANIMATION.finish(
+        boolean accepted = SeamlessSleepClientState.SLEEP_ANIMATION.finish(
                 world,
                 payload.sessionId(),
                 payload.finalDayTime(),
                 payload.reason()
         );
+        if (!accepted) {
+            return;
+        }
+        if (payload.reason() == SleepAnimationStopReason.FINISHED) {
+            BedHudMessageManager.suppressSleepProgressMessagesForFinish();
+        }
         SleepSoundManager.onSleepStop(payload);
     }
 

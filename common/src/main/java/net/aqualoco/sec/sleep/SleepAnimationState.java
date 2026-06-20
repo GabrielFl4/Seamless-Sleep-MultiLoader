@@ -20,6 +20,8 @@ public final class SleepAnimationState {
     private static final int COMMAND_TIMELAPSE_STOP_BRAKE_TICKS = 60;
     private static final int MADE_IN_HEAVEN_ACCELERATION_TICKS = 400;
     private static final double MADE_IN_HEAVEN_MAX_SPEED_DAY_TIME_PER_TICK = 2400.0D;
+    private static final long NANOS_PER_ANIMATION_TICK = 50_000_000L;
+    private static final long MAX_ANIMATION_CLOCK_DELTA_NANOS = 1_000_000_000L;
 
     private boolean active;
     private long nextSessionId;
@@ -35,6 +37,9 @@ public final class SleepAnimationState {
     private long serverStartGameTime = UNSET_START_GAME_TIME;
     private long lastAppliedDayTime;
     private double cachedProgress;
+    private double cachedAnimationElapsedTicks;
+    private long accumulatedAnimationNanos;
+    private long lastAnimationNanoSample;
     private boolean wakePlayersOnFinish;
     private int postVisualFinishWakeDelayTicks;
     private boolean visualFinishEventPending;
@@ -119,6 +124,7 @@ public final class SleepAnimationState {
         this.serverStartGameTime = startGameTime;
         this.lastAppliedDayTime = currentTime;
         this.cachedProgress = 0.0D;
+        this.resetAnimationClock();
         this.wakePlayersOnFinish = true;
         this.resetVisualFinishState();
 
@@ -218,6 +224,7 @@ public final class SleepAnimationState {
         this.serverStartGameTime = world.getGameTime();
         this.lastAppliedDayTime = currentTime;
         this.cachedProgress = 0.0D;
+        this.resetAnimationClock();
         this.wakePlayersOnFinish = wakePlayersOnFinish;
         this.resetVisualFinishState();
 
@@ -273,6 +280,7 @@ public final class SleepAnimationState {
         this.serverStartGameTime = startGameTime;
         this.lastAppliedDayTime = currentTime;
         this.cachedProgress = 0.0D;
+        this.resetAnimationClock();
         this.wakePlayersOnFinish = this.mode.wakesPlayersOnFinish();
         this.resetVisualFinishState();
 
@@ -292,6 +300,7 @@ public final class SleepAnimationState {
         this.active = false;
         this.phase = SleepAnimationPhase.CANCELLED;
         this.cachedProgress = 0.0D;
+        this.cachedAnimationElapsedTicks = 0.0D;
         this.wakePlayersOnFinish = false;
         this.resetVisualFinishState();
     }
@@ -315,7 +324,7 @@ public final class SleepAnimationState {
             return;
         }
 
-        long elapsedTicks = Math.max(0L, world.getGameTime() - this.serverStartGameTime);
+        double elapsedTicks = this.sampleAnimationElapsedTicks();
         if (this.durationTicks <= 0) {
             this.finish(world);
             return;
@@ -350,9 +359,19 @@ public final class SleepAnimationState {
     }
 
     private void tickMadeInHeavenRunning(ServerLevel world) {
-        long elapsedTicks = Math.max(0L, world.getGameTime() - this.serverStartGameTime);
+        double elapsedTicks = this.sampleAnimationElapsedTicks();
         double distance = madeInHeavenDistanceForElapsed(elapsedTicks);
         long interpolated = this.startTimeOfDay + Math.max(0L, (long) distance);
+        if (this.wakePlayersOnFinish) {
+            long autoBrakeDistance = computeBrakeDistance(
+                    madeInHeavenVelocityForElapsed(elapsedTicks),
+                    MADE_IN_HEAVEN_AUTO_BRAKE_TICKS
+            );
+            long autoBrakeThreshold = Math.max(this.startTimeOfDay, this.endTimeOfDay - autoBrakeDistance);
+            if (interpolated >= autoBrakeThreshold) {
+                interpolated = Math.max(this.lastAppliedDayTime, autoBrakeThreshold);
+            }
+        }
         if (interpolated >= this.endTimeOfDay) {
             this.finish(world);
             return;
@@ -369,6 +388,7 @@ public final class SleepAnimationState {
     private void finish(ServerLevel world) {
         this.phase = SleepAnimationPhase.FINISHED;
         this.cachedProgress = 1.0D;
+        this.cachedAnimationElapsedTicks = Math.max(this.cachedAnimationElapsedTicks, this.durationTicks);
         this.lastAppliedDayTime = this.endTimeOfDay;
         world.setDayTime(this.endTimeOfDay);
         this.visualFinishEventPending = true;
@@ -505,12 +525,7 @@ public final class SleepAnimationState {
         }
 
         if (this.mode == SleepAnimationMode.MADE_IN_HEAVEN_BED && this.phase == SleepAnimationPhase.RUNNING) {
-            long elapsedTicks = 0L;
-            if (this.serverStartGameTime != UNSET_START_GAME_TIME && this.lastAppliedDayTime > this.startTimeOfDay) {
-                double distance = this.lastAppliedDayTime - this.startTimeOfDay;
-                elapsedTicks = estimateMadeInHeavenElapsedTicks(distance);
-            }
-            return Math.max(1.0D, madeInHeavenVelocityForElapsed(elapsedTicks));
+            return Math.max(1.0D, madeInHeavenVelocityForElapsed(this.cachedAnimationElapsedTicks));
         }
 
         long delta = this.endTimeOfDay - this.startTimeOfDay;
@@ -548,6 +563,36 @@ public final class SleepAnimationState {
         double easedFrom = easeForPhase(from, this.phase);
         double easedTo = easeForPhase(to, this.phase);
         return Math.max(0.0D, (easedTo - easedFrom) / (to - from));
+    }
+
+    private void resetAnimationClock() {
+        this.accumulatedAnimationNanos = 0L;
+        this.lastAnimationNanoSample = System.nanoTime();
+        this.cachedAnimationElapsedTicks = 0.0D;
+    }
+
+    private double sampleAnimationElapsedTicks() {
+        long now = System.nanoTime();
+        if (this.lastAnimationNanoSample == 0L) {
+            this.lastAnimationNanoSample = now;
+            return this.cachedAnimationElapsedTicks;
+        }
+
+        long deltaNanos = now - this.lastAnimationNanoSample;
+        this.lastAnimationNanoSample = now;
+        if (deltaNanos < 0L) {
+            deltaNanos = 0L;
+        } else if (deltaNanos > MAX_ANIMATION_CLOCK_DELTA_NANOS) {
+            deltaNanos = MAX_ANIMATION_CLOCK_DELTA_NANOS;
+        }
+
+        if (Long.MAX_VALUE - this.accumulatedAnimationNanos < deltaNanos) {
+            this.accumulatedAnimationNanos = Long.MAX_VALUE;
+        } else {
+            this.accumulatedAnimationNanos += deltaNanos;
+        }
+        this.cachedAnimationElapsedTicks = this.accumulatedAnimationNanos / (double) NANOS_PER_ANIMATION_TICK;
+        return this.cachedAnimationElapsedTicks;
     }
 
     private static SleepAnimationVisualContext resolveVisualContext(SleepAnimationMode mode,

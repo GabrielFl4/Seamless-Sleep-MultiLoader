@@ -46,7 +46,7 @@ public abstract class GameRendererSleepAnimationMixin {
         }
 
         SeamlessSleepClientState.SLEEP_ANIMATION.resetIfWorldMismatch(world, "render_world_changed");
-        if (SeamlessSleepClientState.SLEEP_ANIMATION.isActive()) {
+        if (SeamlessSleepClientState.SLEEP_ANIMATION.needsFrameTick()) {
             SeamlessSleepClientState.SLEEP_ANIMATION.tick(world, deltaTracker);
         }
         LocalPlayer player = client.player;

@@ -111,8 +111,7 @@ final class FabricClientNetworkHandler {
             return;
         }
 
-        SleepSoundManager.onSleepStart(payload);
-        SeamlessSleepClientState.SLEEP_ANIMATION.start(
+        boolean accepted = SeamlessSleepClientState.SLEEP_ANIMATION.start(
                 world,
                 payload.sessionId(),
                 payload.sequenceId(),
@@ -127,6 +126,9 @@ final class FabricClientNetworkHandler {
                 payload.serverGameTimeAtSend(),
                 payload.currentDayTime()
         );
+        if (accepted) {
+            SleepSoundManager.onSleepStart(payload);
+        }
     }
 
     private static void handleStopPayload(Minecraft client, SleepAnimationStopPayload payload) {
@@ -137,15 +139,18 @@ final class FabricClientNetworkHandler {
             return;
         }
 
-        if (payload.reason() == SleepAnimationStopReason.FINISHED) {
-            BedHudMessageManager.suppressSleepProgressMessagesForFinish();
-        }
-        SeamlessSleepClientState.SLEEP_ANIMATION.finish(
+        boolean accepted = SeamlessSleepClientState.SLEEP_ANIMATION.finish(
                 world,
                 payload.sessionId(),
                 payload.finalDayTime(),
                 payload.reason()
         );
+        if (!accepted) {
+            return;
+        }
+        if (payload.reason() == SleepAnimationStopReason.FINISHED) {
+            BedHudMessageManager.suppressSleepProgressMessagesForFinish();
+        }
         SleepSoundManager.onSleepStop(payload);
     }
 

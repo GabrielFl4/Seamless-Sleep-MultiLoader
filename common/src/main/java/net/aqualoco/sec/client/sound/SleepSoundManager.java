@@ -640,6 +640,9 @@ public final class SleepSoundManager {
     }
 
     private static boolean isFreshPayload(SleepAnimationStartPayload payload) {
+        if (payload.currentDayTime() > payload.startTimeOfDay()) {
+            return false;
+        }
         long startGameTime = payload.serverStartGameTime();
         long sentGameTime = payload.serverGameTimeAtSend();
         if (startGameTime < 0L || sentGameTime < startGameTime) {
