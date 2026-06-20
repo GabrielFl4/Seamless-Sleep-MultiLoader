@@ -107,10 +107,14 @@ public final class BedRestingHelper {
                 SeamlessSleepServerConfig.MIN_FALL_ASLEEP_DELAY_TICKS,
                 SeamlessSleepServerConfig.MAX_FALL_ASLEEP_DELAY_TICKS
         );
+        return hasSleptLongEnoughClamped(player, clampedDelay);
+    }
+
+    public static boolean hasSleptLongEnoughClamped(ServerPlayer player, int clampedDelayTicks) {
         return isCountedForSleep(player)
                 && player.isSleeping()
                 && player instanceof BedRestingPlayer restingPlayer
-                && restingPlayer.seamlesssleep$getFallAsleepDelayCounter() >= clampedDelay;
+                && restingPlayer.seamlesssleep$getFallAsleepDelayCounter() >= clampedDelayTicks;
     }
 
     public static boolean hasMadeInHeavenSleepLongEnough(ServerPlayer player, int delayTicks) {

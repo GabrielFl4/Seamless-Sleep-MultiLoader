@@ -16,6 +16,32 @@ public final class WorldSleepAccelerationFilterPolicy {
                                               boolean kelpEnabled,
                                               boolean vanillaOnly) {
         this.vanillaOnly = vanillaOnly;
+        this.allowedCategoryMask = compileAllowedCategoryMask(
+                grassAndFoliageEnabled,
+                cropsAndSaplingsEnabled,
+                vinesAndBambooEnabled,
+                kelpEnabled
+        );
+        this.cacheKey = this.allowedCategoryMask | (vanillaOnly ? 1 << 8 : 0);
+    }
+
+    public static int createCacheKey(boolean grassAndFoliageEnabled,
+                                     boolean cropsAndSaplingsEnabled,
+                                     boolean vinesAndBambooEnabled,
+                                     boolean kelpEnabled,
+                                     boolean vanillaOnly) {
+        return compileAllowedCategoryMask(
+                grassAndFoliageEnabled,
+                cropsAndSaplingsEnabled,
+                vinesAndBambooEnabled,
+                kelpEnabled
+        ) | (vanillaOnly ? 1 << 8 : 0);
+    }
+
+    private static int compileAllowedCategoryMask(boolean grassAndFoliageEnabled,
+                                                  boolean cropsAndSaplingsEnabled,
+                                                  boolean vinesAndBambooEnabled,
+                                                  boolean kelpEnabled) {
         int compiledMask = 0;
         if (grassAndFoliageEnabled) {
             compiledMask |= WorldSleepRandomTickFilters.FLAG_GRASS_AND_FOLIAGE;
@@ -29,8 +55,7 @@ public final class WorldSleepAccelerationFilterPolicy {
         if (kelpEnabled) {
             compiledMask |= WorldSleepRandomTickFilters.FLAG_KELP;
         }
-        this.allowedCategoryMask = compiledMask;
-        this.cacheKey = compiledMask | (vanillaOnly ? 1 << 8 : 0);
+        return compiledMask;
     }
 
     public boolean isAnyEnabled() {

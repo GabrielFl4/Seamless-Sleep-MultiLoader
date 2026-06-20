@@ -642,7 +642,7 @@ public final class SeamlessSleepServerConfigManager {
             return fallback;
         }
         return switch (string.trim().toUpperCase()) {
-            case "OFF" -> WorldSleepAccelerationMode.OFF;
+            case "NONE", "OFF" -> WorldSleepAccelerationMode.OFF;
             case "AUTO", "AUTOMATIC" -> WorldSleepAccelerationMode.AUTOMATIC;
             case "CUSTOM", "MANUAL" -> WorldSleepAccelerationMode.MANUAL;
             default -> fallback;

@@ -1,6 +1,7 @@
 package net.aqualoco.sec.mixin.sleep;
 
 import net.aqualoco.sec.bed.BedRestingHelper;
+import net.aqualoco.sec.config.SeamlessSleepServerConfig;
 import net.aqualoco.sec.config.SeamlessSleepServerConfigManager;
 import net.aqualoco.sec.sleep.SleepDimensionSupport;
 import net.aqualoco.sec.sleep.SleepRequirement;
@@ -65,12 +66,17 @@ public abstract class SleepStatusBedCountMixin {
             return;
         }
 
-        int deepSleepers = (int) players.stream()
-                .filter(player -> BedRestingHelper.hasSleptLongEnough(
-                        player,
-                        SeamlessSleepServerConfigManager.get().fallAsleepDelayTicks
-                ))
-                .count();
+        int clampedFallAsleepDelayTicks = SeamlessSleepServerConfig.clampInt(
+                SeamlessSleepServerConfigManager.get().fallAsleepDelayTicks,
+                SeamlessSleepServerConfig.MIN_FALL_ASLEEP_DELAY_TICKS,
+                SeamlessSleepServerConfig.MAX_FALL_ASLEEP_DELAY_TICKS
+        );
+        int deepSleepers = 0;
+        for (ServerPlayer player : players) {
+            if (BedRestingHelper.hasSleptLongEnoughClamped(player, clampedFallAsleepDelayTicks)) {
+                deepSleepers++;
+            }
+        }
         int sleepersNeeded = SleepRequirement.sleepersNeeded(this.activePlayers, requiredSleepPercentage);
         cir.setReturnValue(deepSleepers >= sleepersNeeded);
     }
