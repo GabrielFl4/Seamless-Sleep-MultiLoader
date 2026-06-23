@@ -139,33 +139,36 @@ public final class SeamlessSleepMixinPlugin implements IMixinConfigPlugin {
         boolean modLoaded = isModLoaded(BetterDaysCompat.MOD_ID);
         boolean targetPresent = hasClassResource(BetterDaysCompat.TARGET_CLASS_RESOURCE, Thread.currentThread().getContextClassLoader())
                 || hasClassResource(BetterDaysCompat.TARGET_CLASS_RESOURCE, SeamlessSleepMixinPlugin.class.getClassLoader());
+        boolean available = isOptionalMixinTargetAvailable(modLoaded, targetPresent);
 
-        if (modLoaded && !targetPresent) {
+        if (modLoaded && !available) {
             Constants.warn("Better Days detected, but target betterdays.config.ConfigHandler$Common.enableSleepFeature() was not found; Better Days sleep compatibility could not be applied.");
         }
-        return modLoaded && targetPresent;
+        return available;
     }
 
     private boolean isBetterDaysSleepStatusPresent() {
         boolean modLoaded = isModLoaded(BetterDaysCompat.MOD_ID);
         boolean targetPresent = hasClassResource(BetterDaysCompat.SLEEP_STATUS_CLASS_RESOURCE, Thread.currentThread().getContextClassLoader())
                 || hasClassResource(BetterDaysCompat.SLEEP_STATUS_CLASS_RESOURCE, SeamlessSleepMixinPlugin.class.getClassLoader());
+        boolean available = isOptionalMixinTargetAvailable(modLoaded, targetPresent);
 
-        if (modLoaded && !targetPresent) {
+        if (modLoaded && !available) {
             Constants.warn("Better Days detected, but target betterdays.time.SleepStatus was not found; Better Days sleep status compatibility could not be applied.");
         }
-        return modLoaded && targetPresent;
+        return available;
     }
 
     private boolean isReactiveMusicPlayerThreadPresent() {
         boolean modLoaded = isModLoaded(REACTIVE_MUSIC_MOD_ID);
         boolean targetPresent = hasClassResource(REACTIVE_MUSIC_PLAYER_THREAD_RESOURCE, Thread.currentThread().getContextClassLoader())
                 || hasClassResource(REACTIVE_MUSIC_PLAYER_THREAD_RESOURCE, SeamlessSleepMixinPlugin.class.getClassLoader());
+        boolean available = isOptionalMixinTargetAvailable(modLoaded, targetPresent);
 
-        if (modLoaded && !targetPresent) {
+        if (modLoaded && !available) {
             Constants.warn("Reactive Music detected, but target {} was not found; Made in Heaven music ducking will not affect Reactive Music.", REACTIVE_MUSIC_PLAYER_THREAD_RESOURCE);
         }
-        return targetPresent;
+        return available;
     }
 
     private boolean isSubtleEffectsPlayerSleepingTickerPresent() {
@@ -177,25 +180,33 @@ public final class SeamlessSleepMixinPlugin implements IMixinConfigPlugin {
                 SUBTLE_EFFECTS_PLAYER_SLEEPING_TICKER_RESOURCE,
                 SeamlessSleepMixinPlugin.class.getClassLoader()
         );
+        boolean available = isOptionalMixinTargetAvailable(modLoaded, targetPresent);
 
-        if (modLoaded && !targetPresent) {
+        if (modLoaded && !available) {
             Constants.warn(
                     "Subtle Effects detected, but target {} was not found; duplicate player sleeping Z suppression will not be applied.",
                     SUBTLE_EFFECTS_PLAYER_SLEEPING_TICKER_RESOURCE
             );
         }
-        return modLoaded && targetPresent;
+        return available;
     }
 
     private boolean isVivecraftTargetPresent(String classResourcePath) {
         boolean modLoaded = isModLoaded(VivecraftCompat.MOD_ID);
         boolean targetPresent = hasClassResource(classResourcePath, Thread.currentThread().getContextClassLoader())
                 || hasClassResource(classResourcePath, SeamlessSleepMixinPlugin.class.getClassLoader());
+        boolean available = isOptionalMixinTargetAvailable(modLoaded, targetPresent);
 
-        if (modLoaded && !targetPresent) {
+        if (modLoaded && !available) {
             Constants.warn("Vivecraft detected, but target {} was not found; matching Vivecraft compatibility hook will not be applied.", classResourcePath);
         }
-        return modLoaded && targetPresent;
+        return available;
+    }
+
+    private boolean isOptionalMixinTargetAvailable(boolean modLoaded, boolean targetPresent) {
+        // NeoForge initializes mixin configs before ModList's loaded-container index exists.
+        // Its exact target class is authoritative; other loaders retain their available mod-ID fallback.
+        return targetPresent || (modLoaded && !isNeoForgePlatform());
     }
 
     private boolean isModLoaded(String modId) {

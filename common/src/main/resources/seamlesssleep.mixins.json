@@ -26,6 +26,7 @@
     "client.body.AvatarRendererBedBodyMixin",
     "client.input.ClientInputAccessor",
     "client.input.OptionsAccessor",
+    "client.network.ClientPacketListenerTimeObservationMixin",
     "client.ui.ChatHudSleepMixin",
     "client.ui.GuiOverlayMessageAccessor",
     "client.camera.CameraSleepAnimationMixin",

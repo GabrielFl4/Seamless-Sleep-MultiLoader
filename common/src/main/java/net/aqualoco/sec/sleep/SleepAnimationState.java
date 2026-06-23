@@ -18,6 +18,9 @@ public final class SleepAnimationState {
     private static final int MADE_IN_HEAVEN_MANUAL_BRAKE_TICKS = 60;
     private static final int MADE_IN_HEAVEN_AUTO_BRAKE_TICKS = 120;
     private static final int COMMAND_TIMELAPSE_STOP_BRAKE_TICKS = 60;
+    private static final int NORMAL_CANCEL_BRAKE_MIN_TICKS = 15;
+    private static final int NORMAL_CANCEL_BRAKE_MAX_TICKS = 40;
+    private static final long NORMAL_CANCEL_BRAKE_MAX_DISTANCE = 2000L;
     private static final int MADE_IN_HEAVEN_ACCELERATION_TICKS = 400;
     private static final double MADE_IN_HEAVEN_MAX_SPEED_DAY_TIME_PER_TICK = 2400.0D;
     private static final long NANOS_PER_ANIMATION_TICK = 50_000_000L;
@@ -44,9 +47,14 @@ public final class SleepAnimationState {
     private int postVisualFinishWakeDelayTicks;
     private boolean visualFinishEventPending;
     private boolean visualFinishAnnounced;
+    private boolean cancelTerminalEventPending;
 
     public boolean isActive() {
         return this.active;
+    }
+
+    public boolean isGameplaySleepActive() {
+        return this.active && this.phase != SleepAnimationPhase.CANCEL_BRAKING;
     }
 
     public boolean start(ServerLevel world, long currentTime, long targetTime, SleepAnimationMode mode) {
@@ -203,6 +211,45 @@ public final class SleepAnimationState {
                 false,
                 "Command timelapse braking"
         );
+    }
+
+    public boolean startNormalCancelBraking(ServerLevel world) {
+        if (!this.active
+                || this.mode != SleepAnimationMode.NORMAL_SLEEP
+                || this.phase != SleepAnimationPhase.RUNNING) {
+            return false;
+        }
+
+        long currentTime = Math.max(world.getDayTime(), this.lastAppliedDayTime);
+        double currentRate = this.getCurrentLogicalWorldRate();
+        int brakeDurationTicks = computeNormalCancelBrakeDuration(currentRate);
+        long brakeDistance = Math.min(
+                NORMAL_CANCEL_BRAKE_MAX_DISTANCE,
+                computeBrakeDistance(currentRate, brakeDurationTicks)
+        );
+
+        this.sequenceId++;
+        this.phase = SleepAnimationPhase.CANCEL_BRAKING;
+        this.startTimeOfDay = currentTime;
+        this.endTimeOfDay = currentTime + Math.max(1L, brakeDistance);
+        this.durationTicks = brakeDurationTicks;
+        this.serverStartGameTime = world.getGameTime();
+        this.lastAppliedDayTime = currentTime;
+        this.cachedProgress = 0.0D;
+        this.resetAnimationClock();
+        this.wakePlayersOnFinish = false;
+        this.resetVisualFinishState();
+
+        Constants.debug(
+                "Normal sleep cancel braking started (session {}, sequence {}, {} -> {}, duration {} ticks, rate {})",
+                this.sessionId,
+                this.sequenceId,
+                this.startTimeOfDay,
+                this.endTimeOfDay,
+                this.durationTicks,
+                currentRate
+        );
+        return true;
     }
 
     private boolean startBrakingInternal(ServerLevel world,
@@ -386,6 +433,20 @@ public final class SleepAnimationState {
     }
 
     private void finish(ServerLevel world) {
+        if (this.phase == SleepAnimationPhase.CANCEL_BRAKING) {
+            this.phase = SleepAnimationPhase.CANCELLED;
+            this.active = false;
+            this.cachedProgress = 1.0D;
+            this.cachedAnimationElapsedTicks = Math.max(this.cachedAnimationElapsedTicks, this.durationTicks);
+            this.lastAppliedDayTime = this.endTimeOfDay;
+            world.setDayTime(this.endTimeOfDay);
+            this.cancelTerminalEventPending = true;
+            this.postVisualFinishWakeDelayTicks = 0;
+            this.visualFinishEventPending = false;
+            this.visualFinishAnnounced = false;
+            return;
+        }
+
         this.phase = SleepAnimationPhase.FINISHED;
         this.cachedProgress = 1.0D;
         this.cachedAnimationElapsedTicks = Math.max(this.cachedAnimationElapsedTicks, this.durationTicks);
@@ -427,6 +488,7 @@ public final class SleepAnimationState {
         this.postVisualFinishWakeDelayTicks = 0;
         this.visualFinishEventPending = false;
         this.visualFinishAnnounced = false;
+        this.cancelTerminalEventPending = false;
     }
 
     public long getSessionId() {
@@ -483,6 +545,14 @@ public final class SleepAnimationState {
         }
         this.visualFinishEventPending = false;
         this.visualFinishAnnounced = true;
+        return true;
+    }
+
+    public boolean consumeCancelTerminalEvent() {
+        if (!this.cancelTerminalEventPending) {
+            return false;
+        }
+        this.cancelTerminalEventPending = false;
         return true;
     }
 
@@ -728,8 +798,18 @@ public final class SleepAnimationState {
         return Math.max(1L, Math.round(safeVelocity * Math.max(1, durationTicks) / 3.0D));
     }
 
+    private static int computeNormalCancelBrakeDuration(double velocity) {
+        double safeVelocity = Double.isFinite(velocity) ? Math.max(1.0D, velocity) : 1.0D;
+        double normalized = Math.min(1.0D, Math.log10(safeVelocity + 1.0D) / 3.0D);
+        int duration = (int) Math.round(
+                NORMAL_CANCEL_BRAKE_MAX_TICKS
+                        - (NORMAL_CANCEL_BRAKE_MAX_TICKS - NORMAL_CANCEL_BRAKE_MIN_TICKS) * normalized
+        );
+        return Math.max(NORMAL_CANCEL_BRAKE_MIN_TICKS, Math.min(NORMAL_CANCEL_BRAKE_MAX_TICKS, duration));
+    }
+
     private static double easeForPhase(double x, SleepAnimationPhase phase) {
-        if (phase == SleepAnimationPhase.BRAKING) {
+        if (phase == SleepAnimationPhase.BRAKING || phase == SleepAnimationPhase.CANCEL_BRAKING) {
             return brakeEase(x);
         }
         return integralEase(x);

@@ -16,8 +16,8 @@ public final class ClientSleepAnimationState {
     private static final long CLOSED_SESSION_NONE = -1L;
     private static final long MILLIS_PER_TICK = 50L;
     private static final double MAX_PRESENTATION_DELTA_TICKS = 4.0D;
-    private static final int CANCEL_CORRECTION_DURATION_TICKS = 20;
-    private static final long MAX_CANCEL_CORRECTION_DISTANCE = 2000L;
+    private static final long MAX_CANCEL_AUTHORITY_HOLD_DISTANCE = 200L;
+    private static final long MAX_CANCEL_AUTHORITY_HOLD_NANOS = 10_000_000_000L;
     private static final long FINISHED_LOCK_POST_WAKE_NANOS = 250_000_000L;
     private static final long REPLAY_SEEK_THRESHOLD_MILLIS = 1000L;
     private static final double REPLAY_WINDOW_EPSILON_TICKS = 0.5D;
@@ -41,9 +41,9 @@ public final class ClientSleepAnimationState {
     private double cachedProgress;
     private double presentationElapsedTicks;
     private PresentationState presentationState = PresentationState.INACTIVE;
-    private long cancelCorrectionStartDayTime;
-    private long cancelCorrectionFinalDayTime;
-    private double cancelCorrectionElapsedTicks;
+    private long cancelHoldVisualDayTime;
+    private long lastObservedAuthoritativeDayTime;
+    private long cancelHoldDeadlineNanos;
     private int activeWorldIdentity;
     private boolean replayCompatMode;
     private long replayCompatStartTimelineMillis;
@@ -61,7 +61,7 @@ public final class ClientSleepAnimationState {
     }
 
     public boolean needsFrameTick() {
-        return this.active || this.presentationState == PresentationState.CANCEL_CORRECTION;
+        return this.active || this.presentationState == PresentationState.CANCEL_AUTHORITY_HOLD;
     }
 
     public boolean isReplayCompatMode() {
@@ -254,7 +254,7 @@ public final class ClientSleepAnimationState {
         this.active = true;
         this.replayCompatMode = replayCompatActive;
         this.presentationState = PresentationState.RUNNING;
-        this.cancelCorrectionElapsedTicks = 0.0D;
+        this.cancelHoldDeadlineNanos = 0L;
         this.replayCompatStartTimelineMillis = -1L;
         this.lastReplayTimelineMillis = -1L;
         this.replayCompatElapsedTicksFallback = 0.0F;
@@ -364,6 +364,7 @@ public final class ClientSleepAnimationState {
                 && world != null;
         long previousVisualDayTime = this.currentVisualDayTime;
         SleepAnimationMode previousMode = this.mode;
+        SleepAnimationPhase previousPhase = this.phase;
         long acceptedFinalDayTime = shouldLockFinishedDayTime
                 ? Math.max(previousVisualDayTime, finalDayTime)
                 : finalDayTime;
@@ -385,14 +386,15 @@ public final class ClientSleepAnimationState {
             this.startFinishedDayTimeLock(world, acceptedFinalDayTime);
         } else {
             this.clearFinishedDayTimeLock();
-            long backwardDistance = previousVisualDayTime - finalDayTime;
-            boolean canCorrectNormalCancellation = !replayCompatActive
+            long backwardDistance = chronologicalAheadDifference(previousVisualDayTime, finalDayTime);
+            boolean canHoldNormalCancellation = !replayCompatActive
                     && world != null
                     && previousMode == SleepAnimationMode.NORMAL_SLEEP
-                    && backwardDistance > 2L
-                    && backwardDistance <= MAX_CANCEL_CORRECTION_DISTANCE;
-            if (canCorrectNormalCancellation) {
-                this.startCancelCorrection(world, previousVisualDayTime, finalDayTime);
+                    && previousPhase == SleepAnimationPhase.CANCEL_BRAKING
+                    && backwardDistance > 1L
+                    && backwardDistance <= MAX_CANCEL_AUTHORITY_HOLD_DISTANCE;
+            if (canHoldNormalCancellation) {
+                this.startCancelAuthorityHold(world, previousVisualDayTime, finalDayTime);
             } else {
                 this.currentVisualDayTime = finalDayTime;
                 this.cachedProgress = 0.0D;
@@ -442,8 +444,8 @@ public final class ClientSleepAnimationState {
             return;
         }
 
-        if (this.presentationState == PresentationState.CANCEL_CORRECTION) {
-            this.tickCancelCorrection(world, deltaTracker);
+        if (this.presentationState == PresentationState.CANCEL_AUTHORITY_HOLD) {
+            this.tickCancelAuthorityHold(world);
             return;
         }
 
@@ -504,40 +506,44 @@ public final class ClientSleepAnimationState {
         return this.presentationElapsedTicks;
     }
 
-    private void startCancelCorrection(ClientLevel world, long visualDayTime, long finalDayTime) {
+    public void observeAuthoritativeDayTime(long authoritativeDayTime) {
+        if (this.presentationState == PresentationState.CANCEL_AUTHORITY_HOLD) {
+            this.lastObservedAuthoritativeDayTime = authoritativeDayTime;
+        }
+    }
+
+    private void startCancelAuthorityHold(ClientLevel world, long visualDayTime, long finalDayTime) {
         this.active = false;
-        this.presentationState = PresentationState.CANCEL_CORRECTION;
-        this.cancelCorrectionStartDayTime = visualDayTime;
-        this.cancelCorrectionFinalDayTime = finalDayTime;
-        this.cancelCorrectionElapsedTicks = 0.0D;
+        this.presentationState = PresentationState.CANCEL_AUTHORITY_HOLD;
+        this.cancelHoldVisualDayTime = visualDayTime;
+        this.lastObservedAuthoritativeDayTime = finalDayTime;
+        this.cancelHoldDeadlineNanos = System.nanoTime() + MAX_CANCEL_AUTHORITY_HOLD_NANOS;
         this.currentVisualDayTime = visualDayTime;
         this.activeWorldIdentity = System.identityHashCode(world);
         world.getLevelData().setDayTime(visualDayTime);
     }
 
-    private void tickCancelCorrection(ClientLevel world, DeltaTracker deltaTracker) {
-        this.cancelCorrectionElapsedTicks = Math.min(
-                CANCEL_CORRECTION_DURATION_TICKS,
-                this.cancelCorrectionElapsedTicks + samplePresentationDeltaTicks(deltaTracker)
+    private void tickCancelAuthorityHold(ClientLevel world) {
+        long now = System.nanoTime();
+        boolean authoritativeCaughtUp = hasAuthoritativeReached(
+                this.lastObservedAuthoritativeDayTime,
+                this.cancelHoldVisualDayTime
         );
-        double x = clamp01(this.cancelCorrectionElapsedTicks / CANCEL_CORRECTION_DURATION_TICKS);
-        double eased = x * x * (3.0D - 2.0D * x);
-        long movingAuthoritativeTarget = Math.min(
-                this.cancelCorrectionStartDayTime,
-                this.cancelCorrectionFinalDayTime + Math.round(this.cancelCorrectionElapsedTicks)
-        );
-        long correctedDayTime = this.cancelCorrectionStartDayTime
-                + Math.round((movingAuthoritativeTarget - this.cancelCorrectionStartDayTime) * eased);
-
-        world.getLevelData().setDayTime(correctedDayTime);
-        this.currentAuthoritativeDayTime = movingAuthoritativeTarget;
-        this.currentVisualDayTime = correctedDayTime;
-        this.cachedProgress = 0.0D;
-
-        if (x >= 1.0D) {
+        boolean timedOut = now - this.cancelHoldDeadlineNanos >= 0L;
+        if (authoritativeCaughtUp || timedOut) {
+            long synchronizedDayTime = this.lastObservedAuthoritativeDayTime;
+            world.getLevelData().setDayTime(synchronizedDayTime);
+            this.currentAuthoritativeDayTime = synchronizedDayTime;
+            this.currentVisualDayTime = synchronizedDayTime;
             this.presentationState = PresentationState.INACTIVE;
             this.activeWorldIdentity = 0;
+            this.cancelHoldDeadlineNanos = 0L;
+            return;
         }
+
+        world.getLevelData().setDayTime(this.cancelHoldVisualDayTime);
+        this.currentVisualDayTime = this.cancelHoldVisualDayTime;
+        this.cachedProgress = 0.0D;
     }
 
     private static double samplePresentationDeltaTicks(DeltaTracker deltaTracker) {
@@ -839,7 +845,7 @@ public final class ClientSleepAnimationState {
     }
 
     private double easeForPhase(double progress) {
-        return this.phase == SleepAnimationPhase.BRAKING
+        return this.phase == SleepAnimationPhase.BRAKING || this.phase == SleepAnimationPhase.CANCEL_BRAKING
                 ? SleepAnimationState.brakeEase(progress)
                 : SleepAnimationState.integralEase(progress);
     }
@@ -848,7 +854,7 @@ public final class ClientSleepAnimationState {
         this.active = false;
         this.presentationState = PresentationState.INACTIVE;
         this.presentationElapsedTicks = 0.0D;
-        this.cancelCorrectionElapsedTicks = 0.0D;
+        this.cancelHoldDeadlineNanos = 0L;
         this.replayCompatMode = false;
         this.replayCompatStartTimelineMillis = -1L;
         this.lastReplayTimelineMillis = -1L;
@@ -894,7 +900,7 @@ public final class ClientSleepAnimationState {
         );
         int nominalRemaining = Math.max(1, (int) Math.ceil(fullDuration * (1.0D - payloadProgress)));
         long visualRemaining = Math.max(0L, payloadEndTime - visualStartTime);
-        if (phase != SleepAnimationPhase.BRAKING
+        if ((phase != SleepAnimationPhase.BRAKING && phase != SleepAnimationPhase.CANCEL_BRAKING)
                 || visualRemaining <= 0L
                 || !Double.isFinite(previousSpeed)
                 || previousSpeed <= 0.0D) {
@@ -945,9 +951,27 @@ public final class ClientSleepAnimationState {
     }
 
     private static double curveEase(double progress, SleepAnimationPhase phase) {
-        return phase == SleepAnimationPhase.BRAKING
+        return phase == SleepAnimationPhase.BRAKING || phase == SleepAnimationPhase.CANCEL_BRAKING
                 ? SleepAnimationState.brakeEase(progress)
                 : SleepAnimationState.integralEase(progress);
+    }
+
+    private static long chronologicalAheadDifference(long visualDayTime, long authoritativeDayTime) {
+        long directDifference = visualDayTime - authoritativeDayTime;
+        if (directDifference > 0L) {
+            return directDifference;
+        }
+
+        long wrappedDifference = Math.floorMod(directDifference, DAY_TICKS);
+        return wrappedDifference <= DAY_TICKS / 2L ? wrappedDifference : 0L;
+    }
+
+    private static boolean hasAuthoritativeReached(long authoritativeDayTime, long visualDayTime) {
+        if (authoritativeDayTime >= visualDayTime - 1L) {
+            return true;
+        }
+        long remainingWrapped = Math.floorMod(visualDayTime - authoritativeDayTime, DAY_TICKS);
+        return remainingWrapped <= 1L || remainingWrapped > DAY_TICKS / 2L;
     }
 
     private static double clamp01(double value) {
@@ -969,7 +993,7 @@ public final class ClientSleepAnimationState {
         INACTIVE,
         RUNNING,
         HOLDING_AT_TARGET,
-        CANCEL_CORRECTION,
+        CANCEL_AUTHORITY_HOLD,
         FINISHED_LOCK
     }
 

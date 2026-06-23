@@ -4,6 +4,7 @@ public enum SleepAnimationPhase {
     IDLE,
     RUNNING,
     BRAKING,
+    CANCEL_BRAKING,
     FINISHED,
     CANCELLED
 }

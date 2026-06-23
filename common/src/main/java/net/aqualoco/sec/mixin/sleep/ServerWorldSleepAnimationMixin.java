@@ -178,6 +178,19 @@ public abstract class ServerWorldSleepAnimationMixin {
 
         state.tick(self);
 
+        if (state.consumeCancelTerminalEvent()) {
+            this.seamlesssleep$sleepAnimationWakePlayers = false;
+            this.seamlesssleep$sleepAnimationResetWeather = false;
+            WorldSleepAccelerationManager.refreshForLevelTick(self);
+            SleepAnimationNetworking.sendStop(
+                    self,
+                    state,
+                    SleepAnimationStopReason.CANCELLED_NOT_ENOUGH_SLEEPERS
+            );
+            Constants.debug("Normal sleep cancel braking finished.");
+            return;
+        }
+
         if (state.consumeVisualFinishEvent()) {
             WorldSleepAccelerationManager.refreshForLevelTick(self);
             SleepAnimationNetworking.sendFinish(self, state);
@@ -212,12 +225,22 @@ public abstract class ServerWorldSleepAnimationMixin {
                 Constants.debug("Made In Heaven bed animation braking: not enough players sleeping.");
                 return;
             }
+            if (state.getMode() == SleepAnimationMode.NORMAL_SLEEP
+                    && state.startNormalCancelBraking(self)) {
+                this.seamlesssleep$sleepAnimationWakePlayers = false;
+                this.seamlesssleep$sleepAnimationResetWeather = false;
+                WorldSleepAccelerationManager.refreshForLevelTick(self);
+                SleepAnimationNetworking.sendStart(self, state);
+                Constants.debug("Normal sleep gameplay canceled; visual cancel braking started.");
+                return;
+            }
+
             state.cancel();
             this.seamlesssleep$sleepAnimationWakePlayers = false;
             this.seamlesssleep$sleepAnimationResetWeather = false;
             WorldSleepAccelerationManager.refreshForLevelTick(self);
             SleepAnimationNetworking.sendStop(self, state, SleepAnimationStopReason.CANCELLED_NOT_ENOUGH_SLEEPERS);
-            Constants.debug("Sleep animation canceled: not enough players sleeping.");
+            Constants.debug("Sleep animation canceled immediately: not enough players sleeping.");
             return;
         }
 

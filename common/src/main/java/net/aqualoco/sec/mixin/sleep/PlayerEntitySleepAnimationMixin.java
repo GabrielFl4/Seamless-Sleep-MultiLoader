@@ -25,7 +25,7 @@ public abstract class PlayerEntitySleepAnimationMixin {
                                              boolean updateSleepingPlayers) {
         if (BedRestingHelper.isManagedBedStateServer(self)) {
             if (self.level() instanceof ServerLevel serverLevel
-                    && SleepAnimationStates.getOrCreate(serverLevel).isActive()) {
+                    && SleepAnimationStates.getOrCreate(serverLevel).isGameplaySleepActive()) {
                 return;
             }
 

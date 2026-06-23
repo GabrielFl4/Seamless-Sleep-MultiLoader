@@ -129,6 +129,17 @@ public final class SleepSoundManager {
             return;
         }
 
+        if (activeMode == SleepAnimationMode.NORMAL_SLEEP
+                && activePhase == SleepAnimationPhase.CANCEL_BRAKING) {
+            handleStopSounds(client, false);
+            stopWindLoop(WIND_STOP_FADE_TICKS);
+            stopMadeInHeavenMainSound(MADE_IN_HEAVEN_MAIN_FADE_OUT_CANCEL_TICKS);
+            MadeInHeavenMusicSuppression.update(false);
+            resetSessionState("normal_sleep_cancel_braking");
+            audioEnvironment.reset();
+            return;
+        }
+
         primeAudioEnvironment(client);
 
         if (activeMode == SleepAnimationMode.COMMAND_TIMELAPSE) {
