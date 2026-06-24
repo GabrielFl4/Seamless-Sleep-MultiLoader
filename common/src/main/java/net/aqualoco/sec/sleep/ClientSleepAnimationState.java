@@ -15,6 +15,7 @@ public final class ClientSleepAnimationState {
     private static final long NIGHT_END_TICKS = 23460L;
     private static final long CLOSED_SESSION_NONE = -1L;
     private static final long MILLIS_PER_TICK = 50L;
+    private static final long NANOS_PER_TICK = MILLIS_PER_TICK * 1_000_000L;
     private static final double MAX_PRESENTATION_DELTA_TICKS = 4.0D;
     private static final long MAX_CANCEL_AUTHORITY_HOLD_DISTANCE = 200L;
     private static final long MAX_CANCEL_AUTHORITY_HOLD_NANOS = 10_000_000_000L;
@@ -40,6 +41,7 @@ public final class ClientSleepAnimationState {
     private long currentVisualDayTime;
     private double cachedProgress;
     private double presentationElapsedTicks;
+    private long livePresentationLastAdvanceNanos;
     private PresentationState presentationState = PresentationState.INACTIVE;
     private long cancelHoldVisualDayTime;
     private long lastObservedAuthoritativeDayTime;
@@ -329,6 +331,7 @@ public final class ClientSleepAnimationState {
             }
             world.getLevelData().setDayTime(this.currentVisualDayTime);
         }
+        this.livePresentationLastAdvanceNanos = this.replayCompatMode ? 0L : System.nanoTime();
 
         Constants.debug(
                 "Client sleep animation mode: {} (session {}, sequence {}, state {}, duration {} ticks)",
@@ -502,7 +505,7 @@ public final class ClientSleepAnimationState {
     }
 
     private double advanceLivePresentation(DeltaTracker deltaTracker) {
-        this.presentationElapsedTicks += samplePresentationDeltaTicks(deltaTracker);
+        this.presentationElapsedTicks += sampleLivePresentationDeltaTicks(deltaTracker);
         return this.presentationElapsedTicks;
     }
 
@@ -548,6 +551,26 @@ public final class ClientSleepAnimationState {
 
     private static double samplePresentationDeltaTicks(DeltaTracker deltaTracker) {
         double deltaTicks = deltaTracker == null ? 1.0D : deltaTracker.getGameTimeDeltaTicks();
+        if (!Double.isFinite(deltaTicks) || deltaTicks <= 0.0D) {
+            return 0.0D;
+        }
+        return Math.min(MAX_PRESENTATION_DELTA_TICKS, deltaTicks);
+    }
+
+    private double sampleLivePresentationDeltaTicks(DeltaTracker deltaTracker) {
+        long nowNanos = System.nanoTime();
+        if (this.livePresentationLastAdvanceNanos <= 0L) {
+            this.livePresentationLastAdvanceNanos = nowNanos;
+            return samplePresentationDeltaTicks(deltaTracker);
+        }
+
+        long elapsedNanos = nowNanos - this.livePresentationLastAdvanceNanos;
+        if (elapsedNanos <= 0L) {
+            return 0.0D;
+        }
+        this.livePresentationLastAdvanceNanos = nowNanos;
+
+        double deltaTicks = elapsedNanos / (double) NANOS_PER_TICK;
         if (!Double.isFinite(deltaTicks) || deltaTicks <= 0.0D) {
             return 0.0D;
         }
@@ -854,6 +877,7 @@ public final class ClientSleepAnimationState {
         this.active = false;
         this.presentationState = PresentationState.INACTIVE;
         this.presentationElapsedTicks = 0.0D;
+        this.livePresentationLastAdvanceNanos = 0L;
         this.cancelHoldDeadlineNanos = 0L;
         this.replayCompatMode = false;
         this.replayCompatStartTimelineMillis = -1L;

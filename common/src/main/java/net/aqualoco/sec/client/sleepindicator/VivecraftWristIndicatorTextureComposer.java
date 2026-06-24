@@ -15,18 +15,26 @@ final class VivecraftWristIndicatorTextureComposer {
     private static final int CANVAS_EDGE_PADDING = 8;
     private static final int TRANSPARENT_CLEAR_COLOR = 0x00000000;
     private static final int BIOME_BACKING_COLOR = 0xF0000000;
+    private static final long MIN_COMPOSE_INTERVAL_NANOS = 33_000_000L;
     private static final Identifier TEXTURE_ID = Identifier.fromNamespaceAndPath(Constants.MOD_ID, "vivecraft_wrist_indicator_composed");
 
     private final GuiRenderState renderState = new GuiRenderState();
     private final WristIndicatorGuiStateRenderer guiRenderer = new WristIndicatorGuiStateRenderer();
     private TextureTarget target;
     private WristIndicatorTargetTexture targetTexture;
+    private ComposedTexture lastComposedTexture;
+    private long lastComposeNanos;
 
     ComposedTexture compose(SleepIndicatorRenderer renderer,
                             SleepIndicatorContext context,
                             float tickDelta) {
         if (renderer == null) {
             return null;
+        }
+
+        long nowNanos = System.nanoTime();
+        if (canReuseLastTexture(nowNanos)) {
+            return this.lastComposedTexture;
         }
 
         CanvasSpec canvas = new CanvasSpec(BIOME_CANVAS_SIZE, BIOME_CANVAS_SIZE);
@@ -38,7 +46,18 @@ final class VivecraftWristIndicatorTextureComposer {
         clearTarget();
         drawIndicator(renderer, context, tickDelta, canvas);
         this.guiRenderer.render(this.renderState, this.target);
-        return new ComposedTexture(TEXTURE_ID);
+        this.lastComposeNanos = System.nanoTime();
+        this.lastComposedTexture = new ComposedTexture(TEXTURE_ID);
+        return this.lastComposedTexture;
+    }
+
+    private boolean canReuseLastTexture(long nowNanos) {
+        return this.target != null
+                && this.targetTexture != null
+                && this.lastComposedTexture != null
+                && this.lastComposeNanos > 0L
+                && nowNanos >= this.lastComposeNanos
+                && nowNanos - this.lastComposeNanos < MIN_COMPOSE_INTERVAL_NANOS;
     }
 
     private void ensureTarget(CanvasSpec canvas) {

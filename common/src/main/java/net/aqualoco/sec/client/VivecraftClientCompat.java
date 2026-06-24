@@ -187,6 +187,18 @@ public final class VivecraftClientCompat {
         return player != null && isVivecraftCompatibilityEnabled() && isVrActiveLocal();
     }
 
+    public static WristPanelSnapshot captureWristPanelStateSnapshot(@Nullable LocalPlayer player) {
+        return captureWristPanelSnapshot(player, PoseSnapshotKind.NONE);
+    }
+
+    public static WristPanelSnapshot captureWorldRenderWristPanelSnapshot(@Nullable LocalPlayer player) {
+        return captureWristPanelSnapshot(player, PoseSnapshotKind.WORLD_RENDER);
+    }
+
+    public static WristPanelSnapshot capturePreTickWristPanelSnapshot(@Nullable LocalPlayer player) {
+        return captureWristPanelSnapshot(player, PoseSnapshotKind.PRE_TICK);
+    }
+
     public static void onVivecraftCompatibilityConfigChanged(boolean enabled) {
         if (enabled) {
             return;
@@ -717,6 +729,24 @@ public final class VivecraftClientCompat {
         }
     }
 
+    private static WristPanelSnapshot captureWristPanelSnapshot(@Nullable LocalPlayer player, PoseSnapshotKind poseKind) {
+        if (player == null || !isVivecraftCompatibilityEnabled() || !VivecraftCompat.isVivecraftLoaded()) {
+            return WristPanelSnapshot.inactive();
+        }
+        if (!isVrActiveLocal()) {
+            return WristPanelSnapshot.inactive();
+        }
+
+        boolean leftHanded = isLeftHandedLocal();
+        float worldScale = getWorldScale();
+        Object pose = switch (poseKind) {
+            case NONE -> null;
+            case PRE_TICK -> invokeClientPoseMethod(getPreTickWorldPoseMethod, "Vivecraft pre-tick world pose lookup failed");
+            case WORLD_RENDER -> invokeClientPoseMethod(getWorldRenderPoseMethod, "Vivecraft world render pose lookup failed");
+        };
+        return new WristPanelSnapshot(true, leftHanded, worldScale, pose);
+    }
+
     private static void registerSleepIndicatorInteractModule(
             Object event,
             Class<?> interactModuleClass,
@@ -788,5 +818,24 @@ public final class VivecraftClientCompat {
     }
 
     private record HeadPoseAccessor(Method getPos) {
+    }
+
+    private enum PoseSnapshotKind {
+        NONE,
+        PRE_TICK,
+        WORLD_RENDER
+    }
+
+    public record WristPanelSnapshot(
+            boolean vrBedPolicyActive,
+            boolean leftHanded,
+            float worldScale,
+            @Nullable Object pose
+    ) {
+        private static final WristPanelSnapshot INACTIVE = new WristPanelSnapshot(false, false, 1.0F, null);
+
+        private static WristPanelSnapshot inactive() {
+            return INACTIVE;
+        }
     }
 }

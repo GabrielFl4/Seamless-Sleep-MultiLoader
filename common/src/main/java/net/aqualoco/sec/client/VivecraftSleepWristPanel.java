@@ -100,9 +100,8 @@ public final class VivecraftSleepWristPanel {
     }
 
     public static void applyHoveredMenuHandToVivecraft() {
-        boolean showMain = shouldShowMenuHandMain();
-        boolean showOff = shouldShowMenuHandOff();
-        if (!showMain && !showOff) {
+        MenuHandVisibility visibility = resolveMenuHandVisibility();
+        if (!visibility.showMain() && !visibility.showOff()) {
             return;
         }
 
@@ -115,10 +114,10 @@ public final class VivecraftSleepWristPanel {
             if (dataHolder == null) {
                 return;
             }
-            if (showMain) {
+            if (visibility.showMain()) {
                 menuHandMainField.setBoolean(dataHolder, true);
             }
-            if (showOff) {
+            if (visibility.showOff()) {
                 menuHandOffField.setBoolean(dataHolder, true);
             }
         } catch (ReflectiveOperationException | LinkageError | RuntimeException exception) {
@@ -131,21 +130,30 @@ public final class VivecraftSleepWristPanel {
                                     SubmitNodeCollector submitNodeCollector) {
         Minecraft client = Minecraft.getInstance();
         LocalPlayer player = client.player;
-        if (!isRenderEligible(player) || client.options.hideGui) {
+        if (player == null || client.level == null || client.options.hideGui) {
             clearHoverState();
             VivecraftSleepWristIndicatorRenderer.resetTransientState();
             return;
         }
-        if (!isTargetWristHandModeled()) {
+        VivecraftClientCompat.WristPanelSnapshot snapshot =
+                VivecraftClientCompat.captureWorldRenderWristPanelSnapshot(player);
+        if (!isRenderEligible(player, snapshot)) {
             clearHoverState();
             VivecraftSleepWristIndicatorRenderer.resetTransientState();
             return;
         }
-        if (!isInteractionEligible(player)) {
+        InteractionHand wristHand = wristHand(snapshot);
+        boolean targetWristHandModeled = !isMenuHandActive(wristHand);
+        if (!targetWristHandModeled) {
+            clearHoverState();
+            VivecraftSleepWristIndicatorRenderer.resetTransientState();
+            return;
+        }
+        if (!isInteractionEligible(player, snapshot, targetWristHandModeled)) {
             clearHoverState();
         }
 
-        PanelPose panel = resolvePanelPose(VivecraftClientCompat.getWorldRenderPose());
+        PanelPose panel = resolvePanelPose(snapshot.pose(), wristHand, snapshot.worldScale());
         if (panel == null) {
             return;
         }
@@ -160,12 +168,20 @@ public final class VivecraftSleepWristPanel {
     }
 
     private static boolean isActive(LocalPlayer player, InteractionHand hand, Vec3 handPosition) {
-        if (!isInteractionEligible(player) || hand != interactorHand()) {
+        VivecraftClientCompat.WristPanelSnapshot snapshot =
+                VivecraftClientCompat.capturePreTickWristPanelSnapshot(player);
+        if (!isRenderEligible(player, snapshot)) {
+            clearHover(hand);
+            return false;
+        }
+        InteractionHand wristHand = wristHand(snapshot);
+        boolean targetWristHandModeled = !isMenuHandActive(wristHand);
+        if (!isInteractionEligible(player, snapshot, targetWristHandModeled) || hand != interactorHand(wristHand)) {
             clearHover(hand);
             return false;
         }
 
-        PanelPose panel = resolvePanelPose(VivecraftClientCompat.getPreTickWorldPose());
+        PanelPose panel = resolvePanelPose(snapshot.pose(), wristHand, snapshot.worldScale());
         if (panel == null || !panel.contains(handPosition)) {
             clearHover(hand);
             return false;
@@ -177,7 +193,14 @@ public final class VivecraftSleepWristPanel {
     }
 
     private static boolean press(LocalPlayer player, InteractionHand hand) {
-        if (!isInteractionEligible(player) || hand != interactorHand()) {
+        VivecraftClientCompat.WristPanelSnapshot snapshot =
+                VivecraftClientCompat.captureWristPanelStateSnapshot(player);
+        if (!isRenderEligible(player, snapshot)) {
+            return false;
+        }
+        InteractionHand wristHand = wristHand(snapshot);
+        boolean targetWristHandModeled = !isMenuHandActive(wristHand);
+        if (!isInteractionEligible(player, snapshot, targetWristHandModeled) || hand != interactorHand(wristHand)) {
             return false;
         }
 
@@ -197,31 +220,29 @@ public final class VivecraftSleepWristPanel {
         clearHover(hand);
     }
 
-    private static boolean isRenderEligible(LocalPlayer player) {
+    private static boolean isRenderEligible(LocalPlayer player, VivecraftClientCompat.WristPanelSnapshot snapshot) {
         return player != null
                 && Minecraft.getInstance().level != null
-                && VivecraftClientCompat.shouldUseVrBedPolicy(player);
+                && snapshot.vrBedPolicyActive();
     }
 
-    private static boolean isInteractionEligible(LocalPlayer player) {
+    private static boolean isInteractionEligible(LocalPlayer player,
+                                                 VivecraftClientCompat.WristPanelSnapshot snapshot,
+                                                 boolean targetWristHandModeled) {
         return player != null
                 && Minecraft.getInstance().level != null
-                && VivecraftClientCompat.shouldUseVrBedPolicy(player)
+                && snapshot.vrBedPolicyActive()
                 && ClientBedWorkflow.isManagedBedState(player)
-                && isTargetWristHandModeled()
+                && targetWristHandModeled
                 && VivecraftSleepWristIndicatorRenderer.shouldRenderForPlayer(player);
     }
 
-    private static InteractionHand wristHand() {
-        return VivecraftClientCompat.isLeftHandedLocal() ? InteractionHand.MAIN_HAND : InteractionHand.OFF_HAND;
+    private static InteractionHand wristHand(VivecraftClientCompat.WristPanelSnapshot snapshot) {
+        return snapshot.leftHanded() ? InteractionHand.MAIN_HAND : InteractionHand.OFF_HAND;
     }
 
-    private static InteractionHand interactorHand() {
-        return wristHand() == InteractionHand.MAIN_HAND ? InteractionHand.OFF_HAND : InteractionHand.MAIN_HAND;
-    }
-
-    private static boolean isTargetWristHandModeled() {
-        return !isMenuHandActive(wristHand());
+    private static InteractionHand interactorHand(InteractionHand wristHand) {
+        return wristHand == InteractionHand.MAIN_HAND ? InteractionHand.OFF_HAND : InteractionHand.MAIN_HAND;
     }
 
     private static boolean isMenuHandActive(InteractionHand hand) {
@@ -259,15 +280,35 @@ public final class VivecraftSleepWristPanel {
     }
 
     private static boolean shouldShowMenuHand(InteractionHand hand) {
-        Minecraft client = Minecraft.getInstance();
-        LocalPlayer player = client.player;
-        return !client.options.hideGui
-                && isInteractionEligible(player)
-                && hoveredHand == hand
-                && player.tickCount - lastHoverPlayerTick <= 1;
+        MenuHandVisibility visibility = resolveMenuHandVisibility();
+        return hand == InteractionHand.MAIN_HAND ? visibility.showMain() : visibility.showOff();
     }
 
-    private static PanelPose resolvePanelPose(Object vrPose) {
+    private static MenuHandVisibility resolveMenuHandVisibility() {
+        Minecraft client = Minecraft.getInstance();
+        LocalPlayer player = client.player;
+        if (player == null || client.level == null || client.options.hideGui) {
+            return MenuHandVisibility.NONE;
+        }
+        VivecraftClientCompat.WristPanelSnapshot snapshot =
+                VivecraftClientCompat.captureWristPanelStateSnapshot(player);
+        if (!isRenderEligible(player, snapshot)) {
+            return MenuHandVisibility.NONE;
+        }
+        InteractionHand wristHand = wristHand(snapshot);
+        boolean targetWristHandModeled = !isMenuHandActive(wristHand);
+        boolean visible = isInteractionEligible(player, snapshot, targetWristHandModeled)
+                && player.tickCount - lastHoverPlayerTick <= 1;
+        if (!visible) {
+            return MenuHandVisibility.NONE;
+        }
+        return new MenuHandVisibility(
+                hoveredHand == InteractionHand.MAIN_HAND,
+                hoveredHand == InteractionHand.OFF_HAND
+        );
+    }
+
+    private static PanelPose resolvePanelPose(Object vrPose, InteractionHand wristHand, float worldScale) {
         if (vrPose == null) {
             return null;
         }
@@ -278,7 +319,7 @@ public final class VivecraftSleepWristPanel {
                 logPoseFailure("NoSuchMethodException");
                 return null;
             }
-            Object handData = getHandMethod.invoke(vrPose, wristHand());
+            Object handData = getHandMethod.invoke(vrPose, wristHand);
             if (handData == null) {
                 return null;
             }
@@ -290,7 +331,6 @@ public final class VivecraftSleepWristPanel {
             }
             Vec3 handPos = (Vec3) handAccessor.getPos().invoke(handData);
             Quaternionfc rotation = (Quaternionfc) handAccessor.getRotation().invoke(handData);
-            float worldScale = VivecraftClientCompat.getWorldScale();
 
             Vec3 sideAxis = axis(rotation, -1.0F, 0.0F, 0.0F);
             Vec3 forearmAxis = axis(rotation, 0.0F, 0.0F, -1.0F);
@@ -429,6 +469,10 @@ public final class VivecraftSleepWristPanel {
     }
 
     private record ModuleIdAccessor(Method getId) {
+    }
+
+    private record MenuHandVisibility(boolean showMain, boolean showOff) {
+        private static final MenuHandVisibility NONE = new MenuHandVisibility(false, false);
     }
 
     private static final class SleepIndicatorInteractModuleHandler implements InvocationHandler {
