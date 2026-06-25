@@ -36,6 +36,9 @@
         "minecraft": "${fabric_minecraft_version_range}",
         "java": ">=${java_version}"
     },
+    "breaks": {
+        "sleepwarp": "*"
+    },
     "suggests": {
         "modmenu": "*",
         "yet_another_config_lib_v3": "*"
