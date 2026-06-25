@@ -1,9 +1,11 @@
 package net.aqualoco.sec.network;
 
 import net.aqualoco.sec.bed.BedRestingHelper;
+import net.aqualoco.sec.handshake.ServerSeamlessClientPresenceManager;
 import net.aqualoco.sec.platform.Services;
+import net.aqualoco.sec.sleep.SleepDimensionSupport;
+import net.aqualoco.sec.sleep.SleepRequirement;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.util.Mth;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.gamerules.GameRules;
@@ -16,26 +18,31 @@ public final class BedHudNetworking {
 
     public static void sendSleepProgress(ServerLevel world, int sleepingPlayers, int sleepersNeeded) {
         Identifier worldId = world.dimension().identifier();
-        Services.NETWORK.sendToPlayers(world, new BedHudSleepProgressPayload(worldId, sleepingPlayers, sleepersNeeded, true));
+        BedHudSleepProgressPayload payload = new BedHudSleepProgressPayload(worldId, sleepingPlayers, sleepersNeeded, true);
+        for (ServerPlayer player : world.players()) {
+            if (ServerSeamlessClientPresenceManager.isConfirmed(player)) {
+                Services.NETWORK.sendToPlayerIfSupported(player, payload);
+            }
+        }
     }
 
     public static void clearSleepProgress(ServerLevel world) {
         Identifier worldId = world.dimension().identifier();
-        Services.NETWORK.sendToPlayers(world, new BedHudSleepProgressPayload(worldId, 0, 0, false));
+        BedHudSleepProgressPayload payload = new BedHudSleepProgressPayload(worldId, 0, 0, false);
+        for (ServerPlayer player : world.players()) {
+            if (ServerSeamlessClientPresenceManager.isConfirmed(player)) {
+                Services.NETWORK.sendToPlayerIfSupported(player, payload);
+            }
+        }
     }
 
     public static void syncSleepProgress(ServerLevel world) {
-        if (!world.canSleepThroughNights()) {
+        if (!SleepDimensionSupport.supportsSleepAnimation(world) || !world.canSleepThroughNights()) {
             clearSleepProgress(world);
             return;
         }
 
         int percentage = world.getGameRules().get(GameRules.PLAYERS_SLEEPING_PERCENTAGE);
-        if (percentage <= 0) {
-            clearSleepProgress(world);
-            return;
-        }
-
         int activePlayers = 0;
         int sleepingPlayers = 0;
         for (ServerPlayer player : world.players()) {
@@ -53,7 +60,7 @@ public final class BedHudNetworking {
             return;
         }
 
-        int sleepersNeeded = Math.max(1, Mth.ceil(activePlayers * percentage / 100.0F));
+        int sleepersNeeded = SleepRequirement.sleepersNeeded(activePlayers, percentage);
         if (sleepingPlayers >= sleepersNeeded) {
             clearSleepProgress(world);
             return;

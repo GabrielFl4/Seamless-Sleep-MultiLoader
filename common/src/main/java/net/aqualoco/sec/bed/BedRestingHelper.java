@@ -1,7 +1,11 @@
 package net.aqualoco.sec.bed;
 
-import net.aqualoco.sec.SeamlessSleepCommon;
-import net.aqualoco.sec.network.BedHudNetworking;
+import net.aqualoco.sec.config.SeamlessSleepServerConfig;
+import net.aqualoco.sec.config.SeamlessSleepServerConfigManager;
+import net.aqualoco.sec.config.SleepEligibilityMode;
+import net.aqualoco.sec.compat.VivecraftCompat;
+import net.aqualoco.sec.sleep.SleepAnimationStates;
+import net.aqualoco.sec.sleep.SleepDimensionSupport;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.ChatFormatting;
@@ -17,7 +21,6 @@ import net.minecraft.world.level.block.BedBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.minecraft.world.attribute.EnvironmentAttributes;
 import org.jspecify.annotations.Nullable;
 
 // Centralizes the bed workflow rules shared by mixins and client helpers.
@@ -55,16 +58,36 @@ public final class BedRestingHelper {
     }
 
     public static boolean isOverworldWorkflow(Player player) {
-        return player.level().dimension().equals(Level.OVERWORLD);
+        return player != null && Level.OVERWORLD.equals(player.level().dimension());
+    }
+
+    public static boolean isManagedBedWorkflowSupported(Player player) {
+        if (player == null) {
+            return false;
+        }
+        if (Level.OVERWORLD.equals(player.level().dimension())) {
+            return true;
+        }
+        return SleepDimensionSupport.supportsManagedBedWorkflow(player, getRestingBedPos(player));
+    }
+
+    public static boolean isManagedBedWorkflowSupported(Player player, @Nullable BlockPos bedPos) {
+        return player != null && SleepDimensionSupport.supportsManagedBedWorkflow(player, bedPos);
     }
 
     public static boolean isManagedBedState(Player player) {
-        return isOverworldWorkflow(player) && player.isSleeping();
+        return isManagedBedWorkflowSupported(player) && player.isSleeping();
     }
 
     public static boolean isPreAnimationBedStateServer(Player player) {
-        return isManagedBedState(player)
-                && !SeamlessSleepCommon.OVERWORLD_SLEEP_ANIMATION.isActive();
+        if (!isManagedBedState(player)) {
+            return false;
+        }
+        if (player.level() instanceof ServerLevel serverLevel) {
+            var state = SleepAnimationStates.getIfPresent(serverLevel);
+            return state == null || !state.isActive();
+        }
+        return true;
     }
 
     public static boolean isManagedBedStateServer(Player player) {
@@ -74,6 +97,34 @@ public final class BedRestingHelper {
     public static boolean isCountedForSleep(Player player) {
         return player instanceof BedRestingPlayer restingPlayer
                 && restingPlayer.seamlesssleep$isCountedForSleep();
+    }
+
+    public static boolean hasSleptLongEnough(ServerPlayer player, int delayTicks) {
+        int clampedDelay = SeamlessSleepServerConfig.clampInt(
+                delayTicks,
+                SeamlessSleepServerConfig.MIN_FALL_ASLEEP_DELAY_TICKS,
+                SeamlessSleepServerConfig.MAX_FALL_ASLEEP_DELAY_TICKS
+        );
+        return hasSleptLongEnoughClamped(player, clampedDelay);
+    }
+
+    public static boolean hasSleptLongEnoughClamped(ServerPlayer player, int clampedDelayTicks) {
+        return isCountedForSleep(player)
+                && player.isSleeping()
+                && player instanceof BedRestingPlayer restingPlayer
+                && restingPlayer.seamlesssleep$getFallAsleepDelayCounter() >= clampedDelayTicks;
+    }
+
+    public static boolean hasMadeInHeavenSleepLongEnough(ServerPlayer player, int delayTicks) {
+        int clampedDelay = SeamlessSleepServerConfig.clampInt(
+                delayTicks,
+                SeamlessSleepServerConfig.MIN_FALL_ASLEEP_DELAY_TICKS,
+                SeamlessSleepServerConfig.MAX_FALL_ASLEEP_DELAY_TICKS
+        );
+        return player.isSleeping()
+                && canCountForMadeInHeaven(player, player.getSleepingPos().orElse(null))
+                && player instanceof BedRestingPlayer restingPlayer
+                && restingPlayer.seamlesssleep$getFallAsleepDelayCounter() >= clampedDelay;
     }
 
     public static float getAuthoritativeBedLookYaw(Player player) {
@@ -115,13 +166,15 @@ public final class BedRestingHelper {
     }
 
     public static void syncManagedSleepState(ServerPlayer player, boolean countedForSleep) {
+        setManagedSleepStateWithoutSleepingListUpdate(player, countedForSleep);
+        ServerLevel level = (ServerLevel) player.level();
+        level.updateSleepingPlayerList();
+    }
+
+    public static void setManagedSleepStateWithoutSleepingListUpdate(ServerPlayer player, boolean countedForSleep) {
         if (player instanceof BedRestingPlayer restingPlayer) {
             restingPlayer.seamlesssleep$setCountedForSleep(countedForSleep);
         }
-
-        ServerLevel level = (ServerLevel) player.level();
-        level.updateSleepingPlayerList();
-        BedHudNetworking.syncSleepProgress(level);
     }
 
     @Nullable
@@ -161,7 +214,13 @@ public final class BedRestingHelper {
             return false;
         }
 
-        if (!player.level().environmentAttributes().getValue(EnvironmentAttributes.BED_RULE, bedPos).canSleep(player.level())) {
+        SleepEligibilityMode eligibility = SeamlessSleepServerConfigManager.get().sleepEligibility;
+        if (eligibility.preventsSleepSkip()) {
+            return false;
+        }
+
+        boolean bedRuleAllowsSleep = SleepDimensionSupport.canCountForSleepNow(player, bedPos);
+        if (!bedRuleAllowsSleep && !eligibility.allowsDaySleep()) {
             return false;
         }
 
@@ -169,7 +228,7 @@ public final class BedRestingHelper {
             return false;
         }
 
-        if (player.isCreative()) {
+        if (player.isCreative() || eligibility.ignoresMonsterCheck()) {
             return true;
         }
 
@@ -181,6 +240,18 @@ public final class BedRestingHelper {
                         monster -> monster.isPreventingPlayerRest(player.level(), player)
                 )
                 .isEmpty();
+    }
+
+    public static boolean canCountForMadeInHeaven(ServerPlayer player, @Nullable BlockPos bedPos) {
+        if (!isManagedBedState(player) || !player.isAlive() || bedPos == null) {
+            return false;
+        }
+        if (SeamlessSleepServerConfigManager.get().sleepEligibility.preventsSleepSkip()) {
+            return false;
+        }
+
+        Direction direction = getBedDirection(player.level(), bedPos);
+        return direction != null && canStartResting(player, bedPos, direction);
     }
 
     public static boolean isReachableBedBlock(Player player, BlockPos bedPos, Direction direction) {
@@ -280,6 +351,14 @@ public final class BedRestingHelper {
         );
     }
 
+    public static Component getLeaveBedHintMessage(Player player) {
+        if (player instanceof ServerPlayer serverPlayer && VivecraftCompat.isServerVrActive(serverPlayer)) {
+            return Component.translatable("seamlesssleep.text.leave_bed_vr");
+        }
+
+        return getLeaveBedHintMessage();
+    }
+
     public static boolean isManagedSleepFallbackProblem(Player.@Nullable BedSleepingProblem problem) {
         return problem != null
                 && !Player.BedSleepingProblem.TOO_FAR_AWAY.equals(problem)
@@ -302,7 +381,7 @@ public final class BedRestingHelper {
     }
 
     public static void showLeaveBedHint(ServerPlayer player) {
-        player.displayClientMessage(getLeaveBedHintMessage(), true);
+        player.displayClientMessage(getLeaveBedHintMessage(player), true);
     }
 
     // Falls back to a simple safe spot above the bed if vanilla cannot resolve a stand-up position.

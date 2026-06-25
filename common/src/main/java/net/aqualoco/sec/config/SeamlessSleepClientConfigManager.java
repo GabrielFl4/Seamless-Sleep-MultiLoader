@@ -6,6 +6,8 @@ import net.aqualoco.sec.Constants;
 import net.aqualoco.sec.client.sleepindicator.SleepIndicatorAnchor;
 import net.aqualoco.sec.client.sleepindicator.SleepIndicatorMode;
 import net.aqualoco.sec.client.sleepindicator.SleepIndicatorVisibility;
+import net.aqualoco.sec.client.sleepindicator.TimestampStyle;
+import net.aqualoco.sec.client.sleepindicator.VivecraftWristIndicatorVisibility;
 import net.aqualoco.sec.client.sleepvisual.SleepZzzConfigBridge;
 import net.aqualoco.sec.client.sleepvisual.SleepZzzStyle;
 import net.aqualoco.sec.platform.Services;
@@ -22,7 +24,7 @@ public final class SeamlessSleepClientConfigManager {
     private static final String FILE_NAME = "seamless_sleep.toml";
     private static final String LEGACY_JSON_FILE_NAME = "seamless_sleep.json";
     private static final String LEGACY_JSONC_FILE_NAME = "seamless_sleep.jsonc";
-    private static final int CONFIG_VERSION = 5;
+    private static final int CONFIG_VERSION = 10;
 
     private static SeamlessSleepClientConfig config = defaultConfig();
     private static Path configPath;
@@ -108,25 +110,24 @@ public final class SeamlessSleepClientConfigManager {
         SeamlessSleepClientConfig cfg = defaultConfig();
 
         Boolean legacySleepOverlayEnabled = readOptionalBoolean(file, List.of("overlay", "sleepOverlayEnabled"), "sleepOverlayEnabled");
-        if (legacySleepOverlayEnabled != null) {
-            cfg.sleepOverlayEnabled = legacySleepOverlayEnabled;
-        }
         cfg.sleepOverlayDarknessMultiplier = readDouble(file, List.of("overlay", "sleepOverlayDarknessMultiplier"), "sleepOverlayDarknessMultiplier", cfg.sleepOverlayDarknessMultiplier);
         cfg.leaveBedHintEnabled = readBoolean(file, List.of("overlay", "leaveBedHintEnabled"), "leaveBedHintEnabled", cfg.leaveBedHintEnabled);
         cfg.sleepContextEnabled = readBoolean(file, List.of("overlay", "sleepContextEnabled"), "sleepContextEnabled", cfg.sleepContextEnabled);
         Object sleepIndicatorModeValue = readRaw(file, List.of("sleep_indicator", "mode"), "sleepIndicatorMode");
         if (sleepIndicatorModeValue != null) {
-            cfg.sleepIndicatorMode = parseEnum(sleepIndicatorModeValue, SleepIndicatorMode.class, cfg.sleepIndicatorMode);
+            cfg.sleepIndicatorMode = parseSleepIndicatorMode(sleepIndicatorModeValue, cfg.sleepIndicatorMode);
         } else if (legacySleepOverlayEnabled != null) {
-            cfg.sleepIndicatorMode = legacySleepOverlayEnabled ? SleepIndicatorMode.OVERLAY : SleepIndicatorMode.OFF;
+            cfg.sleepIndicatorMode = legacySleepOverlayEnabled ? SleepIndicatorMode.BIOME_CLOCK : SleepIndicatorMode.OFF;
             if (legacySleepOverlayEnabled) {
                 cfg.sleepIndicatorAnchor = SleepIndicatorAnchor.TOP_LEFT;
-                cfg.sleepIndicatorVisibility = SleepIndicatorVisibility.SLEEP;
+                cfg.sleepIndicatorVisibility = SleepIndicatorVisibility.BED;
             }
         }
         cfg.sleepIndicatorAnchor = readEnum(file, List.of("sleep_indicator", "anchor"), "sleepIndicatorAnchor", SleepIndicatorAnchor.class, cfg.sleepIndicatorAnchor);
         cfg.sleepIndicatorVisibility = readEnum(file, List.of("sleep_indicator", "visibility"), "sleepIndicatorVisibility", SleepIndicatorVisibility.class, cfg.sleepIndicatorVisibility);
         cfg.sleepIndicatorScale = readDouble(file, List.of("sleep_indicator", "scale"), "sleepIndicatorScale", cfg.sleepIndicatorScale);
+        cfg.timestampStyle = readEnum(file, List.of("sleep_indicator", "timestamp", "style"), "timestampStyle", TimestampStyle.class, cfg.timestampStyle);
+        cfg.timestampColor = sanitizeRgb(readInt(file, List.of("sleep_indicator", "timestamp", "color"), "timestampColor", cfg.timestampColor));
         cfg.sleepZzzChance = readInt(file, List.of("sleep_zzz", "chance"), "sleepZzzChance", cfg.sleepZzzChance);
         cfg.sleepZzzStyle = readEnum(file, List.of("sleep_zzz", "style"), "sleepZzzStyle", SleepZzzStyle.class, SleepZzzConfigBridge.DEFAULT_STYLE).name();
         cfg.sleepChatTextOpacityMultiplier = readDouble(file, List.of("chat", "sleepChatTextOpacityMultiplier"), "sleepChatTextOpacityMultiplier", cfg.sleepChatTextOpacityMultiplier);
@@ -135,12 +136,68 @@ public final class SeamlessSleepClientConfigManager {
         cfg.sleepChatMaxLines = readInt(file, List.of("chat", "sleepChatMaxLines"), "sleepChatMaxLines", cfg.sleepChatMaxLines);
         cfg.sleepCameraTiltDegrees = readDouble(file, List.of("camera", "sleepCameraTiltDegrees"), "sleepCameraTiltDegrees", cfg.sleepCameraTiltDegrees);
         cfg.mouseSmoothnessPercent = readInt(file, List.of("camera", "mouseSmoothnessPercent"), "mouseSmoothnessPercent", cfg.mouseSmoothnessPercent);
-        cfg.replayCompatibilityEnabled = readBoolean(file, List.of("advanced", "replayCompatibilityEnabled"), "replayCompatibilityEnabled", cfg.replayCompatibilityEnabled);
+        cfg.sleepWindVolumePercent = readIntAny(
+                file,
+                List.of("sounds", "sleepWindVolumePercent"),
+                List.of("sleep_sounds", "sleepWindVolumePercent"),
+                "sleepWindVolumePercent",
+                cfg.sleepWindVolumePercent
+        );
+        Object soundtrackVolume = readRawAny(
+                file,
+                List.of("sounds", "soundtrackVolumePercent"),
+                List.of("sleep_sounds", "timelapseVolumePercent"),
+                "timelapseVolumePercent"
+        );
+        if (!(soundtrackVolume instanceof Number)) {
+            soundtrackVolume = readRaw(file, List.of("sleep_sounds", "madeInHeavenVolumePercent"), "madeInHeavenVolumePercent");
+        }
+        if (soundtrackVolume instanceof Number number) {
+            cfg.soundtrackVolumePercent = number.intValue();
+        }
+        cfg.disableSoundsDuringReplay = readBooleanAny(
+                file,
+                List.of("sounds", "disableSoundsDuringReplay"),
+                List.of("sleep_sounds", "disableSoundsDuringReplay"),
+                "disableSoundsDuringReplay",
+                cfg.disableSoundsDuringReplay
+        );
+        Boolean legacySleepSoundsEnabled = readOptionalBoolean(file, List.of("sleep_sounds", "sleepSoundsEnabled"), "sleepSoundsEnabled");
+        Boolean legacySleepWindEnabled = readOptionalBoolean(file, List.of("sleep_sounds", "sleepWindEnabled"), "sleepWindEnabled");
+        Boolean legacyTimelapseSoundsEnabled = readOptionalBoolean(file, List.of("sleep_sounds", "timelapseSoundsEnabled"), "timelapseSoundsEnabled");
+        Boolean legacyMadeInHeavenSoundEnabled = readOptionalBoolean(file, List.of("sleep_sounds", "madeInHeavenSoundEnabled"), "madeInHeavenSoundEnabled");
+        if (Boolean.FALSE.equals(legacySleepSoundsEnabled)) {
+            cfg.sleepWindVolumePercent = 0;
+            cfg.soundtrackVolumePercent = 0;
+        } else {
+            if (Boolean.FALSE.equals(legacySleepWindEnabled)) {
+                cfg.sleepWindVolumePercent = 0;
+            }
+            if (Boolean.FALSE.equals(legacyTimelapseSoundsEnabled)
+                    && Boolean.FALSE.equals(legacyMadeInHeavenSoundEnabled)) {
+                cfg.soundtrackVolumePercent = 0;
+            }
+        }
+        cfg.vivecraftCompatibilityEnabled = readBoolean(file, List.of("compatibility", "vivecraft", "enabled"), "vivecraftCompatibilityEnabled", cfg.vivecraftCompatibilityEnabled);
+        cfg.vivecraftBedRoomYOffset = readDouble(file, List.of("compatibility", "vivecraft", "bedRoomYOffset"), "vivecraftBedRoomYOffset", cfg.vivecraftBedRoomYOffset);
+        cfg.vivecraftWristIndicatorVisibility = readEnum(
+                file,
+                List.of("compatibility", "vivecraft", "wristIndicatorVisibility"),
+                "vivecraftWristIndicatorVisibility",
+                VivecraftWristIndicatorVisibility.class,
+                cfg.vivecraftWristIndicatorVisibility
+        );
+        cfg.replayCompatibilityEnabled = readBooleanAny(
+                file,
+                List.of("compatibility", "replayCompatibilityEnabled"),
+                List.of("advanced", "replayCompatibilityEnabled"),
+                "replayCompatibilityEnabled",
+                cfg.replayCompatibilityEnabled
+        );
         cfg.debugLogsEnabled = readBoolean(file, List.of("advanced", "debugLogsEnabled"), "debugLogsEnabled", cfg.debugLogsEnabled);
         if (fileConfigVersion > 0 && fileConfigVersion < 3) {
             cfg.sleepChatOpacityMultiplier *= 0.5D;
         }
-        cfg.sleepOverlayEnabled = cfg.sleepIndicatorMode != SleepIndicatorMode.OFF;
         return cfg;
     }
 
@@ -153,7 +210,7 @@ public final class SeamlessSleepClientConfigManager {
         appendSectionGap(sb, 2);
         appendSectionHeader(sb, "overlay");
         appendEntry(sb,
-                "Sleep vignette darkness while resting in bed. Range: 0.0 to 1.0. 0.0=hidden, 1.0=vanilla. Default: 0.35",
+                "Sleep vignette darkness while resting in bed. Range: 0.0 to 1.0. 0.0=hidden, 1.0=vanilla. Default: 0.20",
                 "sleepOverlayDarknessMultiplier",
                 Double.toString(cfg.sleepOverlayDarknessMultiplier));
         appendEntry(sb,
@@ -168,15 +225,15 @@ public final class SeamlessSleepClientConfigManager {
         appendSectionGap(sb, 2);
         appendSectionHeader(sb, "sleep_indicator");
         appendEntry(sb,
-                "Sleep indicator renderer. Range: OFF | OVERLAY | BIOME_CLOCK. V1 debug default: BIOME_CLOCK",
+                "Sleep indicator renderer. Range: OFF | TEXT | BIOME_CLOCK | TIMESTAMP. Default: BIOME_CLOCK",
                 "mode",
                 toTomlString(cfg.sleepIndicatorMode.name()));
         appendEntry(sb,
-                "Sleep indicator screen anchor. Range: TOP_LEFT | TOP_CENTER | TOP_RIGHT | CENTER | BOTTOM_LEFT | BOTTOM_CENTER | BOTTOM_RIGHT. V1 debug default: CENTER",
+                "Sleep indicator screen anchor. Range: TOP_LEFT | TOP_CENTER | TOP_RIGHT | BOTTOM_RIGHT | CENTER. Default: TOP_LEFT",
                 "anchor",
                 toTomlString(cfg.sleepIndicatorAnchor.name()));
         appendEntry(sb,
-                "Sleep indicator visibility. Range: BED | SLEEP | ALWAYS. V1 debug default: ALWAYS",
+                "Sleep indicator visibility. Range: BED | SLEEP | ALWAYS. Default: BED",
                 "visibility",
                 toTomlString(cfg.sleepIndicatorVisibility.name()));
         appendEntry(sb,
@@ -184,10 +241,21 @@ public final class SeamlessSleepClientConfigManager {
                 "scale",
                 Double.toString(cfg.sleepIndicatorScale));
 
+        appendSectionGap(sb, 1);
+        appendSectionHeader(sb, "sleep_indicator.timestamp");
+        appendEntry(sb,
+                "Timestamp layout. Range: DAY_FIRST | TIME_FIRST. Default: DAY_FIRST",
+                "style",
+                toTomlString(cfg.timestampStyle.name()));
+        appendEntry(sb,
+                "Timestamp text color as RGB decimal. Default: 16777215 (white)",
+                "color",
+                Integer.toString(sanitizeRgb(cfg.timestampColor)));
+
         appendSectionGap(sb, 2);
         appendSectionHeader(sb, "sleep_zzz");
         appendEntry(sb,
-                "Chance to show world-space Zs for each counted sleep session. Range: 0 to 100. 0=never, 100=always. Default: 35",
+                "Chance to show world-space Zs for each counted sleep session. Range: 0 to 100. 0=never, 100=always. Default: 70",
                 "chance",
                 Integer.toString(cfg.sleepZzzChance));
         appendEntry(sb,
@@ -226,11 +294,44 @@ public final class SeamlessSleepClientConfigManager {
                 Integer.toString(cfg.mouseSmoothnessPercent));
 
         appendSectionGap(sb, 2);
-        appendSectionHeader(sb, "advanced");
+        appendSectionHeader(sb, "sounds");
+        appendEntry(sb,
+                "Wind loop volume. Range: 0 to 100. Default: 50",
+                "sleepWindVolumePercent",
+                Integer.toString(cfg.sleepWindVolumePercent));
+        appendEntry(sb,
+                "General soundtrack volume for timelapse and easter egg sounds. Range: 0 to 100. Default: 50",
+                "soundtrackVolumePercent",
+                Integer.toString(cfg.soundtrackVolumePercent));
+        appendEntry(sb,
+                "Suppress Seamless Sleep sounds while ReplayMod or Flashback playback is active. Range: true | false. Default: false",
+                "disableSoundsDuringReplay",
+                Boolean.toString(cfg.disableSoundsDuringReplay));
+
+        appendSectionGap(sb, 2);
+        appendSectionHeader(sb, "compatibility.vivecraft");
+        appendEntry(sb,
+                "Enable Vivecraft VR compatibility policies. Range: true | false. Default: true",
+                "enabled",
+                Boolean.toString(cfg.vivecraftCompatibilityEnabled));
+        appendEntry(sb,
+                "Base Vivecraft room Y offset while sleeping in VR. Range: -2.0 to 0.0. 0.0=vanilla, more negative lowers the bed view before dynamic height compensation. Default: -1.25",
+                "bedRoomYOffset",
+                Double.toString(cfg.vivecraftBedRoomYOffset));
+        appendEntry(sb,
+                "Vivecraft wrist sleep indicator visibility for Biome Clock and Timestamp. Range: ALWAYS | SLEEPING. Text mode remains sleep-animation only. Default: SLEEPING",
+                "wristIndicatorVisibility",
+                toTomlString(cfg.vivecraftWristIndicatorVisibility.name()));
+
+        appendSectionGap(sb, 2);
+        appendSectionHeader(sb, "compatibility");
         appendEntry(sb,
                 "Replay and Flashback compatibility mode. Range: true | false. Default: true",
                 "replayCompatibilityEnabled",
                 Boolean.toString(cfg.replayCompatibilityEnabled));
+
+        appendSectionGap(sb, 2);
+        appendSectionHeader(sb, "advanced");
         appendEntry(sb,
                 "Verbose debug logs. Range: true | false. Default: false",
                 "debugLogsEnabled",
@@ -282,9 +383,31 @@ public final class SeamlessSleepClientConfigManager {
         return value instanceof Boolean bool ? bool : fallback;
     }
 
+    private static boolean readBooleanAny(CommentedFileConfig file,
+                                          List<String> primaryPath,
+                                          List<String> legacyPath,
+                                          String legacyKey,
+                                          boolean fallback) {
+        Object value = readRawAny(file, primaryPath, legacyPath, legacyKey);
+        return value instanceof Boolean bool ? bool : fallback;
+    }
+
     private static int readInt(CommentedFileConfig file, List<String> path, String legacyKey, int fallback) {
         Object value = readRaw(file, path, legacyKey);
         return value instanceof Number number ? number.intValue() : fallback;
+    }
+
+    private static int readIntAny(CommentedFileConfig file,
+                                  List<String> primaryPath,
+                                  List<String> legacyPath,
+                                  String legacyKey,
+                                  int fallback) {
+        Object value = readRawAny(file, primaryPath, legacyPath, legacyKey);
+        return value instanceof Number number ? number.intValue() : fallback;
+    }
+
+    private static int sanitizeRgb(int value) {
+        return value & 0x00FFFFFF;
     }
 
     private static double readDouble(CommentedFileConfig file, List<String> path, String legacyKey, double fallback) {
@@ -297,6 +420,23 @@ public final class SeamlessSleepClientConfigManager {
         if (value != null || legacyKey == null || legacyKey.isBlank()) {
             return value;
         }
+        return file.getRaw(legacyKey);
+    }
+
+    private static Object readRawAny(CommentedFileConfig file,
+                                     List<String> primaryPath,
+                                     List<String> legacyPath,
+                                     String legacyKey) {
+        Object value = primaryPath == null ? null : file.getRaw(primaryPath);
+        if (value != null) {
+            return value;
+        }
+
+        value = legacyPath == null ? null : file.getRaw(legacyPath);
+        if (value != null || legacyKey == null || legacyKey.isBlank()) {
+            return value;
+        }
+
         return file.getRaw(legacyKey);
     }
 
@@ -330,6 +470,18 @@ public final class SeamlessSleepClientConfigManager {
         } catch (IllegalArgumentException ignored) {
             return fallback;
         }
+    }
+
+    private static SleepIndicatorMode parseSleepIndicatorMode(Object value, SleepIndicatorMode fallback) {
+        if (!(value instanceof String raw)) {
+            return fallback;
+        }
+
+        String normalized = raw.trim().replace('-', '_').toUpperCase(Locale.ROOT);
+        if ("OVERLAY".equals(normalized)) {
+            return SleepIndicatorMode.TEXT;
+        }
+        return parseEnum(normalized, SleepIndicatorMode.class, fallback);
     }
 
     private static Integer readOptionalInt(CommentedFileConfig file, String key) {

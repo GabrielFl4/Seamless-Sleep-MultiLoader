@@ -1,11 +1,11 @@
 package net.aqualoco.sec;
 
-import net.aqualoco.sec.config.SeamlessSleepServerConfig;
-import net.aqualoco.sec.config.SeamlessSleepServerConfigManager;
-import net.aqualoco.sec.network.ServerConfigSyncPayload;
-import net.aqualoco.sec.platform.Services;
+import net.aqualoco.sec.handshake.ServerSeamlessClientPresenceManager;
+import net.aqualoco.sec.network.SleepAnimationNetworking;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.event.entity.player.PlayerEvent;
+import net.minecraftforge.event.server.ServerStoppingEvent;
+import net.minecraftforge.event.TickEvent;
 
 // Forge-side server event hooks used to sync config when players log in.
 final class SeamlessSleepServerEvents {
@@ -21,25 +21,34 @@ final class SeamlessSleepServerEvents {
             return;
         }
 
-        SeamlessSleepServerConfig cfg = SeamlessSleepServerConfigManager.get();
-        Services.NETWORK.sendToPlayers(
-                player.level(),
-                new ServerConfigSyncPayload(
-                        cfg.sleepWeatherClearChancePercent,
-                        cfg.sleepAnimationDurationMultiplier,
-                        Math.max(1, player.level().getServer().getPlayerList().getSimulationDistance()),
-                        cfg.worldSleepAcceleration.mode,
-                        cfg.worldSleepAcceleration.automaticMode,
-                        cfg.worldSleepAcceleration.playersAffected,
-                        cfg.worldSleepAcceleration.manualAccelerationRadiusChunks,
-                        cfg.worldSleepAcceleration.manualAccelerationSpeedPercent,
-                        cfg.worldSleepAcceleration.grassAndFoliageAccelerationEnabled,
-                        cfg.worldSleepAcceleration.cropsAndSaplingsAccelerationEnabled,
-                        cfg.worldSleepAcceleration.kelpAccelerationEnabled,
-                        cfg.worldSleepAcceleration.vanillaOnlyAcceleration,
-                        cfg.worldSleepAcceleration.processesAccelerationEnabled,
-                        cfg.worldSleepAcceleration.processesSpeedPercent
-                )
-        );
+        ServerSeamlessClientPresenceManager.beginHandshake(player);
+    }
+
+    static void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            ServerSeamlessClientPresenceManager.handleDisconnect(player);
+        }
+    }
+
+    static void onPlayerChangedDimension(PlayerEvent.PlayerChangedDimensionEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player
+                && ServerSeamlessClientPresenceManager.isConfirmed(player)) {
+            SleepAnimationNetworking.sendActiveSnapshotToPlayer(player);
+        }
+    }
+
+    static void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player
+                && ServerSeamlessClientPresenceManager.isConfirmed(player)) {
+            SleepAnimationNetworking.sendActiveSnapshotToPlayer(player);
+        }
+    }
+
+    static void onServerTick(TickEvent.ServerTickEvent.Post event) {
+        ServerSeamlessClientPresenceManager.tick(event.server());
+    }
+
+    static void onServerStopping(ServerStoppingEvent event) {
+        ServerSeamlessClientPresenceManager.reset();
     }
 }

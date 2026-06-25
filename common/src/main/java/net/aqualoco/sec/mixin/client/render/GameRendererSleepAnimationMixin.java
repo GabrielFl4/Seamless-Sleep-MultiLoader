@@ -2,13 +2,14 @@ package net.aqualoco.sec.mixin.client.render;
 
 import net.aqualoco.sec.client.ClientBedWorkflow;
 import net.aqualoco.sec.client.SeamlessSleepClientState;
+import net.aqualoco.sec.client.sound.SleepSoundManager;
 import net.aqualoco.sec.network.SleepAnimationNetworking;
+import net.aqualoco.sec.sleep.SleepDimensionSupport;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.GameRenderer;
-import net.minecraft.world.level.Level;
 import org.joml.Matrix4f;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
@@ -33,16 +34,26 @@ public abstract class GameRendererSleepAnimationMixin {
         Minecraft client = Minecraft.getInstance();
         ClientLevel world = client.level;
         if (world == null) {
+            SeamlessSleepClientState.SLEEP_ANIMATION.resetForWorldExit("render_world_null");
+            SleepSoundManager.reset("render_world_null");
             return;
         }
 
-        if (!world.dimension().equals(Level.OVERWORLD)) {
+        if (!SleepDimensionSupport.supportsClientSleepAnimation(world)) {
+            SeamlessSleepClientState.SLEEP_ANIMATION.resetForWorldExit("render_unsupported_dimension");
+            SleepSoundManager.reset("render_unsupported_dimension");
             return;
         }
 
-        if (SeamlessSleepClientState.SLEEP_ANIMATION.isActive()) {
+        SeamlessSleepClientState.SLEEP_ANIMATION.resetIfWorldMismatch(world, "render_world_changed");
+        if (SeamlessSleepClientState.SLEEP_ANIMATION.needsFrameTick()) {
             SeamlessSleepClientState.SLEEP_ANIMATION.tick(world, deltaTracker);
         }
+        LocalPlayer player = client.player;
+        SeamlessSleepClientState.SLEEP_ANIMATION.tickFinishedDayTimeLock(
+                world,
+                player != null && player.isSleeping()
+        );
     }
 
     @Inject(method = "renderItemInHand", at = @At("HEAD"), cancellable = true)

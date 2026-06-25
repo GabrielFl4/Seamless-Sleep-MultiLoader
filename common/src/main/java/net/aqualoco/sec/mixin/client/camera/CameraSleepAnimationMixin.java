@@ -2,6 +2,7 @@ package net.aqualoco.sec.mixin.client.camera;
 
 import net.aqualoco.sec.client.ClientBedWorkflow;
 import net.aqualoco.sec.client.ShoulderSurfingCompat;
+import net.aqualoco.sec.client.VivecraftClientCompat;
 import net.minecraft.client.Camera;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.Entity;
@@ -38,7 +39,9 @@ public abstract class CameraSleepAnimationMixin {
             return;
         }
 
-        if (player instanceof LocalPlayer localPlayer && ClientBedWorkflow.isManagedBedState(localPlayer)) {
+        if (player instanceof LocalPlayer localPlayer
+                && ClientBedWorkflow.isManagedBedState(localPlayer)
+                && !VivecraftClientCompat.shouldUseVrBedPolicy(localPlayer)) {
             float yaw = ClientBedWorkflow.getCameraYaw(localPlayer);
             float pitch = ClientBedWorkflow.getCameraPitch(localPlayer);
 

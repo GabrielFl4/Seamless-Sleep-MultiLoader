@@ -6,6 +6,7 @@ import net.aqualoco.sec.client.BedCameraRenderState;
 import net.aqualoco.sec.client.ClientBedWorkflow;
 import net.aqualoco.sec.client.EssentialCompat;
 import net.aqualoco.sec.client.ReplayPlaybackCompat;
+import net.aqualoco.sec.client.VivecraftClientCompat;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.SubmitNodeCollector;
@@ -16,7 +17,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Avatar;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Pose;
-import net.minecraft.world.level.Level;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -43,8 +44,7 @@ public abstract class AvatarRendererBedBodyMixin {
     private void seamlesssleep$markCameraBody(Avatar avatar, AvatarRenderState avatarRenderState, float tickDelta, CallbackInfo ci) {
         Minecraft client = Minecraft.getInstance();
         Entity cameraEntity = client.getCameraEntity();
-        boolean replayPlaybackActive = ReplayPlaybackCompat.isReplayPlaybackActive();
-        boolean managedSleepingAvatar = avatar.isSleeping() && avatar.level().dimension().equals(Level.OVERWORLD);
+        boolean managedSleepingAvatar = avatar instanceof Player player && BedRestingHelper.isManagedBedState(player);
         boolean renderCameraBody = client.player != null
                 && cameraEntity == client.player
                 && avatar == cameraEntity
@@ -52,8 +52,14 @@ public abstract class AvatarRendererBedBodyMixin {
         ((BedCameraRenderState) avatarRenderState).seamlesssleep$setCameraBody(renderCameraBody);
 
         if (!managedSleepingAvatar
-                || (avatar == client.player && client.options.getCameraType().isFirstPerson() && !replayPlaybackActive)
                 || !avatarRenderState.hasPose(Pose.SLEEPING)) {
+            return;
+        }
+        boolean replayPlaybackActive = ReplayPlaybackCompat.isReplayPlaybackActive();
+        if (avatar == client.player && client.options.getCameraType().isFirstPerson() && !replayPlaybackActive) {
+            return;
+        }
+        if (avatar instanceof Player player && VivecraftClientCompat.shouldPreserveVrPlayerRender(player)) {
             return;
         }
 
@@ -92,12 +98,15 @@ public abstract class AvatarRendererBedBodyMixin {
     )
     private void seamlesssleep$liftLocalSleepingAvatarInThirdPerson(AvatarRenderState avatarRenderState, CallbackInfoReturnable<Vec3> cir) {
         Minecraft client = Minecraft.getInstance();
-        boolean replayPlaybackActive = ReplayPlaybackCompat.isReplayPlaybackActive();
         if (client.player == null
                 || avatarRenderState.id != client.player.getId()
-                || (client.options.getCameraType().isFirstPerson() && !replayPlaybackActive)
-                || (!replayPlaybackActive && !ClientBedWorkflow.isManagedBedState(client.player))
                 || !avatarRenderState.hasPose(Pose.SLEEPING)) {
+            return;
+        }
+        boolean replayPlaybackActive = ReplayPlaybackCompat.isReplayPlaybackActive();
+        if ((client.options.getCameraType().isFirstPerson() && !replayPlaybackActive)
+                || (!replayPlaybackActive && !ClientBedWorkflow.isManagedBedState(client.player))
+                || VivecraftClientCompat.shouldUseVrBedPolicy(client.player)) {
             return;
         }
 

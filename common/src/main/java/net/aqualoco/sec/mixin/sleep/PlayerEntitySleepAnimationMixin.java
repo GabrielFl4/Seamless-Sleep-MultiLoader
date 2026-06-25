@@ -1,9 +1,10 @@
 package net.aqualoco.sec.mixin.sleep;
 
-import net.aqualoco.sec.SeamlessSleepCommon;
 import net.aqualoco.sec.bed.BedRestingHelper;
+import net.aqualoco.sec.config.SeamlessSleepServerConfigManager;
+import net.aqualoco.sec.sleep.SleepAnimationStates;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.Level;
+import net.minecraft.server.level.ServerLevel;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
@@ -22,13 +23,17 @@ public abstract class PlayerEntitySleepAnimationMixin {
     private void seamlesssleep$forwardWakeUp(Player self,
                                              boolean skipSleepTimer,
                                              boolean updateSleepingPlayers) {
-        if (self.level().dimension().equals(Level.OVERWORLD)) {
-            if (SeamlessSleepCommon.OVERWORLD_SLEEP_ANIMATION.isActive()) {
+        if (BedRestingHelper.isManagedBedStateServer(self)) {
+            if (self.level() instanceof ServerLevel serverLevel
+                    && SleepAnimationStates.getOrCreate(serverLevel).isGameplaySleepActive()) {
                 return;
             }
 
-            if (BedRestingHelper.isManagedBedStateServer(self)
-                    && !BedRestingHelper.isCountedForSleep(self)) {
+            if (!BedRestingHelper.isCountedForSleep(self)) {
+                return;
+            }
+
+            if (SeamlessSleepServerConfigManager.get().sleepEligibility.allowsDaySleep()) {
                 return;
             }
         }

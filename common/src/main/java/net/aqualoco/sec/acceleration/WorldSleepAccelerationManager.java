@@ -9,7 +9,10 @@ import net.aqualoco.sec.config.SeamlessSleepServerConfigManager;
 import net.aqualoco.sec.config.WorldSleepAccelerationConfig;
 import net.aqualoco.sec.config.WorldSleepAccelerationMode;
 import net.aqualoco.sec.config.WorldSleepAccelerationPlayersAffected;
+import net.aqualoco.sec.config.WorldSleepAutomaticMode;
+import net.aqualoco.sec.sleep.SleepAnimationMode;
 import net.aqualoco.sec.sleep.SleepAnimationState;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -18,10 +21,8 @@ import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.gamerules.GameRules;
 
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.WeakHashMap;
 
@@ -43,30 +44,57 @@ public final class WorldSleepAccelerationManager {
         if (level == null || !level.dimension().equals(Level.OVERWORLD)) {
             return WorldSleepAccelerationStatus.INACTIVE;
         }
-        return SERVER_STATES.computeIfAbsent(level.getServer(), key -> new CachedServerState())
-                .prepare(level, false, false);
+        return getOrCreateServerState(level.getServer()).prepare(level, false, false);
     }
 
     public static WorldSleepAccelerationStatus getDiagnosticStatus(ServerLevel level) {
         if (level == null || !level.dimension().equals(Level.OVERWORLD)) {
             return WorldSleepAccelerationStatus.INACTIVE;
         }
-        return SERVER_STATES.computeIfAbsent(level.getServer(), key -> new CachedServerState())
-                .prepare(level, false, true);
+        return getOrCreateServerState(level.getServer()).prepare(level, false, true);
+    }
+
+    public static WorldSleepAccelerationTelemetry.Snapshot getTelemetrySnapshot(ServerLevel level) {
+        if (level == null || !level.dimension().equals(Level.OVERWORLD)) {
+            return new WorldSleepAccelerationTelemetry().snapshot(0);
+        }
+        CachedServerState state = getOrCreateServerState(level.getServer());
+        return state.telemetry.snapshot(level.getServer().getTickCount());
+    }
+
+    public static WorldSleepNatureSessionCache.Snapshot getNatureSessionCacheSnapshot(ServerLevel level) {
+        if (level == null || !level.dimension().equals(Level.OVERWORLD)) {
+            return new WorldSleepNatureSessionCache().snapshot();
+        }
+        CachedServerState state = getOrCreateServerState(level.getServer());
+        return state.natureSessionCache.snapshot();
     }
 
     private static void prepare(ServerLevel level, boolean forceRebuild) {
         if (level == null || !level.dimension().equals(Level.OVERWORLD)) {
             return;
         }
-        SERVER_STATES.computeIfAbsent(level.getServer(), key -> new CachedServerState())
-                .prepare(level, forceRebuild, false);
+        getOrCreateServerState(level.getServer()).prepare(level, forceRebuild, false);
+    }
+
+    private static CachedServerState getOrCreateServerState(MinecraftServer server) {
+        CachedServerState state = SERVER_STATES.get(server);
+        if (state != null) {
+            return state;
+        }
+        CachedServerState created = new CachedServerState();
+        SERVER_STATES.put(server, created);
+        return created;
     }
 
     private static final class CachedServerState {
         private static final double METRIC_ALPHA = 0.15D;
         private static final int METRIC_UPDATE_INTERVAL_TICKS = 10;
         private static final int GOVERNOR_DEBUG_DELAY_TICKS = 10;
+        private static final int MAX_CACHED_COVERAGE_RADII = 4;
+        private static final int MAX_COVERAGE_PREALLOCATION_CHUNKS = 262_144;
+        private static final long[] EMPTY_CHUNK_CENTERS = new long[0];
+        private static final LongOpenHashSet EMPTY_COVERED_CHUNKS = new LongOpenHashSet(0);
 
         private static final double PRESSURE_RISE_ALPHA = 0.35D;
         private static final double PRESSURE_FALL_ALPHA = 0.10D;
@@ -76,6 +104,20 @@ public final class WorldSleepAccelerationManager {
         private static final double SPEED_FALL_ALPHA = 0.40D;
 
         private static final double AUTO_MIN_RANDOM_TICK_SPEED_PERCENT = 10.0D;
+        private static final double NATURE_WORKLOAD_KNEE_ATTEMPTS_PER_SECTION = 400.0D;
+        private static final double NATURE_WORKLOAD_COMPRESSION_SCALE = 400.0D;
+        private static final double NATURE_EMERGENCY_SUPPRESS_PRESSURE = 0.95D;
+        private static final double NATURE_EMERGENCY_SUPPRESS_AVERAGE_MSPT = 55.0D;
+        private static final double NATURE_EMERGENCY_SUPPRESS_P95_MSPT = 70.0D;
+        private static final double NATURE_EMERGENCY_CRITICAL_AVERAGE_MSPT = 75.0D;
+        private static final double NATURE_EMERGENCY_CRITICAL_P95_MSPT = 100.0D;
+        private static final int NATURE_EMERGENCY_SUPPRESS_TICKS = 20;
+        private static final int NATURE_EMERGENCY_CRITICAL_TICKS = 5;
+        private static final int NATURE_EMERGENCY_MIN_SUPPRESSION_TICKS = 40;
+        private static final double NATURE_EMERGENCY_RESUME_PRESSURE = 0.70D;
+        private static final double NATURE_EMERGENCY_RESUME_AVERAGE_MSPT = 45.0D;
+        private static final double NATURE_EMERGENCY_RESUME_P95_MSPT = 55.0D;
+        private static final int NATURE_EMERGENCY_RESUME_TICKS = 60;
         private static final double PROCESS_SUPPRESS_PRESSURE = 0.95D;
         private static final double PROCESS_RESUME_PRESSURE = 0.75D;
         private static final int PROCESS_SUPPRESS_TICKS = 20;
@@ -88,23 +130,60 @@ public final class WorldSleepAccelerationManager {
         private WorldSleepAccelerationStatus lastDiagnosticStatus = WorldSleepAccelerationStatus.INACTIVE;
         private double averageMspt = 50.0D;
         private double p95Mspt = 50.0D;
+        private double[] metricSamples = new double[0];
 
         private double smoothedGovernorPressure;
         private double smoothedAutomaticRadiusChunks = Double.NaN;
         private double smoothedAutomaticSpeedPercent = Double.NaN;
+        private boolean natureTemporarilySuppressed;
+        private int natureSuppressionSevereTicks;
+        private int natureSuppressionCriticalTicks;
+        private int natureSuppressionMinimumTicks;
+        private int natureSuppressionRecoveryTicks;
+        private int lastNatureSuppressionUpdateTick = Integer.MIN_VALUE;
         private boolean processTemporarilySuppressed;
         private int processSuppressionHighTicks;
         private int processSuppressionRecoveryTicks;
+        private int lastProcessSuppressionUpdateTick = Integer.MIN_VALUE;
+        private final WorldSleepAccelerationTelemetry telemetry = new WorldSleepAccelerationTelemetry();
+        private final WorldSleepNatureSessionCache natureSessionCache = new WorldSleepNatureSessionCache();
+        private final Map<Integer, LongOpenHashSet> coverageByRadius =
+                new LinkedHashMap<>(MAX_CACHED_COVERAGE_RADII, 0.75F, true) {
+                    @Override
+                    protected boolean removeEldestEntry(Map.Entry<Integer, LongOpenHashSet> eldest) {
+                        return size() > MAX_CACHED_COVERAGE_RADII;
+                    }
+                };
+        private long[] coverageCenterScratch = EMPTY_CHUNK_CENTERS;
+        private long[] lastObservedCoverageCenters = EMPTY_CHUNK_CENTERS;
+        private int lastObservedCoverageCenterCount = -1;
+        private long[] cachedCoverageCenters = EMPTY_CHUNK_CENTERS;
+        private ResourceKey<Level> cachedCoverageDimension;
+        private WorldSleepAccelerationMode cachedCoverageMode;
+        private WorldSleepAccelerationPlayersAffected cachedCoveragePlayersAffected;
+        private int cachedFilterPolicyKey = Integer.MIN_VALUE;
+        private WorldSleepAccelerationFilterPolicy cachedFilterPolicy =
+                WorldSleepAccelerationFilterPolicy.DISABLED;
+        private boolean dormantOffStabilized;
 
-        private long scheduledGovernorDebugStartMillis = Long.MIN_VALUE;
+        private long scheduledGovernorDebugStartGameTime = Long.MIN_VALUE;
         private int scheduledGovernorDebugTick = Integer.MIN_VALUE;
         private boolean governorDebugLoggedForCurrentSleep;
 
         private WorldSleepAccelerationStatus prepare(ServerLevel level, boolean forceRebuild, boolean includeDiagnostics) {
             int currentTick = level.getServer().getTickCount();
+            SeamlessSleepServerConfig config = SeamlessSleepServerConfigManager.get();
+            telemetry.setEnabled(config.worldSleepAcceleration.accelerationTelemetryEnabled);
+            if (telemetry.isEnabled()) {
+                telemetry.beginTick(currentTick);
+            }
             updateMetrics(level.getServer(), currentTick);
 
-            SeamlessSleepServerConfig config = SeamlessSleepServerConfigManager.get();
+            if (config.worldSleepAcceleration.mode == WorldSleepAccelerationMode.OFF
+                    && !config.worldSleepAcceleration.accelerationTelemetryEnabled) {
+                return prepareDormantOff(currentTick);
+            }
+            dormantOffStabilized = false;
             SleepAnimationState sleepState = SeamlessSleepCommon.OVERWORLD_SLEEP_ANIMATION;
             updateGovernorDebugSchedule(config.worldSleepAcceleration, sleepState, currentTick);
 
@@ -117,6 +196,13 @@ public final class WorldSleepAccelerationManager {
                 lastPreparedTick = currentTick;
                 lastDiagnosticStatus = buildStatus(level, averageMspt, p95Mspt, true);
                 lastStatus = lastDiagnosticStatus;
+                updateTelemetrySession(
+                        level,
+                        currentTick,
+                        sleepState,
+                        lastDiagnosticStatus,
+                        config.worldSleepAcceleration
+                );
                 return lastDiagnosticStatus;
             }
 
@@ -126,8 +212,86 @@ public final class WorldSleepAccelerationManager {
 
             lastPreparedTick = currentTick;
             lastStatus = buildStatus(level, averageMspt, p95Mspt, false);
+            updateTelemetrySession(
+                    level,
+                    currentTick,
+                    sleepState,
+                    lastStatus,
+                    config.worldSleepAcceleration
+            );
             maybeLogGovernorDebug(level, config.worldSleepAcceleration, sleepState, currentTick);
             return lastStatus;
+        }
+
+        private WorldSleepAccelerationStatus prepareDormantOff(int currentTick) {
+            if (!dormantOffStabilized) {
+                resetAutomaticRuntimeState();
+                clearCoverageCache();
+                natureSessionCache.updateSession(false, 0L, 0, false, 0, false);
+                clearGovernorDebugSchedule();
+                lastStatus = WorldSleepAccelerationStatus.INACTIVE;
+                lastDiagnosticStatus = WorldSleepAccelerationStatus.INACTIVE;
+                dormantOffStabilized = true;
+            }
+            lastPreparedTick = currentTick;
+            lastDiagnosticTick = currentTick;
+            return WorldSleepAccelerationStatus.INACTIVE;
+        }
+
+        private void updateTelemetrySession(ServerLevel level,
+                                            int currentTick,
+                                            SleepAnimationState sleepState,
+                                            WorldSleepAccelerationStatus status,
+                                            WorldSleepAccelerationConfig accelerationConfig) {
+            WorldSleepAccelerationModuleStatus natureStatus = status.getNature();
+            boolean sessionActive = natureStatus.isActive() || natureStatus.isTemporarilySuppressed();
+            long sessionId = sleepState.getServerStartGameTime();
+            if (sessionId <= 0L) {
+                sessionId = currentTick;
+            }
+            natureSessionCache.updateSession(
+                    sessionActive,
+                    sessionId,
+                    status.getFilterPolicy().getCacheKey(),
+                    accelerationConfig.recheckIrrelevantNatureSectionsDuringAcceleration,
+                    status.getActivePlayerCount(),
+                    accelerationConfig.accelerationTelemetryEnabled
+            );
+            if (!accelerationConfig.accelerationTelemetryEnabled) {
+                return;
+            }
+            telemetry.updateSession(
+                    currentTick,
+                    sessionActive,
+                    sessionId,
+                    sleepState.isActive() ? sleepState.getMode() : null,
+                    status.getMode()
+            );
+            if (!sessionActive) {
+                return;
+            }
+
+            WorldSleepAccelerationGovernorSnapshot governorSnapshot = status.getGovernorSnapshot();
+            telemetry.updateRuntimeDetails(
+                    status.getAutomaticMode(),
+                    natureStatus.getEffectiveSpeedPercent(),
+                    natureStatus.getGovernorAction(),
+                    Math.max(0, level.getGameRules().get(GameRules.RANDOM_TICK_SPEED)),
+                    status.getWorldSleepRate(),
+                    natureStatus.getRawNatureExtraAttemptsPerSection(),
+                    natureStatus.getExtraRandomTickAttemptsPerSection(),
+                    natureStatus.getNatureWorkloadKnee(),
+                    natureStatus.getNatureWorkloadCompressionScale(),
+                    natureStatus.isNatureWorkloadNormalizationApplied(),
+                    natureStatus.getEffectiveRadiusChunks(),
+                    natureStatus.getCoveredChunkCount(),
+                    status.getActivePlayerCount(),
+                    status.getAverageMspt(),
+                    status.getP95Mspt(),
+                    governorSnapshot.getHealthPressure(),
+                    governorSnapshot.getSmoothedPressure(),
+                    natureStatus.isTemporarilySuppressed()
+            );
         }
 
         private void updateMetrics(MinecraftServer server, int currentTick) {
@@ -142,18 +306,23 @@ public final class WorldSleepAccelerationManager {
                 return;
             }
 
-            double[] samples = new double[tickTimes.length];
+            if (metricSamples.length != tickTimes.length) {
+                metricSamples = new double[tickTimes.length];
+            }
             double sum = 0.0D;
             for (int i = 0; i < tickTimes.length; i++) {
                 double sample = tickTimes[i] / 1_000_000.0D;
-                samples[i] = sample;
+                metricSamples[i] = sample;
                 sum += sample;
             }
 
-            Arrays.sort(samples);
-            int p95Index = Math.min(samples.length - 1, (int) Math.floor((samples.length - 1) * 0.95D));
-            double sampleAverage = sum / samples.length;
-            double sampleP95 = samples[p95Index];
+            Arrays.sort(metricSamples);
+            int p95Index = Math.min(
+                    metricSamples.length - 1,
+                    (int) Math.floor((metricSamples.length - 1) * 0.95D)
+            );
+            double sampleAverage = sum / metricSamples.length;
+            double sampleP95 = metricSamples[p95Index];
 
             averageMspt = Mth.lerp(METRIC_ALPHA, averageMspt, sampleAverage);
             p95Mspt = Mth.lerp(METRIC_ALPHA, p95Mspt, sampleP95);
@@ -163,25 +332,39 @@ public final class WorldSleepAccelerationManager {
                                                          double smoothedAverageMspt,
                                                          double smoothedP95Mspt,
                                                          boolean includeDiagnostics) {
-            WorldSleepAccelerationConfig accelerationConfig = SeamlessSleepServerConfigManager.get().worldSleepAcceleration;
             SleepAnimationState sleepState = SeamlessSleepCommon.OVERWORLD_SLEEP_ANIMATION;
+            WorldSleepAccelerationConfig accelerationConfig = resolveRuntimeAccelerationConfig(
+                    SeamlessSleepServerConfigManager.get().worldSleepAcceleration,
+                    sleepState
+            );
             // Nature follows the instantaneous sleep curve, while processes stay on the
             // original average-per-night rate so all furnaces remain stable together.
             double natureWorldSleepRate = sleepState.getCurrentLogicalWorldRate();
             double processWorldSleepRate = sleepState.getAverageLogicalWorldRate();
             double worldSleepRate = natureWorldSleepRate;
 
-            if (!sleepState.isActive()
-                    || accelerationConfig.mode == WorldSleepAccelerationMode.OFF
-                    || (natureWorldSleepRate <= 1.0D && processWorldSleepRate <= 1.0D)) {
+            if (!sleepState.isActive()) {
                 resetAutomaticRuntimeState();
+                clearCoverageCache();
+                return WorldSleepAccelerationStatus.INACTIVE;
+            }
+            if (!sleepState.getMode().allowsWorldAcceleration()
+                    || accelerationConfig.mode == WorldSleepAccelerationMode.OFF) {
+                resetAutomaticRuntimeState();
+                clearCoverageCache();
+                return WorldSleepAccelerationStatus.INACTIVE;
+            }
+            if (natureWorldSleepRate <= 1.0D && processWorldSleepRate <= 1.0D) {
+                resetAutomaticRuntimeState();
+                clearCoverageCache();
                 return WorldSleepAccelerationStatus.INACTIVE;
             }
 
             WorldSleepAccelerationPlayersAffected effectivePlayersAffected = accelerationConfig.resolveEffectivePlayersAffected();
-            List<ServerPlayer> activePlayers = collectActivePlayers(level, effectivePlayersAffected);
-            if (activePlayers.isEmpty()) {
+            int activePlayerCount = collectActivePlayerCenters(level, effectivePlayersAffected);
+            if (activePlayerCount == 0) {
                 resetAutomaticRuntimeState();
+                clearCoverageCache();
                 return WorldSleepAccelerationStatus.INACTIVE;
             }
 
@@ -189,9 +372,14 @@ public final class WorldSleepAccelerationManager {
                     level.getServer().getPlayerList().getSimulationDistance()
             );
             int randomTickSpeed = Math.max(0, level.getGameRules().get(GameRules.RANDOM_TICK_SPEED));
-            WorldSleepAccelerationFilterPolicy filterPolicy = accelerationConfig.createFilterPolicy();
+            WorldSleepAccelerationFilterPolicy filterPolicy = resolveFilterPolicy(accelerationConfig);
+            prepareCoverageCache(
+                    level.dimension(),
+                    accelerationConfig.mode,
+                    effectivePlayersAffected,
+                    activePlayerCount
+            );
 
-            Map<Integer, LongOpenHashSet> coverageByRadius = new HashMap<>();
             int configuredRadiusChunks = accelerationConfig.resolveManualRadiusChunks(simulationDistance);
             int effectiveRadiusChunks = configuredRadiusChunks;
             int configuredNatureSpeedPercent = accelerationConfig.resolveManualAccelerationSpeedPercent();
@@ -201,13 +389,12 @@ public final class WorldSleepAccelerationManager {
             if (accelerationConfig.mode == WorldSleepAccelerationMode.AUTOMATIC) {
                 AutomaticGovernorRuntime automaticRuntime = updateAutomaticGovernorRuntime(
                         accelerationConfig,
+                        level.getServer().getTickCount(),
                         worldSleepRate,
-                        activePlayers,
-                        activePlayers.size(),
+                        activePlayerCount,
                         simulationDistance,
                         smoothedAverageMspt,
-                        smoothedP95Mspt,
-                        coverageByRadius
+                        smoothedP95Mspt
                 );
                 configuredRadiusChunks = automaticRuntime.configuredRadiusChunks();
                 effectiveRadiusChunks = automaticRuntime.effectiveRadiusChunks();
@@ -237,10 +424,9 @@ public final class WorldSleepAccelerationManager {
                     configuredNatureSpeedPercent,
                     effectiveNatureSpeedPercent,
                     natureWorldSleepRate,
-                    activePlayers,
                     randomTickSpeed,
-                    coverageByRadius,
-                    natureGovernorAction
+                    natureGovernorAction,
+                    natureTemporarilySuppressed
             );
 
             WorldSleepAccelerationModuleStatus processStatus = buildProcessStatus(
@@ -248,16 +434,16 @@ public final class WorldSleepAccelerationManager {
                     configuredRadiusChunks,
                     effectiveRadiusChunks,
                     processWorldSleepRate,
-                    activePlayers,
-                    coverageByRadius,
                     processGovernorAction
             );
 
             boolean moduleActive = natureStatus.isActive() || processStatus.isActive();
+            boolean exposeTemporarySuppression = natureStatus.isTemporarilySuppressed()
+                    || processStatus.isTemporarilySuppressed();
             boolean exposeAutomaticRuntime = includeDiagnostics
                     && accelerationConfig.mode == WorldSleepAccelerationMode.AUTOMATIC
                     && governorSnapshot.isActive();
-            if (!moduleActive && !exposeAutomaticRuntime) {
+            if (!moduleActive && !exposeTemporarySuppression && !exposeAutomaticRuntime) {
                 return WorldSleepAccelerationStatus.INACTIVE;
             }
 
@@ -267,9 +453,9 @@ public final class WorldSleepAccelerationManager {
             );
 
             return new WorldSleepAccelerationStatus(
-                    moduleActive || exposeAutomaticRuntime,
+                    moduleActive || exposeTemporarySuppression || exposeAutomaticRuntime,
                     level.dimension(),
-                    activePlayers.size(),
+                    activePlayerCount,
                     simulationDistance,
                     worldSleepRate,
                     smoothedAverageMspt,
@@ -282,13 +468,16 @@ public final class WorldSleepAccelerationManager {
                     governorSnapshot,
                     natureStatus,
                     processStatus,
-                    processTemporarilySuppressed
+                    processTemporarilySuppressed,
+                    telemetry,
+                    natureSessionCache
             );
         }
 
-        private List<ServerPlayer> collectActivePlayers(ServerLevel level,
-                                                        WorldSleepAccelerationPlayersAffected playersAffected) {
-            List<ServerPlayer> players = new ArrayList<>();
+        private int collectActivePlayerCenters(ServerLevel level,
+                                               WorldSleepAccelerationPlayersAffected playersAffected) {
+            ensureCoverageCenterScratchCapacity(level.players().size());
+            int activePlayerCount = 0;
             for (ServerPlayer player : level.players()) {
                 if (player.isSpectator() || !player.isAlive()) {
                     continue;
@@ -297,9 +486,55 @@ public final class WorldSleepAccelerationManager {
                         && !BedRestingHelper.isManagedBedStateServer(player)) {
                     continue;
                 }
-                players.add(player);
+                ChunkPos center = player.chunkPosition();
+                coverageCenterScratch[activePlayerCount++] = ChunkPos.asLong(center.x, center.z);
             }
-            return players;
+            return activePlayerCount;
+        }
+
+        private WorldSleepAccelerationFilterPolicy resolveFilterPolicy(
+                WorldSleepAccelerationConfig accelerationConfig) {
+            int policyKey = WorldSleepAccelerationFilterPolicy.createCacheKey(
+                    accelerationConfig.grassAndFoliageAccelerationEnabled,
+                    accelerationConfig.cropsAndSaplingsAccelerationEnabled,
+                    accelerationConfig.vinesAndBambooAccelerationEnabled,
+                    accelerationConfig.kelpAccelerationEnabled,
+                    accelerationConfig.vanillaOnlyAcceleration
+            );
+            if (policyKey == cachedFilterPolicyKey) {
+                return cachedFilterPolicy;
+            }
+            cachedFilterPolicyKey = policyKey;
+            cachedFilterPolicy = accelerationConfig.createFilterPolicy();
+            return cachedFilterPolicy;
+        }
+
+        private WorldSleepAccelerationConfig resolveRuntimeAccelerationConfig(WorldSleepAccelerationConfig baseConfig,
+                                                                              SleepAnimationState sleepState) {
+            if (sleepState.getMode() != SleepAnimationMode.MADE_IN_HEAVEN_BED
+                    || baseConfig.mode == WorldSleepAccelerationMode.OFF) {
+                return baseConfig;
+            }
+
+            WorldSleepAccelerationConfig runtimeConfig = new WorldSleepAccelerationConfig();
+            runtimeConfig.mode = WorldSleepAccelerationMode.AUTOMATIC;
+            runtimeConfig.automaticMode = WorldSleepAutomaticMode.BALANCED;
+            runtimeConfig.playersAffected = WorldSleepAccelerationPlayersAffected.ALL_PLAYERS;
+            runtimeConfig.manualAccelerationRadiusChunks = baseConfig.manualAccelerationRadiusChunks;
+            runtimeConfig.manualAccelerationSpeedPercent = baseConfig.manualAccelerationSpeedPercent;
+            runtimeConfig.grassAndFoliageAccelerationEnabled = baseConfig.grassAndFoliageAccelerationEnabled;
+            runtimeConfig.cropsAndSaplingsAccelerationEnabled = baseConfig.cropsAndSaplingsAccelerationEnabled;
+            runtimeConfig.vinesAndBambooAccelerationEnabled =
+                    baseConfig.vinesAndBambooAccelerationEnabled;
+            runtimeConfig.kelpAccelerationEnabled = baseConfig.kelpAccelerationEnabled;
+            runtimeConfig.vanillaOnlyAcceleration = baseConfig.vanillaOnlyAcceleration;
+            runtimeConfig.recheckIrrelevantNatureSectionsDuringAcceleration =
+                    baseConfig.recheckIrrelevantNatureSectionsDuringAcceleration;
+            runtimeConfig.accelerationTelemetryEnabled = baseConfig.accelerationTelemetryEnabled;
+            runtimeConfig.processesAccelerationEnabled = baseConfig.processesAccelerationEnabled;
+            runtimeConfig.processesSpeedPercent = baseConfig.processesSpeedPercent;
+            runtimeConfig.clamp();
+            return runtimeConfig;
         }
 
         private WorldSleepAccelerationModuleStatus buildNatureStatus(WorldSleepAccelerationFilterPolicy filterPolicy,
@@ -308,31 +543,41 @@ public final class WorldSleepAccelerationManager {
                                                                      int configuredSpeedPercent,
                                                                      int effectiveSpeedPercent,
                                                                      double worldSleepRate,
-                                                                     List<ServerPlayer> activePlayers,
                                                                      int randomTickSpeed,
-                                                                     Map<Integer, LongOpenHashSet> coverageByRadius,
-                                                                     WorldSleepAccelerationGovernorAction governorAction) {
+                                                                     WorldSleepAccelerationGovernorAction governorAction,
+                                                                     boolean temporarilySuppressed) {
+            if (temporarilySuppressed) {
+                return inactiveModuleStatus(
+                        configuredRadiusChunks,
+                        effectiveRadiusChunks,
+                        configuredSpeedPercent,
+                        0,
+                        governorAction,
+                        true
+                );
+            }
             if (!filterPolicy.isAnyEnabled() || configuredSpeedPercent <= 0 || effectiveSpeedPercent <= 0 || randomTickSpeed <= 0) {
                 return inactiveModuleStatus(configuredRadiusChunks, configuredSpeedPercent, false);
             }
 
             double effectiveFraction = effectiveSpeedPercent / 100.0D;
-            double effectiveTickMultiplier = computeTickMultiplier(worldSleepRate, effectiveFraction);
-            double extraRandomTickAttempts = randomTickSpeed * Math.max(0.0D, worldSleepRate - 1.0D) * effectiveFraction;
-            if (effectiveTickMultiplier <= 1.0D || extraRandomTickAttempts <= 0.0D) {
+            double rawNatureExtraAttemptsPerSection =
+                    randomTickSpeed * Math.max(0.0D, worldSleepRate - 1.0D) * effectiveFraction;
+            double normalizedNatureExtraAttemptsPerSection =
+                    normalizeNatureExtraAttempts(rawNatureExtraAttemptsPerSection);
+            if (normalizedNatureExtraAttemptsPerSection <= 0.0D) {
                 return inactiveModuleStatus(configuredRadiusChunks, configuredSpeedPercent, false);
             }
+            double effectiveTickMultiplier =
+                    1.0D + normalizedNatureExtraAttemptsPerSection / randomTickSpeed;
 
-            LongOpenHashSet coveredChunks = coverageByRadius.computeIfAbsent(
-                    effectiveRadiusChunks,
-                    radius -> unionChunkAreas(activePlayers, radius)
-            );
+            LongOpenHashSet coveredChunks = getCoverageForRadius(effectiveRadiusChunks);
             if (coveredChunks.isEmpty()) {
                 return inactiveModuleStatus(configuredRadiusChunks, configuredSpeedPercent, false);
             }
 
-            int wholeAttempts = (int) Math.floor(extraRandomTickAttempts);
-            double fractionalAttempts = extraRandomTickAttempts - wholeAttempts;
+            int wholeAttempts = (int) Math.floor(normalizedNatureExtraAttemptsPerSection);
+            double fractionalAttempts = normalizedNatureExtraAttemptsPerSection - wholeAttempts;
             return new WorldSleepAccelerationModuleStatus(
                     true,
                     configuredRadiusChunks,
@@ -340,7 +585,11 @@ public final class WorldSleepAccelerationManager {
                     configuredSpeedPercent,
                     effectiveSpeedPercent,
                     effectiveTickMultiplier,
-                    extraRandomTickAttempts,
+                    rawNatureExtraAttemptsPerSection,
+                    normalizedNatureExtraAttemptsPerSection,
+                    NATURE_WORKLOAD_KNEE_ATTEMPTS_PER_SECTION,
+                    NATURE_WORKLOAD_COMPRESSION_SCALE,
+                    rawNatureExtraAttemptsPerSection > NATURE_WORKLOAD_KNEE_ATTEMPTS_PER_SECTION,
                     wholeAttempts,
                     fractionalAttempts,
                     coveredChunks.size(),
@@ -354,8 +603,6 @@ public final class WorldSleepAccelerationManager {
                                                                       int configuredRadiusChunks,
                                                                       int effectiveRadiusChunks,
                                                                       double worldSleepRate,
-                                                                      List<ServerPlayer> activePlayers,
-                                                                      Map<Integer, LongOpenHashSet> coverageByRadius,
                                                                       WorldSleepAccelerationGovernorAction governorAction) {
             int configuredSpeedPercent = accelerationConfig.resolveProcessesSpeedPercent();
             if (!accelerationConfig.processesAccelerationEnabled || configuredSpeedPercent <= 0) {
@@ -371,10 +618,7 @@ public final class WorldSleepAccelerationManager {
                 return inactiveModuleStatus(configuredRadiusChunks, configuredSpeedPercent, false);
             }
 
-            LongOpenHashSet coveredChunks = coverageByRadius.computeIfAbsent(
-                    effectiveRadiusChunks,
-                    radius -> unionChunkAreas(activePlayers, radius)
-            );
+            LongOpenHashSet coveredChunks = getCoverageForRadius(effectiveRadiusChunks);
             if (coveredChunks.isEmpty()) {
                 return inactiveModuleStatus(configuredRadiusChunks, configuredSpeedPercent, false);
             }
@@ -387,6 +631,10 @@ public final class WorldSleepAccelerationManager {
                     configuredSpeedPercent,
                     effectiveTickMultiplier,
                     0.0D,
+                    0.0D,
+                    0.0D,
+                    0.0D,
+                    false,
                     0,
                     0.0D,
                     coveredChunks.size(),
@@ -399,37 +647,53 @@ public final class WorldSleepAccelerationManager {
         private WorldSleepAccelerationModuleStatus inactiveModuleStatus(int configuredRadiusChunks,
                                                                         int configuredSpeedPercent,
                                                                         boolean temporarilySuppressed) {
-            return new WorldSleepAccelerationModuleStatus(
-                    false,
+            return inactiveModuleStatus(
                     configuredRadiusChunks,
                     configuredRadiusChunks,
                     configuredSpeedPercent,
                     configuredSpeedPercent,
-                    1.0D,
-                    0.0D,
-                    0,
-                    0.0D,
-                    0,
-                    new LongOpenHashSet(),
                     WorldSleepAccelerationGovernorAction.NONE,
                     temporarilySuppressed
             );
         }
 
+        private WorldSleepAccelerationModuleStatus inactiveModuleStatus(int configuredRadiusChunks,
+                                                                        int effectiveRadiusChunks,
+                                                                        int configuredSpeedPercent,
+                                                                        int effectiveSpeedPercent,
+                                                                        WorldSleepAccelerationGovernorAction governorAction,
+                                                                        boolean temporarilySuppressed) {
+            return new WorldSleepAccelerationModuleStatus(
+                    false,
+                    configuredRadiusChunks,
+                    effectiveRadiusChunks,
+                    configuredSpeedPercent,
+                    effectiveSpeedPercent,
+                    1.0D,
+                    0.0D,
+                    0.0D,
+                    0.0D,
+                    0.0D,
+                    false,
+                    0,
+                    0.0D,
+                    0,
+                    EMPTY_COVERED_CHUNKS,
+                    governorAction,
+                    temporarilySuppressed
+            );
+        }
+
         private AutomaticGovernorRuntime updateAutomaticGovernorRuntime(WorldSleepAccelerationConfig accelerationConfig,
+                                                                        int currentTick,
                                                                         double worldSleepRate,
-                                                                        List<ServerPlayer> activePlayers,
                                                                         int activePlayerCount,
                                                                         int simulationDistance,
                                                                         double averageMspt,
-                                                                        double p95Mspt,
-                                                                        Map<Integer, LongOpenHashSet> coverageByRadius) {
+                                                                        double p95Mspt) {
             WorldSleepAccelerationConfig.AutomaticCeiling ceiling = accelerationConfig.getAutomaticCeiling(simulationDistance);
             int governorRiskRadiusChunks = resolveAutomaticGovernorRiskRadius(ceiling.radiusChunks());
-            LongOpenHashSet candidateCoverage = coverageByRadius.computeIfAbsent(
-                    governorRiskRadiusChunks,
-                    radius -> unionChunkAreas(activePlayers, radius)
-            );
+            LongOpenHashSet candidateCoverage = getCoverageForRadius(governorRiskRadiusChunks);
             WorldSleepAccelerationGovernorSnapshot snapshot = computeGovernorSnapshot(
                     worldSleepRate,
                     activePlayerCount,
@@ -438,15 +702,27 @@ public final class WorldSleepAccelerationManager {
                     p95Mspt,
                     candidateCoverage.size()
             );
+            updateNatureEmergencySuppression(
+                    currentTick,
+                    snapshot,
+                    averageMspt,
+                    p95Mspt
+            );
             int effectiveRadiusChunks = updateAutomaticEffectiveRadiusChunks(
                     ceiling.radiusChunks(),
                     snapshot.getSmoothedPressure()
             );
-            int effectiveSpeedPercent = updateAutomaticEffectiveSpeedPercent(
-                    ceiling.speedPercent(),
-                    snapshot.getSmoothedPressure()
-            );
-            updateProcessSuppression(snapshot.getSmoothedPressure());
+            int effectiveSpeedPercent;
+            if (natureTemporarilySuppressed) {
+                holdAutomaticNatureSpeedAtMinimum(ceiling.speedPercent());
+                effectiveSpeedPercent = 0;
+            } else {
+                effectiveSpeedPercent = updateAutomaticEffectiveSpeedPercent(
+                        ceiling.speedPercent(),
+                        snapshot.getSmoothedPressure()
+                );
+            }
+            updateProcessSuppression(currentTick, snapshot.getSmoothedPressure());
             return new AutomaticGovernorRuntime(
                     snapshot,
                     ceiling.radiusChunks(),
@@ -579,7 +855,77 @@ public final class WorldSleepAccelerationManager {
             return roundedSpeed;
         }
 
-        private void updateProcessSuppression(double smoothedPressure) {
+        private void holdAutomaticNatureSpeedAtMinimum(int configuredSpeedPercent) {
+            smoothedAutomaticSpeedPercent = Math.min(
+                    Math.max(0, configuredSpeedPercent),
+                    AUTO_MIN_RANDOM_TICK_SPEED_PERCENT
+            );
+        }
+
+        private void updateNatureEmergencySuppression(int currentTick,
+                                                      WorldSleepAccelerationGovernorSnapshot snapshot,
+                                                      double averageMspt,
+                                                      double p95Mspt) {
+            if (currentTick == lastNatureSuppressionUpdateTick) {
+                return;
+            }
+            lastNatureSuppressionUpdateTick = currentTick;
+
+            // Only server-health signals may suspend nature acceleration.
+            boolean severeHealthPressure = snapshot.getSmoothedPressure() >= NATURE_EMERGENCY_SUPPRESS_PRESSURE
+                    && (averageMspt >= NATURE_EMERGENCY_SUPPRESS_AVERAGE_MSPT
+                    || p95Mspt >= NATURE_EMERGENCY_SUPPRESS_P95_MSPT);
+            boolean criticalHealthPressure = averageMspt >= NATURE_EMERGENCY_CRITICAL_AVERAGE_MSPT
+                    || p95Mspt >= NATURE_EMERGENCY_CRITICAL_P95_MSPT;
+
+            if (!natureTemporarilySuppressed) {
+                natureSuppressionSevereTicks = severeHealthPressure
+                        ? natureSuppressionSevereTicks + 1
+                        : 0;
+                natureSuppressionCriticalTicks = criticalHealthPressure
+                        ? natureSuppressionCriticalTicks + 1
+                        : 0;
+                natureSuppressionRecoveryTicks = 0;
+
+                if (natureSuppressionSevereTicks >= NATURE_EMERGENCY_SUPPRESS_TICKS
+                        || natureSuppressionCriticalTicks >= NATURE_EMERGENCY_CRITICAL_TICKS) {
+                    natureTemporarilySuppressed = true;
+                    natureSuppressionMinimumTicks = NATURE_EMERGENCY_MIN_SUPPRESSION_TICKS;
+                    natureSuppressionRecoveryTicks = 0;
+                }
+                return;
+            }
+
+            if (natureSuppressionMinimumTicks > 0) {
+                natureSuppressionMinimumTicks--;
+                natureSuppressionRecoveryTicks = 0;
+                return;
+            }
+
+            boolean healthStable = snapshot.getSmoothedPressure() <= NATURE_EMERGENCY_RESUME_PRESSURE
+                    && averageMspt <= NATURE_EMERGENCY_RESUME_AVERAGE_MSPT
+                    && p95Mspt <= NATURE_EMERGENCY_RESUME_P95_MSPT;
+            if (!healthStable) {
+                natureSuppressionRecoveryTicks = 0;
+                return;
+            }
+
+            natureSuppressionRecoveryTicks++;
+            if (natureSuppressionRecoveryTicks >= NATURE_EMERGENCY_RESUME_TICKS) {
+                natureTemporarilySuppressed = false;
+                natureSuppressionSevereTicks = 0;
+                natureSuppressionCriticalTicks = 0;
+                natureSuppressionMinimumTicks = 0;
+                natureSuppressionRecoveryTicks = 0;
+            }
+        }
+
+        private void updateProcessSuppression(int currentTick, double smoothedPressure) {
+            if (currentTick == lastProcessSuppressionUpdateTick) {
+                return;
+            }
+            lastProcessSuppressionUpdateTick = currentTick;
+
             if (smoothedPressure >= PROCESS_SUPPRESS_PRESSURE) {
                 processSuppressionHighTicks++;
                 processSuppressionRecoveryTicks = 0;
@@ -611,13 +957,32 @@ public final class WorldSleepAccelerationManager {
             smoothedGovernorPressure = 0.0D;
             smoothedAutomaticRadiusChunks = Double.NaN;
             smoothedAutomaticSpeedPercent = Double.NaN;
+            natureTemporarilySuppressed = false;
+            natureSuppressionSevereTicks = 0;
+            natureSuppressionCriticalTicks = 0;
+            natureSuppressionMinimumTicks = 0;
+            natureSuppressionRecoveryTicks = 0;
+            lastNatureSuppressionUpdateTick = Integer.MIN_VALUE;
             processTemporarilySuppressed = false;
             processSuppressionHighTicks = 0;
             processSuppressionRecoveryTicks = 0;
+            lastProcessSuppressionUpdateTick = Integer.MIN_VALUE;
         }
 
         private double computeTickMultiplier(double worldSleepRate, double speedFraction) {
             return 1.0D + Math.max(0.0D, worldSleepRate - 1.0D) * speedFraction;
+        }
+
+        private double normalizeNatureExtraAttempts(double rawNatureExtraAttemptsPerSection) {
+            if (rawNatureExtraAttemptsPerSection <= NATURE_WORKLOAD_KNEE_ATTEMPTS_PER_SECTION) {
+                return rawNatureExtraAttemptsPerSection;
+            }
+
+            double excess =
+                    rawNatureExtraAttemptsPerSection - NATURE_WORKLOAD_KNEE_ATTEMPTS_PER_SECTION;
+            double compressedExcess = NATURE_WORKLOAD_COMPRESSION_SCALE
+                    * Math.log1p(excess / NATURE_WORKLOAD_COMPRESSION_SCALE);
+            return NATURE_WORKLOAD_KNEE_ATTEMPTS_PER_SECTION + compressedExcess;
         }
 
         private double updateSmoothedValue(double current,
@@ -659,17 +1024,181 @@ public final class WorldSleepAccelerationManager {
             return WorldSleepAccelerationGovernorAction.AREA;
         }
 
-        private LongOpenHashSet unionChunkAreas(List<ServerPlayer> activePlayers, int radius) {
-            LongOpenHashSet chunks = new LongOpenHashSet();
-            for (ServerPlayer player : activePlayers) {
-                ChunkPos center = player.chunkPosition();
+        private void prepareCoverageCache(ResourceKey<Level> dimension,
+                                          WorldSleepAccelerationMode mode,
+                                          WorldSleepAccelerationPlayersAffected playersAffected,
+                                          int centerCount) {
+            boolean metadataUnchanged = dimension.equals(cachedCoverageDimension)
+                    && mode == cachedCoverageMode
+                    && playersAffected == cachedCoveragePlayersAffected;
+            if (metadataUnchanged && observedCoverageCentersMatch(centerCount)) {
+                return;
+            }
+            rememberObservedCoverageCenters(centerCount);
+
+            int uniqueCenterCount = 0;
+            if (centerCount == 1) {
+                uniqueCenterCount = 1;
+            } else if (centerCount > 1) {
+                Arrays.sort(coverageCenterScratch, 0, centerCount);
+                for (int index = 0; index < centerCount; index++) {
+                    long center = coverageCenterScratch[index];
+                    if (uniqueCenterCount == 0 || coverageCenterScratch[uniqueCenterCount - 1] != center) {
+                        coverageCenterScratch[uniqueCenterCount++] = center;
+                    }
+                }
+            }
+
+            boolean inputsUnchanged = metadataUnchanged
+                    && coverageCentersMatch(uniqueCenterCount);
+            if (inputsUnchanged) {
+                return;
+            }
+
+            // Sets already published through older statuses are never mutated. Clearing this
+            // map only drops the manager's references; old statuses remain valid.
+            coverageByRadius.clear();
+            cachedCoverageCenters = Arrays.copyOf(coverageCenterScratch, uniqueCenterCount);
+            cachedCoverageDimension = dimension;
+            cachedCoverageMode = mode;
+            cachedCoveragePlayersAffected = playersAffected;
+        }
+
+        private void ensureCoverageCenterScratchCapacity(int requiredCapacity) {
+            if (coverageCenterScratch.length >= requiredCapacity) {
+                return;
+            }
+            int grownCapacity = Math.max(requiredCapacity, Math.max(4, coverageCenterScratch.length * 2));
+            coverageCenterScratch = new long[grownCapacity];
+        }
+
+        private void ensureObservedCoverageCenterCapacity(int requiredCapacity) {
+            if (lastObservedCoverageCenters.length >= requiredCapacity) {
+                return;
+            }
+            int grownCapacity = Math.max(requiredCapacity, Math.max(4, lastObservedCoverageCenters.length * 2));
+            lastObservedCoverageCenters = new long[grownCapacity];
+        }
+
+        private boolean observedCoverageCentersMatch(int centerCount) {
+            if (lastObservedCoverageCenterCount != centerCount) {
+                return false;
+            }
+            for (int index = 0; index < centerCount; index++) {
+                if (lastObservedCoverageCenters[index] != coverageCenterScratch[index]) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        private void rememberObservedCoverageCenters(int centerCount) {
+            ensureObservedCoverageCenterCapacity(centerCount);
+            System.arraycopy(
+                    coverageCenterScratch,
+                    0,
+                    lastObservedCoverageCenters,
+                    0,
+                    centerCount
+            );
+            lastObservedCoverageCenterCount = centerCount;
+        }
+
+        private boolean coverageCentersMatch(int centerCount) {
+            if (cachedCoverageCenters.length != centerCount) {
+                return false;
+            }
+            for (int index = 0; index < centerCount; index++) {
+                if (cachedCoverageCenters[index] != coverageCenterScratch[index]) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        private boolean hasCoverageCacheState() {
+            return !coverageByRadius.isEmpty()
+                    || cachedCoverageCenters.length != 0
+                    || cachedCoverageDimension != null
+                    || cachedCoverageMode != null
+                    || cachedCoveragePlayersAffected != null;
+        }
+
+        private void clearCoverageCache() {
+            boolean effectiveClear = hasCoverageCacheState();
+            if (!effectiveClear && lastObservedCoverageCenterCount < 0) {
+                return;
+            }
+            coverageByRadius.clear();
+            cachedCoverageCenters = EMPTY_CHUNK_CENTERS;
+            cachedCoverageDimension = null;
+            cachedCoverageMode = null;
+            cachedCoveragePlayersAffected = null;
+            lastObservedCoverageCenterCount = -1;
+        }
+
+        private LongOpenHashSet getCoverageForRadius(int radius) {
+            LongOpenHashSet cached = coverageByRadius.get(radius);
+            if (cached != null) {
+                return cached;
+            }
+            LongOpenHashSet created = unionChunkAreas(radius);
+            coverageByRadius.put(radius, created);
+            return created;
+        }
+
+        private LongOpenHashSet unionChunkAreas(int radius) {
+            LongOpenHashSet chunks = new LongOpenHashSet(estimateCoverageCapacity(radius));
+            for (long packedCenter : cachedCoverageCenters) {
+                int centerX = (int) packedCenter;
+                int centerZ = (int) (packedCenter >>> 32);
                 for (int dx = -radius; dx <= radius; dx++) {
                     for (int dz = -radius; dz <= radius; dz++) {
-                        chunks.add(ChunkPos.asLong(center.x + dx, center.z + dz));
+                        chunks.add(ChunkPos.asLong(centerX + dx, centerZ + dz));
                     }
                 }
             }
             return chunks;
+        }
+
+        private int estimateCoverageCapacity(int radius) {
+            if (cachedCoverageCenters.length == 0 || radius < 0) {
+                return 0;
+            }
+            long sideLength = 2L * radius + 1L;
+            long chunksPerCenter = saturatedMultiply(sideLength, sideLength);
+            long disjointAreaEstimate = saturatedMultiply(
+                    chunksPerCenter,
+                    cachedCoverageCenters.length
+            );
+
+            int minX = Integer.MAX_VALUE;
+            int maxX = Integer.MIN_VALUE;
+            int minZ = Integer.MAX_VALUE;
+            int maxZ = Integer.MIN_VALUE;
+            for (long packedCenter : cachedCoverageCenters) {
+                int centerX = (int) packedCenter;
+                int centerZ = (int) (packedCenter >>> 32);
+                minX = Math.min(minX, centerX);
+                maxX = Math.max(maxX, centerX);
+                minZ = Math.min(minZ, centerZ);
+                maxZ = Math.max(maxZ, centerZ);
+            }
+            long boundingWidth = (long) maxX - minX + sideLength;
+            long boundingHeight = (long) maxZ - minZ + sideLength;
+            long boundingAreaEstimate = saturatedMultiply(boundingWidth, boundingHeight);
+            long estimatedChunks = Math.min(disjointAreaEstimate, boundingAreaEstimate);
+            return (int) Math.min(estimatedChunks, MAX_COVERAGE_PREALLOCATION_CHUNKS);
+        }
+
+        private long saturatedMultiply(long left, long right) {
+            if (left <= 0L || right <= 0L) {
+                return 0L;
+            }
+            if (left > Long.MAX_VALUE / right) {
+                return Long.MAX_VALUE;
+            }
+            return left * right;
         }
 
         private double inverseLerp(double min, double max, double value) {
@@ -692,12 +1221,12 @@ public final class WorldSleepAccelerationManager {
                 return;
             }
 
-            long sleepStartMillis = sleepState.getStartMillis();
-            if (sleepStartMillis <= 0L || sleepStartMillis == scheduledGovernorDebugStartMillis) {
+            long sleepStartGameTime = sleepState.getServerStartGameTime();
+            if (sleepStartGameTime <= 0L || sleepStartGameTime == scheduledGovernorDebugStartGameTime) {
                 return;
             }
 
-            scheduledGovernorDebugStartMillis = sleepStartMillis;
+            scheduledGovernorDebugStartGameTime = sleepStartGameTime;
             scheduledGovernorDebugTick = currentTick + GOVERNOR_DEBUG_DELAY_TICKS;
             governorDebugLoggedForCurrentSleep = false;
         }
@@ -730,7 +1259,7 @@ public final class WorldSleepAccelerationManager {
             WorldSleepAccelerationModuleStatus processStatus = diagnosticStatus.getProcess();
 
             Constants.debug(
-                    "Governor snapshot: mode={}, automaticMode={}, playersAffected={}, rate={}x, avgMspt={}, p95Mspt={}, rawPressure={}, smoothedPressure={}, players={}, simDist={}, processSuppressed={}",
+                    "Governor snapshot: mode={}, automaticMode={}, playersAffected={}, rate={}x, avgMspt={}, p95Mspt={}, rawPressure={}, smoothedPressure={}, players={}, simDist={}, natureSuppressed={}, processSuppressed={}",
                     diagnosticStatus.getMode(),
                     diagnosticStatus.getAutomaticMode(),
                     diagnosticStatus.getPlayersAffected(),
@@ -741,17 +1270,21 @@ public final class WorldSleepAccelerationManager {
                     formatPercent(governorSnapshot.getSmoothedPressure()),
                     diagnosticStatus.getActivePlayerCount(),
                     diagnosticStatus.getSimulationDistance(),
+                    diagnosticStatus.getNature().isTemporarilySuppressed(),
                     diagnosticStatus.isProcessesTemporarilySuppressed()
             );
 
             Constants.debug(
-                    "Governor result: nature[radius={}/{}, speed={}/{}%, extraAttempts={}, chunks={}] process[radius={}/{}, speed={}%, multiplier={}x, chunks={}, suppressed={}]",
+                    "Governor result: nature[radius={}/{}, speed={}/{}%, rawExtraAttempts={}, normalizedExtraAttempts={}, normalizerApplied={}, chunks={}, suppressed={}] process[radius={}/{}, speed={}%, multiplier={}x, chunks={}, suppressed={}]",
                     natureStatus.getEffectiveRadiusChunks(),
                     natureStatus.getConfiguredRadiusChunks(),
                     natureStatus.getEffectiveSpeedPercent(),
                     natureStatus.getConfiguredSpeedPercent(),
+                    formatDecimal(natureStatus.getRawNatureExtraAttemptsPerSection()),
                     formatDecimal(natureStatus.getExtraRandomTickAttemptsPerSection()),
+                    natureStatus.isNatureWorkloadNormalizationApplied(),
                     natureStatus.getCoveredChunkCount(),
+                    natureStatus.isTemporarilySuppressed(),
                     processStatus.getEffectiveRadiusChunks(),
                     processStatus.getConfiguredRadiusChunks(),
                     processStatus.getConfiguredSpeedPercent(),
@@ -764,7 +1297,7 @@ public final class WorldSleepAccelerationManager {
         }
 
         private void clearGovernorDebugSchedule() {
-            scheduledGovernorDebugStartMillis = Long.MIN_VALUE;
+            scheduledGovernorDebugStartGameTime = Long.MIN_VALUE;
             scheduledGovernorDebugTick = Integer.MIN_VALUE;
             governorDebugLoggedForCurrentSleep = false;
         }

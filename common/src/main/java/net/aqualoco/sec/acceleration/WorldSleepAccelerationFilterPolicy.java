@@ -4,44 +4,77 @@ import net.minecraft.world.level.block.state.BlockState;
 
 public final class WorldSleepAccelerationFilterPolicy {
     public static final WorldSleepAccelerationFilterPolicy DISABLED =
-            new WorldSleepAccelerationFilterPolicy(false, false, false, true);
+            new WorldSleepAccelerationFilterPolicy(false, false, false, false, true);
 
-    private final boolean grassAndFoliageEnabled;
-    private final boolean cropsAndSaplingsEnabled;
-    private final boolean kelpEnabled;
     private final boolean vanillaOnly;
+    private final int allowedCategoryMask;
+    private final int cacheKey;
 
     public WorldSleepAccelerationFilterPolicy(boolean grassAndFoliageEnabled,
                                               boolean cropsAndSaplingsEnabled,
+                                              boolean vinesAndBambooEnabled,
                                               boolean kelpEnabled,
                                               boolean vanillaOnly) {
-        this.grassAndFoliageEnabled = grassAndFoliageEnabled;
-        this.cropsAndSaplingsEnabled = cropsAndSaplingsEnabled;
-        this.kelpEnabled = kelpEnabled;
         this.vanillaOnly = vanillaOnly;
+        this.allowedCategoryMask = compileAllowedCategoryMask(
+                grassAndFoliageEnabled,
+                cropsAndSaplingsEnabled,
+                vinesAndBambooEnabled,
+                kelpEnabled
+        );
+        this.cacheKey = this.allowedCategoryMask | (vanillaOnly ? 1 << 8 : 0);
     }
 
-    public boolean isGrassAndFoliageEnabled() {
-        return grassAndFoliageEnabled;
+    public static int createCacheKey(boolean grassAndFoliageEnabled,
+                                     boolean cropsAndSaplingsEnabled,
+                                     boolean vinesAndBambooEnabled,
+                                     boolean kelpEnabled,
+                                     boolean vanillaOnly) {
+        return compileAllowedCategoryMask(
+                grassAndFoliageEnabled,
+                cropsAndSaplingsEnabled,
+                vinesAndBambooEnabled,
+                kelpEnabled
+        ) | (vanillaOnly ? 1 << 8 : 0);
     }
 
-    public boolean isCropsAndSaplingsEnabled() {
-        return cropsAndSaplingsEnabled;
-    }
-
-    public boolean isKelpEnabled() {
-        return kelpEnabled;
-    }
-
-    public boolean isVanillaOnly() {
-        return vanillaOnly;
+    private static int compileAllowedCategoryMask(boolean grassAndFoliageEnabled,
+                                                  boolean cropsAndSaplingsEnabled,
+                                                  boolean vinesAndBambooEnabled,
+                                                  boolean kelpEnabled) {
+        int compiledMask = 0;
+        if (grassAndFoliageEnabled) {
+            compiledMask |= WorldSleepRandomTickFilters.FLAG_GRASS_AND_FOLIAGE;
+        }
+        if (cropsAndSaplingsEnabled) {
+            compiledMask |= WorldSleepRandomTickFilters.FLAG_CROPS_AND_SAPLINGS;
+        }
+        if (vinesAndBambooEnabled) {
+            compiledMask |= WorldSleepRandomTickFilters.FLAG_VINES_AND_BAMBOO;
+        }
+        if (kelpEnabled) {
+            compiledMask |= WorldSleepRandomTickFilters.FLAG_KELP;
+        }
+        return compiledMask;
     }
 
     public boolean isAnyEnabled() {
-        return grassAndFoliageEnabled || cropsAndSaplingsEnabled || kelpEnabled;
+        return allowedCategoryMask != 0;
     }
 
     public boolean allows(BlockState state) {
-        return isAnyEnabled() && WorldSleepRandomTickFilters.isEligible(this, state);
+        return WorldSleepRandomTickFilters.isEligible(allowedCategoryMask, vanillaOnly, state);
+    }
+
+    public boolean mayContainRelevantState(BlockState state) {
+        return WorldSleepRandomTickFilters.mayContainRelevantState(
+                allowedCategoryMask,
+                vanillaOnly,
+                state
+        );
+    }
+
+    public int getCacheKey() {
+        return cacheKey;
     }
 }

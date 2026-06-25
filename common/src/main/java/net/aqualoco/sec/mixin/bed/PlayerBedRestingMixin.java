@@ -54,6 +54,12 @@ public abstract class PlayerBedRestingMixin implements BedRestingPlayer {
     @Unique
     private int seamlesssleep$clientBedLookUpdateTick;
 
+    @Unique
+    private int seamlesssleep$fallAsleepDelayCounter;
+
+    @Unique
+    private BlockPos seamlesssleep$fallAsleepDelayBedPos;
+
     @Inject(method = "defineSynchedData", at = @At("TAIL"))
     private void seamlesssleep$defineManagedSleepData(SynchedEntityData.Builder builder, CallbackInfo ci) {
         builder.define(seamlesssleep$COUNTED_FOR_SLEEP, false);
@@ -80,18 +86,23 @@ public abstract class PlayerBedRestingMixin implements BedRestingPlayer {
             if (this.seamlesssleep$isCountedForSleep()) {
                 this.seamlesssleep$setCountedForSleep(false);
             }
+            this.seamlesssleep$resetFallAsleepDelayCounter();
             return;
         }
 
         BlockPos bedPos = serverPlayer.getSleepingPos().orElse(null);
         boolean shouldCountForSleep = BedRestingHelper.canCountForSleep(serverPlayer, bedPos);
+        boolean shouldTrackFallAsleepDelay = shouldCountForSleep
+                || BedRestingHelper.canCountForMadeInHeaven(serverPlayer, bedPos);
 
         if (this.seamlesssleep$isCountedForSleep() == shouldCountForSleep) {
+            this.seamlesssleep$tickFallAsleepDelayCounter(bedPos, shouldTrackFallAsleepDelay);
             return;
         }
 
         this.sleepCounter = 0;
         BedRestingHelper.syncManagedSleepState(serverPlayer, shouldCountForSleep);
+        this.seamlesssleep$tickFallAsleepDelayCounter(bedPos, shouldTrackFallAsleepDelay);
     }
 
     @Inject(method = "stopSleepInBed", at = @At("HEAD"))
@@ -101,7 +112,12 @@ public abstract class PlayerBedRestingMixin implements BedRestingPlayer {
             return;
         }
 
-        BedRestingHelper.syncManagedSleepState(serverPlayer, false);
+        if (updateLevelForSleepingPlayers) {
+            BedRestingHelper.setManagedSleepStateWithoutSleepingListUpdate(serverPlayer, false);
+        } else {
+            BedRestingHelper.syncManagedSleepState(serverPlayer, false);
+        }
+        this.seamlesssleep$resetFallAsleepDelayCounter();
     }
 
     @Override
@@ -114,6 +130,24 @@ public abstract class PlayerBedRestingMixin implements BedRestingPlayer {
     public void seamlesssleep$setCountedForSleep(boolean countedForSleep) {
         Player self = (Player) (Object) this;
         self.getEntityData().set(seamlesssleep$COUNTED_FOR_SLEEP, countedForSleep);
+    }
+
+    @Override
+    public int seamlesssleep$getFallAsleepDelayCounter() {
+        return this.seamlesssleep$fallAsleepDelayCounter;
+    }
+
+    @Override
+    public void seamlesssleep$resetFallAsleepDelayCounter() {
+        this.seamlesssleep$fallAsleepDelayCounter = 0;
+        this.seamlesssleep$fallAsleepDelayBedPos = null;
+    }
+
+    @Override
+    public void seamlesssleep$incrementFallAsleepDelayCounter() {
+        if (this.seamlesssleep$fallAsleepDelayCounter < Integer.MAX_VALUE) {
+            this.seamlesssleep$fallAsleepDelayCounter++;
+        }
     }
 
     @Override
@@ -202,6 +236,19 @@ public abstract class PlayerBedRestingMixin implements BedRestingPlayer {
         this.seamlesssleep$clientTargetBedLookYaw = syncedYaw;
         this.seamlesssleep$clientTargetBedLookPitch = syncedPitch;
         this.seamlesssleep$clientBedLookUpdateTick = self.tickCount;
+    }
+
+    @Unique
+    private void seamlesssleep$tickFallAsleepDelayCounter(BlockPos bedPos, boolean shouldTrack) {
+        if (!shouldTrack || bedPos == null) {
+            this.seamlesssleep$resetFallAsleepDelayCounter();
+            return;
+        }
+        if (!bedPos.equals(this.seamlesssleep$fallAsleepDelayBedPos)) {
+            this.seamlesssleep$fallAsleepDelayBedPos = bedPos.immutable();
+            this.seamlesssleep$fallAsleepDelayCounter = 0;
+        }
+        this.seamlesssleep$incrementFallAsleepDelayCounter();
     }
 
     @Unique

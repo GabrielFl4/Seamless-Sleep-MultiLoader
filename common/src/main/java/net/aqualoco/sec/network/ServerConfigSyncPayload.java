@@ -1,8 +1,11 @@
 package net.aqualoco.sec.network;
 
 import net.aqualoco.sec.Constants;
+import net.aqualoco.sec.config.SeamlessSleepServerConfig;
+import net.aqualoco.sec.config.SleepEligibilityMode;
 import net.aqualoco.sec.config.WorldSleepAccelerationMode;
 import net.aqualoco.sec.config.WorldSleepAccelerationPlayersAffected;
+import net.aqualoco.sec.config.WorldSleepAccelerationConfig;
 import net.aqualoco.sec.config.WorldSleepAutomaticMode;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
@@ -12,6 +15,11 @@ import net.minecraft.resources.Identifier;
 // Packet used to mirror server config values on connected clients.
 public record ServerConfigSyncPayload(int sleepWeatherClearChancePercent,
                                       double sleepAnimationDurationMultiplier,
+                                      int fallAsleepDelayTicks,
+                                      boolean overrideOverlayText,
+                                      String overlayCustomText,
+                                      SleepEligibilityMode sleepEligibility,
+                                      int madeInHeavenChancePercent,
                                       int serverSimulationDistance,
                                       WorldSleepAccelerationMode worldSleepAccelerationMode,
                                       WorldSleepAutomaticMode worldSleepAutomaticMode,
@@ -23,7 +31,11 @@ public record ServerConfigSyncPayload(int sleepWeatherClearChancePercent,
                                       boolean kelpAccelerationEnabled,
                                       boolean vanillaOnlyAcceleration,
                                       boolean processesAccelerationEnabled,
-                                      int processesSpeedPercent) implements CustomPacketPayload {
+                                      int processesSpeedPercent,
+                                      boolean betterDaysCompatibilityEnabled,
+                                      boolean recheckIrrelevantNatureSectionsDuringAcceleration,
+                                      boolean worldSleepAccelerationTelemetryEnabled,
+                                      boolean vinesAndBambooAccelerationEnabled) implements CustomPacketPayload {
 
     public static final Type<ServerConfigSyncPayload> ID =
             new Type<>(Identifier.fromNamespaceAndPath(Constants.MOD_ID, "server_config_sync"));
@@ -34,6 +46,14 @@ public record ServerConfigSyncPayload(int sleepWeatherClearChancePercent,
     private static void write(ServerConfigSyncPayload payload, FriendlyByteBuf buf) {
         buf.writeVarInt(payload.sleepWeatherClearChancePercent());
         buf.writeDouble(payload.sleepAnimationDurationMultiplier());
+        buf.writeVarInt(payload.fallAsleepDelayTicks());
+        buf.writeBoolean(payload.overrideOverlayText());
+        buf.writeUtf(SeamlessSleepServerConfig.sanitizeOverlayText(payload.overlayCustomText()), 128);
+        SleepEligibilityMode eligibility = payload.sleepEligibility() == null
+                ? SleepEligibilityMode.VANILLA
+                : payload.sleepEligibility();
+        buf.writeUtf(eligibility.name());
+        buf.writeVarInt(payload.madeInHeavenChancePercent());
         buf.writeVarInt(payload.serverSimulationDistance());
         buf.writeUtf(payload.worldSleepAccelerationMode().name());
         buf.writeUtf(payload.worldSleepAutomaticMode().name());
@@ -46,11 +66,101 @@ public record ServerConfigSyncPayload(int sleepWeatherClearChancePercent,
         buf.writeBoolean(payload.vanillaOnlyAcceleration());
         buf.writeBoolean(payload.processesAccelerationEnabled());
         buf.writeVarInt(payload.processesSpeedPercent());
+        buf.writeBoolean(payload.betterDaysCompatibilityEnabled());
+        buf.writeBoolean(payload.recheckIrrelevantNatureSectionsDuringAcceleration());
+        buf.writeBoolean(payload.worldSleepAccelerationTelemetryEnabled());
+        buf.writeBoolean(payload.vinesAndBambooAccelerationEnabled());
     }
 
     private static ServerConfigSyncPayload read(FriendlyByteBuf buf) {
         int weatherClearChancePercent = buf.readVarInt();
         double durationMultiplier = buf.readDouble();
+        int bodyStartIndex = buf.readerIndex();
+        try {
+            if (looksLikeLegacyBody(buf)) {
+                return readLegacyBody(buf, weatherClearChancePercent, durationMultiplier);
+            }
+            return readCurrentBody(buf, weatherClearChancePercent, durationMultiplier);
+        } catch (RuntimeException currentFailure) {
+            buf.readerIndex(bodyStartIndex);
+            return readLegacyBody(buf, weatherClearChancePercent, durationMultiplier);
+        }
+    }
+
+    private static ServerConfigSyncPayload readCurrentBody(FriendlyByteBuf buf,
+                                                           int weatherClearChancePercent,
+                                                           double durationMultiplier) {
+        int fallAsleepDelayTicks = buf.readVarInt();
+        boolean overrideOverlayText = buf.readBoolean();
+        String overlayCustomText = buf.readUtf(128);
+        SleepEligibilityMode sleepEligibility = readEnum(buf, SleepEligibilityMode.class, SleepEligibilityMode.VANILLA);
+        int madeInHeavenChancePercent = buf.readVarInt();
+        int serverSimulationDistance = buf.readVarInt();
+        WorldSleepAccelerationMode mode = readEnum(
+                buf,
+                WorldSleepAccelerationMode.class,
+                WorldSleepAccelerationMode.AUTOMATIC
+        );
+        WorldSleepAutomaticMode automaticMode = readEnum(
+                buf,
+                WorldSleepAutomaticMode.class,
+                WorldSleepAutomaticMode.AGGRESSIVE
+        );
+        WorldSleepAccelerationPlayersAffected playersAffected = readEnum(
+                buf,
+                WorldSleepAccelerationPlayersAffected.class,
+                WorldSleepAccelerationPlayersAffected.ALL_PLAYERS
+        );
+        int manualRadius = buf.readVarInt();
+        int manualSpeed = buf.readVarInt();
+        boolean grassAndFoliageEnabled = buf.readBoolean();
+        boolean cropsAndSaplingsEnabled = buf.readBoolean();
+        boolean kelpEnabled = buf.readBoolean();
+        boolean vanillaOnlyAcceleration = buf.readBoolean();
+        boolean processesEnabled = buf.readBoolean();
+        int processesSpeedPercent = buf.readVarInt();
+        boolean betterDaysCompatibilityEnabled = buf.readableBytes() > 0
+                ? buf.readBoolean()
+                : SeamlessSleepServerConfig.DEFAULT_BETTER_DAYS_COMPATIBILITY_ENABLED;
+        boolean recheckIrrelevantNatureSections = buf.readableBytes() > 0
+                ? buf.readBoolean()
+                : WorldSleepAccelerationConfig.DEFAULT_RECHECK_IRRELEVANT_NATURE_SECTIONS_DURING_ACCELERATION;
+        boolean accelerationTelemetryEnabled = buf.readableBytes() > 0
+                ? buf.readBoolean()
+                : WorldSleepAccelerationConfig.DEFAULT_ACCELERATION_TELEMETRY_ENABLED;
+        boolean vinesAndBambooEnabled = buf.readableBytes() > 0
+                ? buf.readBoolean()
+                : WorldSleepAccelerationConfig.DEFAULT_VINES_AND_BAMBOO_ACCELERATION_ENABLED;
+        return new ServerConfigSyncPayload(
+                weatherClearChancePercent,
+                durationMultiplier,
+                fallAsleepDelayTicks,
+                overrideOverlayText,
+                overlayCustomText,
+                sleepEligibility,
+                madeInHeavenChancePercent,
+                serverSimulationDistance,
+                mode,
+                automaticMode,
+                playersAffected,
+                manualRadius,
+                manualSpeed,
+                grassAndFoliageEnabled,
+                cropsAndSaplingsEnabled,
+                kelpEnabled,
+                vanillaOnlyAcceleration,
+                processesEnabled,
+                processesSpeedPercent,
+                betterDaysCompatibilityEnabled,
+                recheckIrrelevantNatureSections,
+                accelerationTelemetryEnabled,
+                vinesAndBambooEnabled
+        );
+    }
+
+    private static ServerConfigSyncPayload readLegacyBody(FriendlyByteBuf buf,
+                                                          int weatherClearChancePercent,
+                                                          double durationMultiplier) {
         int serverSimulationDistance = buf.readVarInt();
         WorldSleepAccelerationMode mode = readEnum(
                 buf,
@@ -78,6 +188,11 @@ public record ServerConfigSyncPayload(int sleepWeatherClearChancePercent,
         return new ServerConfigSyncPayload(
                 weatherClearChancePercent,
                 durationMultiplier,
+                SeamlessSleepServerConfig.DEFAULT_FALL_ASLEEP_DELAY_TICKS,
+                false,
+                SeamlessSleepServerConfig.DEFAULT_OVERLAY_CUSTOM_TEXT,
+                SleepEligibilityMode.VANILLA,
+                0,
                 serverSimulationDistance,
                 mode,
                 automaticMode,
@@ -89,8 +204,27 @@ public record ServerConfigSyncPayload(int sleepWeatherClearChancePercent,
                 kelpEnabled,
                 vanillaOnlyAcceleration,
                 processesEnabled,
-                processesSpeedPercent
+                processesSpeedPercent,
+                SeamlessSleepServerConfig.DEFAULT_BETTER_DAYS_COMPATIBILITY_ENABLED,
+                WorldSleepAccelerationConfig.DEFAULT_RECHECK_IRRELEVANT_NATURE_SECTIONS_DURING_ACCELERATION,
+                WorldSleepAccelerationConfig.DEFAULT_ACCELERATION_TELEMETRY_ENABLED,
+                WorldSleepAccelerationConfig.DEFAULT_VINES_AND_BAMBOO_ACCELERATION_ENABLED
         );
+    }
+
+    private static boolean looksLikeLegacyBody(FriendlyByteBuf buf) {
+        int bodyStartIndex = buf.readerIndex();
+        try {
+            buf.readVarInt();
+            if (buf.readableBytes() <= 0) {
+                return false;
+            }
+
+            int nextByte = buf.readByte() & 0xFF;
+            return nextByte != 0 && nextByte != 1;
+        } finally {
+            buf.readerIndex(bodyStartIndex);
+        }
     }
 
     @Override

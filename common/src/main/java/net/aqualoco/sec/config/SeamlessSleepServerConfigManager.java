@@ -15,7 +15,7 @@ public final class SeamlessSleepServerConfigManager {
     private static final String FILE_NAME = "seamless_sleep-server.toml";
     private static final String LEGACY_JSON_FILE_NAME = "seamless_sleep-server.json";
     private static final String LEGACY_JSONC_FILE_NAME = "seamless_sleep-server.jsonc";
-    private static final int CONFIG_VERSION = 5;
+    private static final int CONFIG_VERSION = 10;
 
     public enum ReloadResult {
         SUCCESS,
@@ -23,8 +23,24 @@ public final class SeamlessSleepServerConfigManager {
         ERROR
     }
 
+    public record ReloadReport(ReloadResult status,
+                               Path path,
+                               boolean loadedDefaults,
+                               boolean createdFile,
+                               boolean savedCanonicalFile,
+                               String message) {
+    }
+
     private static SeamlessSleepServerConfig config = defaultConfig();
     private static Path configPath;
+    private static ReloadReport lastReloadReport = new ReloadReport(
+            ReloadResult.SUCCESS,
+            null,
+            false,
+            false,
+            false,
+            "Server config has not been reloaded during this run."
+    );
 
     private SeamlessSleepServerConfigManager() {
     }
@@ -55,12 +71,35 @@ public final class SeamlessSleepServerConfigManager {
     }
 
     public static ReloadResult reloadWithStatus() {
+        return reloadWithReport().status();
+    }
+
+    public static ReloadReport reloadWithReport() {
         if (configPath == null) {
             configPath = Services.PLATFORM.getConfigDir().resolve(FILE_NAME);
         }
         LoadResult result = loadOrCreate(configPath);
         config = result.config;
-        return result.status;
+        lastReloadReport = new ReloadReport(
+                result.status,
+                configPath,
+                result.status == ReloadResult.ERROR || result.status == ReloadResult.CREATED,
+                result.status == ReloadResult.CREATED,
+                true,
+                reloadMessage(result.status)
+        );
+        return lastReloadReport;
+    }
+
+    public static ReloadReport lastReloadReport() {
+        return lastReloadReport;
+    }
+
+    public static Path configPath() {
+        if (configPath == null) {
+            configPath = Services.PLATFORM.getConfigDir().resolve(FILE_NAME);
+        }
+        return configPath;
     }
 
     private static LoadResult loadOrCreate(Path path) {
@@ -110,6 +149,14 @@ public final class SeamlessSleepServerConfigManager {
         return new SeamlessSleepServerConfig();
     }
 
+    private static String reloadMessage(ReloadResult result) {
+        return switch (result) {
+            case SUCCESS -> "Server config reloaded and canonical TOML was written.";
+            case CREATED -> "Server config was missing; defaults were created and loaded.";
+            case ERROR -> "Server config failed to load; defaults were loaded and written.";
+        };
+    }
+
     private static CommentedFileConfig openConfig(Path path) {
         return CommentedFileConfig.builder(path, TomlFormat.instance())
                 .sync()
@@ -126,13 +173,54 @@ public final class SeamlessSleepServerConfigManager {
                 "sleepAnimationDurationMultiplier",
                 cfg.sleepAnimationDurationMultiplier
         );
+        cfg.fallAsleepDelayTicks = readInt(
+                file,
+                List.of("sleep", "fall_asleep_delay_ticks"),
+                "fallAsleepDelayTicks",
+                cfg.fallAsleepDelayTicks
+        );
+        cfg.overrideOverlayText = readBoolean(
+                file,
+                List.of("sleep", "text_indicator_override"),
+                List.of("sleep", "override_overlay_text"),
+                "overrideOverlayText",
+                cfg.overrideOverlayText
+        );
+        cfg.overlayCustomText = readString(
+                file,
+                List.of("sleep", "text_indicator_custom_text"),
+                List.of("sleep", "overlay_custom_text"),
+                "overlayCustomText",
+                cfg.overlayCustomText
+        );
+        cfg.sleepEligibility = readEnum(
+                file,
+                List.of("sleep", "sleep_eligibility"),
+                "sleepEligibility",
+                SleepEligibilityMode.class,
+                cfg.sleepEligibility
+        );
+        cfg.madeInHeavenChancePercent = readInt(
+                file,
+                List.of("easter_eggs", "made_in_heaven_chance_percent"),
+                "madeInHeavenChancePercent",
+                cfg.madeInHeavenChancePercent
+        );
+        cfg.betterDaysCompatibilityEnabled = readBoolean(
+                file,
+                List.of("compatibility", "better_days_sleep_compatibility_enabled"),
+                "betterDaysCompatibilityEnabled",
+                cfg.betterDaysCompatibilityEnabled
+        );
         readWorldSleepAcceleration(file, cfg.worldSleepAcceleration);
         cfg.clamp();
         return cfg;
     }
 
     private static void readWorldSleepAcceleration(CommentedFileConfig file, WorldSleepAccelerationConfig cfg) {
-        LegacyAccelerationData legacy = readLegacyAccelerationData(file);
+        LegacyAccelerationData legacy = hasLegacyAccelerationData(file)
+                ? readLegacyAccelerationData(file)
+                : currentAccelerationData(cfg);
 
         cfg.mode = readAccelerationMode(
                 file,
@@ -176,6 +264,12 @@ public final class SeamlessSleepServerConfigManager {
                 "worldSleepAccelerationCropsAndSaplingsEnabled",
                 legacy.cropsAndSaplingsEnabled
         );
+        cfg.vinesAndBambooAccelerationEnabled = readBoolean(
+                file,
+                List.of("world_sleep_acceleration", "vines_and_bamboo_acceleration_enabled"),
+                "worldSleepAccelerationVinesAndBambooEnabled",
+                cfg.vinesAndBambooAccelerationEnabled
+        );
         cfg.kelpAccelerationEnabled = readBoolean(
                 file,
                 List.of("world_sleep_acceleration", "kelp_acceleration_enabled"),
@@ -187,6 +281,18 @@ public final class SeamlessSleepServerConfigManager {
                 List.of("world_sleep_acceleration", "vanilla_only_acceleration"),
                 "worldSleepAccelerationVanillaOnly",
                 legacy.vanillaOnlyAcceleration
+        );
+        cfg.recheckIrrelevantNatureSectionsDuringAcceleration = readBoolean(
+                file,
+                List.of("world_sleep_acceleration", "recheck_irrelevant_nature_sections_during_acceleration"),
+                "recheckIrrelevantNatureSectionsDuringAcceleration",
+                cfg.recheckIrrelevantNatureSectionsDuringAcceleration
+        );
+        cfg.accelerationTelemetryEnabled = readBoolean(
+                file,
+                List.of("world_sleep_acceleration", "telemetry_enabled"),
+                "worldSleepAccelerationTelemetryEnabled",
+                cfg.accelerationTelemetryEnabled
         );
         cfg.processesAccelerationEnabled = readBoolean(
                 file,
@@ -200,6 +306,46 @@ public final class SeamlessSleepServerConfigManager {
                 "worldSleepAccelerationProcessesSpeedPercent",
                 legacy.processesSpeedPercent
         );
+    }
+
+    private static LegacyAccelerationData currentAccelerationData(WorldSleepAccelerationConfig cfg) {
+        return new LegacyAccelerationData(
+                cfg.mode,
+                cfg.automaticMode,
+                cfg.playersAffected,
+                cfg.manualAccelerationRadiusChunks,
+                cfg.manualAccelerationSpeedPercent,
+                cfg.grassAndFoliageAccelerationEnabled,
+                cfg.cropsAndSaplingsAccelerationEnabled,
+                cfg.kelpAccelerationEnabled,
+                cfg.vanillaOnlyAcceleration,
+                cfg.processesAccelerationEnabled,
+                cfg.processesSpeedPercent
+        );
+    }
+
+    private static boolean hasLegacyAccelerationData(CommentedFileConfig file) {
+        return hasRaw(file, List.of("world_sleep_acceleration", "preset"))
+                || hasRaw(file, List.of("world_sleep_acceleration", "random_tick_acceleration_enabled"))
+                || hasRaw(file, List.of("world_sleep_acceleration", "process_acceleration_enabled"))
+                || hasRaw(file, List.of("world_sleep_acceleration", "nature_filter_profile"))
+                || hasLegacyModuleData(file, List.of("world_sleep_acceleration", "nature"), "worldSleepAccelerationNature")
+                || hasLegacyModuleData(file, List.of("world_sleep_acceleration", "process"), "worldSleepAccelerationProcess")
+                || hasRaw(file, "worldSleepAccelerationPreset")
+                || hasRaw(file, "worldSleepAccelerationRandomTickEnabled")
+                || hasRaw(file, "worldSleepAccelerationProcessEnabled")
+                || hasRaw(file, "worldSleepAccelerationNatureFilterProfile");
+    }
+
+    private static boolean hasLegacyModuleData(CommentedFileConfig file, List<String> pathPrefix, String legacyPrefix) {
+        return hasRaw(file, append(pathPrefix, "base_radius_chunks"))
+                || hasRaw(file, append(pathPrefix, "auto_min_radius_chunks"))
+                || hasRaw(file, append(pathPrefix, "base_rate_fraction"))
+                || hasRaw(file, append(pathPrefix, "auto_min_rate_fraction"))
+                || hasRaw(file, legacyPrefix + "BaseRadiusChunks")
+                || hasRaw(file, legacyPrefix + "AutoMinRadiusChunks")
+                || hasRaw(file, legacyPrefix + "BaseRateFraction")
+                || hasRaw(file, legacyPrefix + "AutoMinRateFraction");
     }
 
     private static LegacyAccelerationData readLegacyAccelerationData(CommentedFileConfig file) {
@@ -243,6 +389,8 @@ public final class SeamlessSleepServerConfigManager {
                 legacyNature
         );
         WorldSleepAccelerationModuleConfig legacyProcess = new WorldSleepAccelerationModuleConfig();
+        legacyProcess.baseRateFraction = 1.0D;
+        legacyProcess.autoMinRateFraction = 0.25D;
         readLegacyModuleConfig(
                 file,
                 List.of("world_sleep_acceleration", "process"),
@@ -354,6 +502,36 @@ public final class SeamlessSleepServerConfigManager {
                 "Sleep animation duration multiplier. Range: 0.25 to 8.0. Default: 1.0",
                 "sleepAnimationDurationMultiplier",
                 Double.toString(cfg.sleepAnimationDurationMultiplier));
+        appendEntry(sb,
+                "Ticks a counted player must stay in bed before counting as deep asleep. Range: 0 to 200. 100=vanilla",
+                "fall_asleep_delay_ticks",
+                Integer.toString(cfg.fallAsleepDelayTicks));
+        appendEntry(sb,
+                "When true, the Text indicator uses text_indicator_custom_text for normal Night/Day/Storm skips",
+                "text_indicator_override",
+                Boolean.toString(cfg.overrideOverlayText));
+        appendEntry(sb,
+                "Plain global Text indicator text. Max 128 characters. Formatting codes are stripped",
+                "text_indicator_custom_text",
+                toTomlString(cfg.overlayCustomText));
+        appendEntry(sb,
+                "Sleep eligibility policy. Values: INSOMNIA, VANILLA, DAY_INCLUDED. Default: VANILLA. Legacy manual value ALWAYS is still accepted",
+                "sleep_eligibility",
+                toTomlString(cfg.sleepEligibility.name()));
+
+        appendSectionGap(sb, 1);
+        appendSectionHeader(sb, "easter_eggs");
+        appendEntry(sb,
+                "Chance for bed sleep to use Made In Heaven. Range: 0 to 100. 0=off",
+                "made_in_heaven_chance_percent",
+                Integer.toString(cfg.madeInHeavenChancePercent));
+
+        appendSectionGap(sb, 1);
+        appendSectionHeader(sb, "compatibility");
+        appendEntry(sb,
+                "When true, Seamless Sleep disables Better Days sleep features while leaving Better Days day/night duration active",
+                "better_days_sleep_compatibility_enabled",
+                Boolean.toString(cfg.betterDaysCompatibilityEnabled));
 
         appendSectionGap(sb, 1);
         appendSectionHeader(sb, "world_sleep_acceleration");
@@ -378,13 +556,17 @@ public final class SeamlessSleepServerConfigManager {
                 "manual_speed_percent",
                 Integer.toString(cfg.worldSleepAcceleration.manualAccelerationSpeedPercent));
         appendEntry(sb,
-                "Enable safe grass, spreadables and foliage acceleration for random ticks",
+                "Enable grass, spreadables, foliage and copper weathering acceleration. Heavy in dense natural worlds. Default: false",
                 "grass_and_foliage_acceleration_enabled",
                 Boolean.toString(cfg.worldSleepAcceleration.grassAndFoliageAccelerationEnabled));
         appendEntry(sb,
                 "Enable crop, farm and sapling acceleration for random ticks",
                 "crops_and_saplings_acceleration_enabled",
                 Boolean.toString(cfg.worldSleepAcceleration.cropsAndSaplingsAccelerationEnabled));
+        appendEntry(sb,
+                "Enable bamboo, jungle vines and cave vines/glow berry acceleration. Can be heavy in jungles and lush caves. Default: false",
+                "vines_and_bamboo_acceleration_enabled",
+                Boolean.toString(cfg.worldSleepAcceleration.vinesAndBambooAccelerationEnabled));
         appendEntry(sb,
                 "Enable kelp acceleration for random ticks",
                 "kelp_acceleration_enabled",
@@ -393,6 +575,14 @@ public final class SeamlessSleepServerConfigManager {
                 "When true, only vanilla blocks remain eligible for nature acceleration. Default: false",
                 "vanilla_only_acceleration",
                 Boolean.toString(cfg.worldSleepAcceleration.vanillaOnlyAcceleration));
+        appendEntry(sb,
+                "When true, nature sections marked irrelevant are rechecked every 20 ticks during the same acceleration session. Default: false",
+                "recheck_irrelevant_nature_sections_during_acceleration",
+                Boolean.toString(cfg.worldSleepAcceleration.recheckIrrelevantNatureSectionsDuringAcceleration));
+        appendEntry(sb,
+                "Collect detailed world acceleration counters for /sleep acceleration status. Adds hot-path diagnostic bookkeeping. Default: false",
+                "telemetry_enabled",
+                Boolean.toString(cfg.worldSleepAcceleration.accelerationTelemetryEnabled));
         appendEntry(sb,
                 "Enable furnace, smoker and blast furnace acceleration during sleep",
                 "processes_acceleration_enabled",
@@ -452,7 +642,7 @@ public final class SeamlessSleepServerConfigManager {
             return fallback;
         }
         return switch (string.trim().toUpperCase()) {
-            case "OFF" -> WorldSleepAccelerationMode.OFF;
+            case "NONE", "OFF" -> WorldSleepAccelerationMode.OFF;
             case "AUTO", "AUTOMATIC" -> WorldSleepAccelerationMode.AUTOMATIC;
             case "CUSTOM", "MANUAL" -> WorldSleepAccelerationMode.MANUAL;
             default -> fallback;
@@ -541,8 +731,42 @@ public final class SeamlessSleepServerConfigManager {
         return value instanceof Number number ? number.intValue() : fallback;
     }
 
+    private static String readString(CommentedFileConfig file, List<String> path, String legacyKey, String fallback) {
+        Object value = readRaw(file, path, legacyKey);
+        return value instanceof String string ? string : fallback;
+    }
+
+    private static String readString(CommentedFileConfig file,
+                                     List<String> path,
+                                     List<String> legacyPath,
+                                     String legacyKey,
+                                     String fallback) {
+        Object value = readRaw(file, path, legacyPath, legacyKey);
+        return value instanceof String string ? string : fallback;
+    }
+
     private static boolean readBoolean(CommentedFileConfig file, List<String> path, String legacyKey, boolean fallback) {
         Object value = readRaw(file, path, legacyKey);
+        if (value instanceof Boolean bool) {
+            return bool;
+        }
+        if (value instanceof String string) {
+            if (string.equalsIgnoreCase("true")) {
+                return true;
+            }
+            if (string.equalsIgnoreCase("false")) {
+                return false;
+            }
+        }
+        return fallback;
+    }
+
+    private static boolean readBoolean(CommentedFileConfig file,
+                                       List<String> path,
+                                       List<String> legacyPath,
+                                       String legacyKey,
+                                       boolean fallback) {
+        Object value = readRaw(file, path, legacyPath, legacyKey);
         if (value instanceof Boolean bool) {
             return bool;
         }
@@ -576,6 +800,23 @@ public final class SeamlessSleepServerConfigManager {
 
     private static Object readRaw(CommentedFileConfig file, List<String> path, String legacyKey) {
         Object value = file.getRaw(path);
+        return value != null ? value : file.getRaw(legacyKey);
+    }
+
+    private static boolean hasRaw(CommentedFileConfig file, List<String> path) {
+        return file.getRaw(path) != null;
+    }
+
+    private static boolean hasRaw(CommentedFileConfig file, String key) {
+        return file.getRaw(key) != null;
+    }
+
+    private static Object readRaw(CommentedFileConfig file, List<String> path, List<String> legacyPath, String legacyKey) {
+        Object value = file.getRaw(path);
+        if (value != null) {
+            return value;
+        }
+        value = file.getRaw(legacyPath);
         return value != null ? value : file.getRaw(legacyKey);
     }
 

@@ -1,6 +1,7 @@
 package net.aqualoco.sec.mixin.bed;
 
 import net.aqualoco.sec.bed.BedRestingHelper;
+import net.aqualoco.sec.compat.VivecraftCompat;
 import net.minecraft.server.level.ServerPlayer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
@@ -24,7 +25,8 @@ public abstract class ServerPlayerBedRestingMixin {
     @Inject(method = "stopSleepInBed", at = @At("HEAD"))
     private void seamlesssleep$captureWakeLook(boolean wakeImmediately, boolean updateLevelForSleepingPlayers, CallbackInfo ci) {
         ServerPlayer self = (ServerPlayer) (Object) this;
-        this.seamlesssleep$preserveWakeLook = BedRestingHelper.isManagedBedStateServer(self);
+        this.seamlesssleep$preserveWakeLook = BedRestingHelper.isManagedBedStateServer(self)
+                && !VivecraftCompat.isServerVrActive(self);
         if (!this.seamlesssleep$preserveWakeLook) {
             return;
         }

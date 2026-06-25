@@ -1,10 +1,12 @@
 package net.aqualoco.sec;
 
-import net.aqualoco.sec.config.SeamlessSleepServerConfig;
-import net.aqualoco.sec.config.SeamlessSleepServerConfigManager;
-import net.aqualoco.sec.network.ServerConfigSyncPayload;
+import net.aqualoco.sec.handshake.ServerSeamlessClientPresenceManager;
+import net.aqualoco.sec.network.SleepAnimationNetworking;
+import net.fabricmc.fabric.api.entity.event.v1.ServerEntityWorldChangeEvents;
+import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 
 // Fabric-side server event hooks used to sync config to players when they join.
 final class SeamlessSleepServerEvents {
@@ -13,25 +15,29 @@ final class SeamlessSleepServerEvents {
     }
 
     static void register() {
-        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
-            SeamlessSleepServerConfig cfg = SeamlessSleepServerConfigManager.get();
-            ServerPlayNetworking.send(handler.getPlayer(),
-                    new ServerConfigSyncPayload(
-                            cfg.sleepWeatherClearChancePercent,
-                            cfg.sleepAnimationDurationMultiplier,
-                            Math.max(1, server.getPlayerList().getSimulationDistance()),
-                            cfg.worldSleepAcceleration.mode,
-                            cfg.worldSleepAcceleration.automaticMode,
-                            cfg.worldSleepAcceleration.playersAffected,
-                            cfg.worldSleepAcceleration.manualAccelerationRadiusChunks,
-                            cfg.worldSleepAcceleration.manualAccelerationSpeedPercent,
-                            cfg.worldSleepAcceleration.grassAndFoliageAccelerationEnabled,
-                            cfg.worldSleepAcceleration.cropsAndSaplingsAccelerationEnabled,
-                            cfg.worldSleepAcceleration.kelpAccelerationEnabled,
-                            cfg.worldSleepAcceleration.vanillaOnlyAcceleration,
-                            cfg.worldSleepAcceleration.processesAccelerationEnabled,
-                            cfg.worldSleepAcceleration.processesSpeedPercent
-                    ));
-        });
+        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
+                ServerSeamlessClientPresenceManager.beginHandshake(handler.getPlayer()));
+
+        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) ->
+                ServerSeamlessClientPresenceManager.handleDisconnect(handler.getPlayer()));
+
+        ServerEntityWorldChangeEvents.AFTER_PLAYER_CHANGE_WORLD.register(
+                (player, origin, destination) -> {
+                    if (ServerSeamlessClientPresenceManager.isConfirmed(player)) {
+                        SleepAnimationNetworking.sendActiveSnapshotToPlayer(player);
+                    }
+                }
+        );
+
+        ServerPlayerEvents.AFTER_RESPAWN.register(
+                (oldPlayer, newPlayer, alive) -> {
+                    if (ServerSeamlessClientPresenceManager.isConfirmed(newPlayer)) {
+                        SleepAnimationNetworking.sendActiveSnapshotToPlayer(newPlayer);
+                    }
+                }
+        );
+
+        ServerTickEvents.END_SERVER_TICK.register(ServerSeamlessClientPresenceManager::tick);
+        ServerLifecycleEvents.SERVER_STOPPING.register(server -> ServerSeamlessClientPresenceManager.reset());
     }
 }

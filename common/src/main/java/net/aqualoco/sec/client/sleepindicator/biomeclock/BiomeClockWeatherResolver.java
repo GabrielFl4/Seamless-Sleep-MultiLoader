@@ -22,7 +22,7 @@ public final class BiomeClockWeatherResolver {
         }
         boolean thundering = thunderLevel > WEATHER_THUNDER_THRESHOLD;
 
-        if (context.biomeClockCategory() == BiomeClockCategory.SNOW) {
+        if (usesSnowPrecipitation(context)) {
             return thundering ? BiomeClockWeatherKind.SNOW_THUNDER : BiomeClockWeatherKind.SNOW;
         }
 
@@ -41,5 +41,21 @@ public final class BiomeClockWeatherResolver {
             return 1.0F;
         }
         return value;
+    }
+
+    private static boolean usesSnowPrecipitation(SleepIndicatorContext context) {
+        if (context == null || isDeepFrozenOcean(context.rawBiomeId())) {
+            return false;
+        }
+
+        BiomeClockCategory category = context.biomeClockCategory();
+        return category == BiomeClockCategory.SNOW_PLAINS
+                || category == BiomeClockCategory.ICE_PLAINS
+                || category == BiomeClockCategory.RIVER_FROZEN
+                || category == BiomeClockCategory.OCEAN_FROZEN;
+    }
+
+    private static boolean isDeepFrozenOcean(String rawBiomeId) {
+        return rawBiomeId != null && rawBiomeId.endsWith(":deep_frozen_ocean");
     }
 }

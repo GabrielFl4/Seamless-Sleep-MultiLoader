@@ -26,7 +26,7 @@ public final class ReplayModCompat {
     }
 
     public static boolean isReplayPlaybackActive() {
-        if (!Services.PLATFORM.isModLoaded(REPLAY_MOD_ID)) {
+        if (!ModPresenceHolder.PRESENT) {
             return false;
         }
 
@@ -39,7 +39,7 @@ public final class ReplayModCompat {
     }
 
     public static OptionalLong getReplayTimelineMillis() {
-        if (!Services.PLATFORM.isModLoaded(REPLAY_MOD_ID)) {
+        if (!ModPresenceHolder.PRESENT) {
             return OptionalLong.empty();
         }
 
@@ -113,5 +113,9 @@ public final class ReplayModCompat {
             loggedInvocationFailure = true;
             Constants.debug("ReplayMod reflection bridge invocation failed.", e);
         }
+    }
+
+    private static final class ModPresenceHolder {
+        private static final boolean PRESENT = Services.PLATFORM.isModLoaded(REPLAY_MOD_ID);
     }
 }

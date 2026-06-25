@@ -3,7 +3,6 @@ package net.aqualoco.sec.mixin.bed;
 import com.mojang.datafixers.util.Either;
 import net.aqualoco.sec.bed.BedRestingHelper;
 import net.minecraft.core.BlockPos;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Unit;
 import net.minecraft.world.entity.player.Player;
@@ -27,14 +26,15 @@ public abstract class BedBlockRestingMixin {
             )
     )
     private Either<Player.BedSleepingProblem, Unit> seamlesssleep$startManagedSleep(Player player, BlockPos bedPos, BlockState state, Level level, BlockPos pos, Player ignoredPlayer, BlockHitResult hitResult) {
-        if (!(player instanceof ServerPlayer serverPlayer) || !BedRestingHelper.isOverworldWorkflow(player)) {
+        if (!(player instanceof ServerPlayer serverPlayer)
+                || !BedRestingHelper.isManagedBedWorkflowSupported(player, bedPos)) {
             return player.startSleepInBed(bedPos);
         }
 
         Either<Player.BedSleepingProblem, Unit> sleepResult = player.startSleepInBed(bedPos);
         if (sleepResult.right().isPresent()) {
             BedRestingHelper.initializeAuthoritativeBedLook(serverPlayer, bedPos);
-            BedRestingHelper.syncManagedSleepState(serverPlayer, true);
+            BedRestingHelper.syncManagedSleepState(serverPlayer, BedRestingHelper.canCountForSleep(serverPlayer, bedPos));
             BedRestingHelper.showLeaveBedHint(serverPlayer);
             return sleepResult;
         }
@@ -46,9 +46,12 @@ public abstract class BedBlockRestingMixin {
 
         serverPlayer.startSleeping(bedPos);
         BedRestingHelper.initializeAuthoritativeBedLook(serverPlayer, bedPos);
-        BedRestingHelper.syncManagedSleepState(serverPlayer, false);
+        boolean countedForSleep = BedRestingHelper.canCountForSleep(serverPlayer, bedPos);
+        BedRestingHelper.syncManagedSleepState(serverPlayer, countedForSleep);
         BedRestingHelper.showLeaveBedHint(serverPlayer);
-        BedRestingHelper.showBedHudMessage(serverPlayer, problem.message());
+        if (!countedForSleep) {
+            BedRestingHelper.showBedHudMessage(serverPlayer, problem.message());
+        }
         return Either.right(Unit.INSTANCE);
     }
 }
