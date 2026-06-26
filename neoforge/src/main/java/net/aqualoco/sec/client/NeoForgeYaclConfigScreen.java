@@ -121,7 +121,10 @@ public final class NeoForgeYaclConfigScreen {
                         SeamlessSleepServerConfigManager.save();
                     }
                 })
-                .screenInit(serverSession::attachScreen)
+                .screenInit(yaclScreen -> {
+                    serverSession.attachScreen(yaclScreen);
+                    SeamlessSleepYaclHelpButton.install(yaclScreen);
+                })
                 .build()
                 .generateScreen(parent);
 

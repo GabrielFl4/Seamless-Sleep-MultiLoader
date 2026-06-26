@@ -227,14 +227,21 @@ public final class SleepSoundManager {
     }
 
     public static void reset(String reason) {
+        if (isResetStateIdle()) {
+            MadeInHeavenMusicSuppression.update(false);
+            return;
+        }
+
         if (activeSessionId >= 0L) {
             Constants.debug("Sleep sound state reset: {}.", reason);
         }
+
         stopAllLoops();
         Minecraft client = Minecraft.getInstance();
         stopMadeInHeavenMainSound(MADE_IN_HEAVEN_MAIN_FADE_OUT_CANCEL_TICKS);
         MadeInHeavenMusicSuppression.update(false);
         stopOneShotSounds(client);
+        clearLoopSoundReferences();
         resetSessionState(reason);
         audioEnvironment.reset();
     }
@@ -588,6 +595,11 @@ public final class SleepSoundManager {
         if (madeInHeavenMainSound != null && !madeInHeavenMainSound.isStopped()) {
             madeInHeavenMainSound.stopWithFade(fadeTicks);
         }
+    }
+
+    private static void clearLoopSoundReferences() {
+        windLoop = null;
+        madeInHeavenMainSound = null;
     }
 
     private static void pruneStoppedSounds(Minecraft client) {
@@ -1001,6 +1013,36 @@ public final class SleepSoundManager {
         activeSoundMode = SleepAnimationSoundMode.MUTED;
         clearPlaybackMarkers();
         Constants.debug("Sleep sound session cleared: {}.", reason);
+    }
+
+    private static boolean isResetStateIdle() {
+        return activeSessionId < 0L
+                && activeSequenceId < 0L
+                && activeMode == SleepAnimationMode.NORMAL_SLEEP
+                && activePhase == SleepAnimationPhase.IDLE
+                && activeSoundMode == SleepAnimationSoundMode.MUTED
+                && !hasSoundReferences()
+                && !hasPendingMadeInHeavenState();
+    }
+
+    private static boolean hasSoundReferences() {
+        return windLoop != null
+                || madeInHeavenMainSound != null
+                || timeAccelSound != null
+                || timeDecelSound != null
+                || madeInHeavenStopSound != null
+                || bellSound != null
+                || astroPassSound != null;
+    }
+
+    private static boolean hasPendingMadeInHeavenState() {
+        return madeInHeavenIntroScheduledSessionId >= 0L
+                || madeInHeavenIntroStartedSessionId >= 0L
+                || madeInHeavenTimeDecelScheduledSessionId >= 0L
+                || madeInHeavenNaturalBrakeActive
+                || madeInHeavenCancelBrakeActive
+                || !"NONE".equals(madeInHeavenMainFadeOutMode)
+                || madeInHeavenMainStartedSessionId >= 0L;
     }
 
     private static void clearPlaybackMarkers() {
