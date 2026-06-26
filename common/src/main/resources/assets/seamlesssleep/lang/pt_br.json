@@ -13,6 +13,14 @@
   "modmenu.descriptionTranslation.seamlesssleep": "Repensa a forma como os jogadores dormem:\n\n\u00A78-\u00A7r Animacao suave e sincronizada\n\u00A78-\u00A7r Melhorias visuais\n\u00A78-\u00A7r Menor custo para o servidor\n\nAgora disponivel para: \u00A73\u00A7lForge\u00A7r, \u00A76\u00A7lNeoForge\u00A7r e \u00A7f\u00A7lFabric\u00A7r!\nDiscord: gabrielfl4",
 
   "config.seamlesssleep.title": "Configurações do Seamless Sleep",
+  "config.seamlesssleep.guide_button": "Guia Seamless Sleep",
+  "config.seamlesssleep.guide_button.tooltip": "Acesse a página do Seamless Sleep\n\u00A77Você encontrará o guia oficial e contatos!\n\u00A7oAjuda a apoiar o mod também <3",
+  "config.seamlesssleep.link.26.modrinth": "Modrinth",
+
+  "config.seamlesssleep.link.15.discord": "Discord",
+  "config.seamlesssleep.link.9.curseforge": "CurseForge",
+  "config.seamlesssleep.link.29.kofi": "Ko-fi",
+  "config.seamlesssleep.link.14.source": "Source",
   "config.seamlesssleep.category.client": "Configs do Cliente",
   "config.seamlesssleep.category.server": "Configs do Servidor",
   "config.seamlesssleep.category.advanced": "Avançado",

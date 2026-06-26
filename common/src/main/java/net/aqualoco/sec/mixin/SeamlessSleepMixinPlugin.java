@@ -2,6 +2,7 @@ package net.aqualoco.sec.mixin;
 
 import net.aqualoco.sec.Constants;
 import net.aqualoco.sec.compat.BetterDaysCompat;
+import net.aqualoco.sec.compat.ComfortsCompat;
 import net.aqualoco.sec.compat.VivecraftCompat;
 import net.aqualoco.sec.platform.Services;
 import org.objectweb.asm.tree.ClassNode;
@@ -21,6 +22,8 @@ public final class SeamlessSleepMixinPlugin implements IMixinConfigPlugin {
     private static final String BETTER_CLOUDS_RENDERER_RESOURCE = "com/qendolin/betterclouds/clouds/Renderer.class";
     private static final String BETTER_DAYS_MIXIN = "net.aqualoco.sec.mixin.compat.BetterDaysSleepFeatureMixin";
     private static final String BETTER_DAYS_SLEEP_STATUS_MIXIN = "net.aqualoco.sec.mixin.compat.BetterDaysSleepStatusMixin";
+    private static final String COMFORTS_BASE_BLOCK_SLEEP_MIXIN = "net.aqualoco.sec.mixin.compat.comforts.ComfortsBaseBlockSleepMixin";
+    private static final String COMFORTS_EVENTS_TIME_MIXIN = "net.aqualoco.sec.mixin.compat.comforts.ComfortsEventsTimeMixin";
     private static final String REACTIVE_MUSIC_PLAYER_THREAD_DUCK_MIXIN = "net.aqualoco.sec.mixin.compat.reactivemusic.ReactiveMusicPlayerThreadDuckMixin";
     private static final String REACTIVE_MUSIC_PLAYER_THREAD_RESOURCE = "circuitlord/reactivemusic/PlayerThread.class";
     private static final String SUBTLE_EFFECTS_PLAYER_SLEEPING_TICKER_MIXIN = "net.aqualoco.sec.mixin.compat.subtleeffects.SubtleEffectsPlayerSleepingTickerMixin";
@@ -38,6 +41,8 @@ public final class SeamlessSleepMixinPlugin implements IMixinConfigPlugin {
     private boolean betterCloudsAvailable;
     private boolean betterDaysAvailable;
     private boolean betterDaysSleepStatusAvailable;
+    private boolean comfortsBaseBlockAvailable;
+    private boolean comfortsEventsAvailable;
     private boolean reactiveMusicPlayerThreadAvailable;
     private boolean subtleEffectsPlayerSleepingTickerAvailable;
     private boolean vivecraftPostProcessUboAvailable;
@@ -51,6 +56,8 @@ public final class SeamlessSleepMixinPlugin implements IMixinConfigPlugin {
         betterCloudsAvailable = isBetterCloudsPresent();
         betterDaysAvailable = isBetterDaysPresent();
         betterDaysSleepStatusAvailable = isBetterDaysSleepStatusPresent();
+        comfortsBaseBlockAvailable = isComfortsTargetPresent(ComfortsCompat.BASE_COMFORTS_BLOCK_RESOURCE);
+        comfortsEventsAvailable = isComfortsTargetPresent(ComfortsCompat.COMFORTS_EVENTS_RESOURCE);
         reactiveMusicPlayerThreadAvailable = isReactiveMusicPlayerThreadPresent();
         subtleEffectsPlayerSleepingTickerAvailable = isSubtleEffectsPlayerSleepingTickerPresent();
         vivecraftPostProcessUboAvailable = isVivecraftTargetPresent(VivecraftCompat.POST_PROCESS_UBO_RESOURCE);
@@ -77,6 +84,12 @@ public final class SeamlessSleepMixinPlugin implements IMixinConfigPlugin {
         }
         if (BETTER_DAYS_SLEEP_STATUS_MIXIN.equals(mixinClassName)) {
             return betterDaysSleepStatusAvailable;
+        }
+        if (COMFORTS_BASE_BLOCK_SLEEP_MIXIN.equals(mixinClassName)) {
+            return comfortsBaseBlockAvailable;
+        }
+        if (COMFORTS_EVENTS_TIME_MIXIN.equals(mixinClassName)) {
+            return comfortsEventsAvailable;
         }
         if (REACTIVE_MUSIC_PLAYER_THREAD_DUCK_MIXIN.equals(mixinClassName)) {
             return reactiveMusicPlayerThreadAvailable;
@@ -167,6 +180,18 @@ public final class SeamlessSleepMixinPlugin implements IMixinConfigPlugin {
 
         if (modLoaded && !available) {
             Constants.warn("Reactive Music detected, but target {} was not found; Made in Heaven music ducking will not affect Reactive Music.", REACTIVE_MUSIC_PLAYER_THREAD_RESOURCE);
+        }
+        return available;
+    }
+
+    private boolean isComfortsTargetPresent(String classResourcePath) {
+        boolean modLoaded = isModLoaded(ComfortsCompat.MOD_ID);
+        boolean targetPresent = hasClassResource(classResourcePath, Thread.currentThread().getContextClassLoader())
+                || hasClassResource(classResourcePath, SeamlessSleepMixinPlugin.class.getClassLoader());
+        boolean available = isOptionalMixinTargetAvailable(modLoaded, targetPresent);
+
+        if (modLoaded && !available) {
+            Constants.warn("Comforts detected, but target {} was not found; Comforts sleep surface compatibility will not be applied.", classResourcePath);
         }
         return available;
     }

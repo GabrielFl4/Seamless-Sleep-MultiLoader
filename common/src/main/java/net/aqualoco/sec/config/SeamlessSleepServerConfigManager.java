@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.stream.Stream;
 
 public final class SeamlessSleepServerConfigManager {
 
@@ -16,6 +17,10 @@ public final class SeamlessSleepServerConfigManager {
     private static final String LEGACY_JSON_FILE_NAME = "seamless_sleep-server.json";
     private static final String LEGACY_JSONC_FILE_NAME = "seamless_sleep-server.jsonc";
     private static final int CONFIG_VERSION = 10;
+    private static final int LARGE_MODPACK_STAGE_1_THRESHOLD = 110;
+    private static final int LARGE_MODPACK_STAGE_2_THRESHOLD = 140;
+    private static final int LARGE_MODPACK_STAGE_3_THRESHOLD = 170;
+    private static final int LARGE_MODPACK_MAX_THRESHOLD = 200;
 
     public enum ReloadResult {
         SUCCESS,
@@ -47,7 +52,7 @@ public final class SeamlessSleepServerConfigManager {
 
     public static void init() {
         configPath = Services.PLATFORM.getConfigDir().resolve(FILE_NAME);
-        config = loadOrCreate(configPath).config;
+        config = loadOrCreate(configPath, true).config;
     }
 
     public static SeamlessSleepServerConfig get() {
@@ -66,7 +71,7 @@ public final class SeamlessSleepServerConfigManager {
         if (configPath == null) {
             configPath = Services.PLATFORM.getConfigDir().resolve(FILE_NAME);
         }
-        LoadResult result = loadOrCreate(configPath);
+        LoadResult result = loadOrCreate(configPath, false);
         config = result.config;
     }
 
@@ -78,7 +83,7 @@ public final class SeamlessSleepServerConfigManager {
         if (configPath == null) {
             configPath = Services.PLATFORM.getConfigDir().resolve(FILE_NAME);
         }
-        LoadResult result = loadOrCreate(configPath);
+        LoadResult result = loadOrCreate(configPath, false);
         config = result.config;
         lastReloadReport = new ReloadReport(
                 result.status,
@@ -102,11 +107,15 @@ public final class SeamlessSleepServerConfigManager {
         return configPath;
     }
 
-    private static LoadResult loadOrCreate(Path path) {
+    private static LoadResult loadOrCreate(Path path, boolean allowFirstGenerationDefaults) {
+        boolean legacyConfigExists = legacyJsonFilesExist(path);
         deleteLegacyJsonFiles(path);
 
         if (Files.notExists(path)) {
             SeamlessSleepServerConfig cfg = defaultConfig();
+            if (allowFirstGenerationDefaults && !legacyConfigExists) {
+                applyFirstGenerationLargeModpackDefaults(cfg);
+            }
             cfg.clamp();
             save(path, cfg);
             return new LoadResult(cfg, ReloadResult.CREATED);
@@ -147,6 +156,79 @@ public final class SeamlessSleepServerConfigManager {
 
     private static SeamlessSleepServerConfig defaultConfig() {
         return new SeamlessSleepServerConfig();
+    }
+
+    private static void applyFirstGenerationLargeModpackDefaults(SeamlessSleepServerConfig cfg) {
+        Integer modJarCount = countTopLevelModJars();
+        LargeModpackStage stage = resolveLargeModpackStage(modJarCount);
+        if (stage == null) {
+            return;
+        }
+
+        WorldSleepAccelerationConfig acceleration = cfg.worldSleepAcceleration;
+        acceleration.mode = stage.mode();
+        acceleration.automaticMode = stage.automaticMode();
+        acceleration.grassAndFoliageAccelerationEnabled = false;
+        acceleration.vinesAndBambooAccelerationEnabled = false;
+        acceleration.kelpAccelerationEnabled = false;
+        acceleration.recheckIrrelevantNatureSectionsDuringAcceleration = false;
+        acceleration.accelerationTelemetryEnabled = false;
+        acceleration.vanillaOnlyAcceleration = stage.vanillaOnlyAcceleration();
+
+        logLargeModpackProtocol(modJarCount, stage);
+    }
+
+    private static Integer countTopLevelModJars() {
+        try {
+            Path modsDir = Services.PLATFORM.getModsDir();
+            if (modsDir == null || !Files.isDirectory(modsDir) || !Files.isReadable(modsDir)) {
+                return null;
+            }
+            try (Stream<Path> files = Files.list(modsDir)) {
+                long count = files
+                        .filter(path -> Files.isRegularFile(path))
+                        .filter(SeamlessSleepServerConfigManager::isJarFile)
+                        .count();
+                return count > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) count;
+            }
+        } catch (Throwable t) {
+            Constants.warn("Failed to inspect mods directory for first server config defaults: {}", t.getMessage());
+            return null;
+        }
+    }
+
+    private static boolean isJarFile(Path path) {
+        Path fileName = path.getFileName();
+        if (fileName == null) {
+            return false;
+        }
+        return fileName.toString().toLowerCase(java.util.Locale.ROOT).endsWith(".jar");
+    }
+
+    private static LargeModpackStage resolveLargeModpackStage(Integer modJarCount) {
+        if (modJarCount == null) {
+            return null;
+        }
+        if (modJarCount > LARGE_MODPACK_MAX_THRESHOLD) {
+            return LargeModpackStage.MAX;
+        }
+        if (modJarCount > LARGE_MODPACK_STAGE_3_THRESHOLD) {
+            return LargeModpackStage.STAGE_3;
+        }
+        if (modJarCount > LARGE_MODPACK_STAGE_2_THRESHOLD) {
+            return LargeModpackStage.STAGE_2;
+        }
+        if (modJarCount > LARGE_MODPACK_STAGE_1_THRESHOLD) {
+            return LargeModpackStage.STAGE_1;
+        }
+        return null;
+    }
+
+    private static void logLargeModpackProtocol(int modJarCount, LargeModpackStage stage) {
+        Constants.LOG.info("[Seamless Sleep] First server config generation detected!");
+        Constants.LOG.info("[-            -] Mod files detected: {} .jar files in mods folder.", modJarCount);
+        Constants.LOG.info("[-            -] Large_Modpack_Protocol Stage {} initiated. Good luck sir :salute:",
+                stage.label());
     }
 
     private static String reloadMessage(ReloadResult result) {
@@ -886,6 +968,15 @@ public final class SeamlessSleepServerConfigManager {
         deleteIfExists(parent.resolve(LEGACY_JSONC_FILE_NAME));
     }
 
+    private static boolean legacyJsonFilesExist(Path tomlPath) {
+        Path parent = tomlPath.getParent();
+        if (parent == null) {
+            return false;
+        }
+        return Files.exists(parent.resolve(LEGACY_JSON_FILE_NAME))
+                || Files.exists(parent.resolve(LEGACY_JSONC_FILE_NAME));
+    }
+
     private static void deleteIfExists(Path file) {
         try {
             if (Files.deleteIfExists(file)) {
@@ -913,6 +1004,44 @@ public final class SeamlessSleepServerConfigManager {
                                           boolean vanillaOnlyAcceleration,
                                           boolean processesAccelerationEnabled,
                                           int processesSpeedPercent) {
+    }
+
+    private enum LargeModpackStage {
+        STAGE_1("1", WorldSleepAccelerationMode.AUTOMATIC, WorldSleepAutomaticMode.BALANCED, false),
+        STAGE_2("2", WorldSleepAccelerationMode.AUTOMATIC, WorldSleepAutomaticMode.BALANCED, true),
+        STAGE_3("3", WorldSleepAccelerationMode.AUTOMATIC, WorldSleepAutomaticMode.PERFORMANCE, true),
+        MAX("MAX", WorldSleepAccelerationMode.OFF, WorldSleepAutomaticMode.PERFORMANCE, true);
+
+        private final String label;
+        private final WorldSleepAccelerationMode mode;
+        private final WorldSleepAutomaticMode automaticMode;
+        private final boolean vanillaOnlyAcceleration;
+
+        LargeModpackStage(String label,
+                          WorldSleepAccelerationMode mode,
+                          WorldSleepAutomaticMode automaticMode,
+                          boolean vanillaOnlyAcceleration) {
+            this.label = label;
+            this.mode = mode;
+            this.automaticMode = automaticMode;
+            this.vanillaOnlyAcceleration = vanillaOnlyAcceleration;
+        }
+
+        private String label() {
+            return label;
+        }
+
+        private WorldSleepAccelerationMode mode() {
+            return mode;
+        }
+
+        private WorldSleepAutomaticMode automaticMode() {
+            return automaticMode;
+        }
+
+        private boolean vanillaOnlyAcceleration() {
+            return vanillaOnlyAcceleration;
+        }
     }
 
     private static final class LoadResult {

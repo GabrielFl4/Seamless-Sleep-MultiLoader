@@ -18,6 +18,8 @@
     "sleep.PlayerEntitySleepAnimationMixin",
     "compat.BetterDaysSleepFeatureMixin",
     "compat.BetterDaysSleepStatusMixin",
+    "compat.comforts.ComfortsBaseBlockSleepMixin",
+    "compat.comforts.ComfortsEventsTimeMixin",
     "network.PlayerListOperatorAccessMixin",
     "network.ServerGamePacketListenerBedRestingMixin",
     "bed.ServerPlayerBedRestingMixin"
