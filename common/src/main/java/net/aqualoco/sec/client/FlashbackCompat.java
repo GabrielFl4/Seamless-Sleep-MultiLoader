@@ -25,7 +25,7 @@ public final class FlashbackCompat {
     }
 
     public static boolean isReplayPlaybackActive() {
-        if (!Services.PLATFORM.isModLoaded(FLASHBACK_MOD_ID)) {
+        if (!ModPresenceHolder.PRESENT) {
             return false;
         }
 
@@ -34,14 +34,21 @@ public final class FlashbackCompat {
                 return false;
             }
 
-            if (isInReplayMethod != null) {
-                Object inReplay = isInReplayMethod.invoke(null);
-                if (inReplay instanceof Boolean && (Boolean) inReplay) {
-                    return true;
-                }
+            Object replayServer = findReplayServer();
+            if (replayServer != null) {
+                return true;
             }
 
-            return findReplayServer() != null;
+            if (getReplayServerMethod != null) {
+                return false;
+            }
+
+            if (isInReplayMethod != null) {
+                Object inReplay = isInReplayMethod.invoke(null);
+                return inReplay instanceof Boolean && (Boolean) inReplay;
+            }
+
+            return false;
         } catch (ReflectiveOperationException e) {
             logInvocationFailure(e);
             return false;
@@ -49,7 +56,7 @@ public final class FlashbackCompat {
     }
 
     public static OptionalLong getReplayTimelineMillis() {
-        if (!Services.PLATFORM.isModLoaded(FLASHBACK_MOD_ID)) {
+        if (!ModPresenceHolder.PRESENT) {
             return OptionalLong.empty();
         }
 
@@ -59,14 +66,8 @@ public final class FlashbackCompat {
             }
 
             Object replayServer = findReplayServer();
-
-            boolean inReplay = false;
-            if (isInReplayMethod != null) {
-                Object inReplayValue = isInReplayMethod.invoke(null);
-                inReplay = inReplayValue instanceof Boolean && (Boolean) inReplayValue;
-            }
-
-            if (!inReplay && replayServer == null) {
+            // Flashback.getVisualMillis() falls back to wall-clock before the ReplayServer exists.
+            if (replayServer == null) {
                 return OptionalLong.empty();
             }
 
@@ -146,5 +147,9 @@ public final class FlashbackCompat {
             loggedInvocationFailure = true;
             Constants.debug("Flashback reflection bridge invocation failed.", e);
         }
+    }
+
+    private static final class ModPresenceHolder {
+        private static final boolean PRESENT = Services.PLATFORM.isModLoaded(FLASHBACK_MOD_ID);
     }
 }

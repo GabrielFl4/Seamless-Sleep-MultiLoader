@@ -8,8 +8,7 @@
         "§aA§eq§9u§aa§eL§9o§ac§eo"
     ],
     "contact": {
-        "homepage": "https://github.com/GabrielFl4",
-        "sources": "https://github.com/GabrielFl4/Seamless-Sleep-MultiLoader",
+        "homepage": "https://modrinth.com/mod/seamless-sleep",
         "issues": "https://github.com/GabrielFl4/Seamless-Sleep-MultiLoader/issues"
     },
     "license": "${license}",
@@ -31,10 +30,28 @@
         "${mod_id}.fabric.mixins.json"
     ],
     "depends": {
-        "fabricloader": ">=${fabric_loader_version}",
+        "fabricloader": "${fabric_loader_version_range}",
         "fabric-api": "*",
         "minecraft": "${fabric_minecraft_version_range}",
         "java": ">=${java_version}"
+    },
+    "breaks": {
+        "sleepwarp": "*"
+    },
+    "suggests": {
+        "modmenu": "*",
+        "yet_another_config_lib_v3": "*"
+    },
+    "custom": {
+        "modmenu": {
+            "links": {
+                "config.seamlesssleep.link.26.modrinth": "https://modrinth.com/mod/seamless-sleep",
+                "config.seamlesssleep.link.15.discord": "https://discord.gg/ZpWAQGJPbu",
+                "config.seamlesssleep.link.9.curseforge": "https://www.curseforge.com/minecraft/mc-mods/seamless-sleep",
+                "config.seamlesssleep.link.29.kofi": "https://ko-fi.com/aqualoco",
+                "config.seamlesssleep.link.14.source": "https://github.com/GabrielFl4/Seamless-Sleep-MultiLoader"
+            }
+        }
     }
 }
   

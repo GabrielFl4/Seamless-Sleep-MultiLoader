@@ -32,6 +32,11 @@ public class NeoForgePlatformHelper implements IPlatformHelper {
     }
 
     @Override
+    public Path getModsDir() {
+        return FMLPaths.MODSDIR.get();
+    }
+
+    @Override
     public boolean isDevelopmentEnvironment() {
 
         return !FMLLoader.getCurrent().isProduction();

@@ -1,0 +1,61 @@
+package net.aqualoco.sec.mixin.client.input;
+
+import net.aqualoco.sec.client.ClientBedWorkflow;
+import net.aqualoco.sec.client.VivecraftClientCompat;
+import net.aqualoco.sec.client.sleepvisual.SleepZzzVisualSystem;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.ClientInput;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.world.entity.player.Input;
+import net.minecraft.world.phys.Vec2;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+
+// Owns the local input suppression loop that keeps the player bed-bound while vanilla wake stays server-authoritative.
+@Mixin(LocalPlayer.class)
+public abstract class LocalPlayerBedWorkflowMixin {
+
+    @Shadow public ClientInput input;
+
+    @Unique
+    private boolean seamlesssleep$wasVivecraftManagedBed;
+
+    @Inject(
+            method = "aiStep",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/client/player/ClientInput;tick()V",
+                    shift = At.Shift.AFTER
+            )
+    )
+    private void seamlesssleep$zeroMovementInputsWhileBedBound(CallbackInfo ci) {
+        LocalPlayer self = (LocalPlayer) (Object) this;
+        ClientBedWorkflow.tick(self);
+        SleepZzzVisualSystem.tick(Minecraft.getInstance());
+
+        boolean vivecraftVrBedPolicy = VivecraftClientCompat.shouldUseVrBedPolicy(self);
+        boolean managedBedState = ClientBedWorkflow.isManagedBedState(self);
+        if (vivecraftVrBedPolicy && managedBedState) {
+            boolean manualCrouchPressed = VivecraftClientCompat.pollManualCrouchButtonPress();
+            if (this.seamlesssleep$wasVivecraftManagedBed && manualCrouchPressed) {
+                ClientBedWorkflow.tryWakeFromLeaveBedIntent(self);
+            }
+            this.seamlesssleep$wasVivecraftManagedBed = true;
+        } else {
+            VivecraftClientCompat.pollManualCrouchButtonPress();
+            this.seamlesssleep$wasVivecraftManagedBed = false;
+        }
+
+        if (!ClientBedWorkflow.shouldBlockGameplayInteractions(self)) {
+            return;
+        }
+
+        ClientInputAccessor accessor = (ClientInputAccessor) this.input;
+        accessor.seamlesssleep$setKeyPresses(new Input(false, false, false, false, false, false, false));
+        accessor.seamlesssleep$setMoveVector(Vec2.ZERO);
+    }
+}

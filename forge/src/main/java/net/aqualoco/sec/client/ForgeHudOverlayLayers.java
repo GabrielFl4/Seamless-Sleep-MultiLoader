@@ -26,7 +26,10 @@ public final class ForgeHudOverlayLayers {
                 ForgeLayeredDraw.VANILLA_ROOT,
                 SLEEP_STATUS_TEXT_LAYER,
                 ForgeLayeredDraw.POST_SLEEP_STACK,
-                (graphics, deltaTracker) -> SleepStatusOverlay.render(graphics, SeamlessSleepClientState.SLEEP_ANIMATION)
+                (graphics, deltaTracker) -> {
+                    SleepStatusOverlay.render(graphics, SeamlessSleepClientState.SLEEP_ANIMATION);
+                    BedHudMessageRenderer.render(graphics, deltaTracker);
+                }
         );
     }
 }

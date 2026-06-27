@@ -2,12 +2,13 @@
   "required": true,
   "minVersion": "0.8",
   "package": "net.aqualoco.sec.mixin",
+  "refmap": "${mod_id}.refmap.json",
   "compatibilityLevel": "JAVA_21",
   "mixins": [],
   "client": [
-    "client.GameRendererSleepAnimationMixin",
-    "client.GuiSleepOverlayMixin",
-    "client.NeoForgeModListScreenMutableSortFixMixin"
+    "client.NeoForgeBetterCloudsLevelRendererMixin",
+    "client.NeoForgeModListScreenMutableSortFixMixin",
+    "client.NeoForgeVivecraftFirstPersonSelfRenderMixin"
   ],
   "server": [],
   "injectors": {
