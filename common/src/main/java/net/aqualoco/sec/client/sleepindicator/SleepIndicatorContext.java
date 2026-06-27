@@ -9,8 +9,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.util.ARGB;
-import net.minecraft.world.attribute.EnvironmentAttributes;
-import net.minecraft.world.level.MoonPhase;
 
 // Carries the sampled client-side data that every sleep indicator renderer needs.
 public record SleepIndicatorContext(
@@ -41,7 +39,6 @@ public record SleepIndicatorContext(
         SleepAnimationVisualContext visualContext
 ) {
     private static final long DAY_TICKS = 24000L;
-    private static final float DEG_TO_RAD = (float) (Math.PI / 180.0D);
 
     public static SleepIndicatorContext create(
             Minecraft client,
@@ -64,7 +61,7 @@ public record SleepIndicatorContext(
         float sunAngleRadians = sampleAngleRadians(level, camera, player, tickDelta, true);
         float moonAngleRadians = sampleAngleRadians(level, camera, player, tickDelta, false);
         float starBrightness = sampleStarBrightness(level, camera, player, tickDelta);
-        MoonPhase moonPhase = sampleMoonPhase(level, camera, player, tickDelta);
+        int moonPhase = sampleMoonPhase(level, tickDelta);
         BiomeClockBiomeResolver.ResolvedBiome resolvedBiome = BiomeClockBiomeResolver.resolve(level, player);
 
         return new SleepIndicatorContext(
@@ -74,7 +71,7 @@ public record SleepIndicatorContext(
                 tickDelta,
                 visualDayTime,
                 normalizedDayTime,
-                moonPhase.index(),
+                moonPhase,
                 sunAngleRadians,
                 moonAngleRadians,
                 starBrightness,
@@ -128,24 +125,19 @@ public record SleepIndicatorContext(
     }
 
     private static int sampleSkyColor(ClientLevel level, Camera camera, LocalPlayer player, float tickDelta) {
-        if (camera != null) {
-            return ARGB.opaque(camera.attributeProbe().getValue(EnvironmentAttributes.SKY_COLOR, tickDelta));
-        }
-        return ARGB.opaque(level.environmentAttributes().getValue(EnvironmentAttributes.SKY_COLOR, player.position()));
+        return ARGB.opaque(level.getSkyColor(player.position(), tickDelta));
     }
 
     private static int sampleCloudColor(ClientLevel level, Camera camera, LocalPlayer player, float tickDelta) {
-        if (camera != null) {
-            return camera.attributeProbe().getValue(EnvironmentAttributes.CLOUD_COLOR, tickDelta);
-        }
-        return level.environmentAttributes().getValue(EnvironmentAttributes.CLOUD_COLOR, player.position());
+        return level.getCloudColor(tickDelta);
     }
 
     private static int sampleSunriseColor(ClientLevel level, Camera camera, LocalPlayer player, float tickDelta) {
-        if (camera != null) {
-            return camera.attributeProbe().getValue(EnvironmentAttributes.SUNRISE_SUNSET_COLOR, tickDelta);
+        float timeOfDay = level.getTimeOfDay(tickDelta);
+        if (!level.effects().isSunriseOrSunset(timeOfDay)) {
+            return 0;
         }
-        return level.environmentAttributes().getValue(EnvironmentAttributes.SUNRISE_SUNSET_COLOR, player.position());
+        return level.effects().getSunriseOrSunsetColor(timeOfDay);
     }
 
     private static float sampleAngleRadians(
@@ -155,33 +147,16 @@ public record SleepIndicatorContext(
             float tickDelta,
             boolean sunAngle
     ) {
-        float angleDegrees;
-        if (camera != null) {
-            angleDegrees = camera.attributeProbe().getValue(
-                    sunAngle ? EnvironmentAttributes.SUN_ANGLE : EnvironmentAttributes.MOON_ANGLE,
-                    tickDelta
-            );
-        } else {
-            angleDegrees = level.environmentAttributes().getValue(
-                    sunAngle ? EnvironmentAttributes.SUN_ANGLE : EnvironmentAttributes.MOON_ANGLE,
-                    player.position()
-            );
-        }
-        return angleDegrees * DEG_TO_RAD;
+        float sunRadians = level.getSunAngle(tickDelta);
+        return sunAngle ? sunRadians : sunRadians + (float) Math.PI;
     }
 
     private static float sampleStarBrightness(ClientLevel level, Camera camera, LocalPlayer player, float tickDelta) {
-        if (camera != null) {
-            return camera.attributeProbe().getValue(EnvironmentAttributes.STAR_BRIGHTNESS, tickDelta);
-        }
-        return level.environmentAttributes().getValue(EnvironmentAttributes.STAR_BRIGHTNESS, player.position());
+        return level.getStarBrightness(tickDelta);
     }
 
-    private static MoonPhase sampleMoonPhase(ClientLevel level, Camera camera, LocalPlayer player, float tickDelta) {
-        if (camera != null) {
-            return camera.attributeProbe().getValue(EnvironmentAttributes.MOON_PHASE, tickDelta);
-        }
-        return level.environmentAttributes().getValue(EnvironmentAttributes.MOON_PHASE, player.position());
+    private static int sampleMoonPhase(ClientLevel level, float tickDelta) {
+        return level.getMoonPhase();
     }
 
     private static float clamp01(float value) {

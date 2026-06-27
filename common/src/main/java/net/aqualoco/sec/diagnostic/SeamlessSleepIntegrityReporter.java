@@ -17,7 +17,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.gamerules.GameRules;
+import net.minecraft.world.level.GameRules;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -50,8 +50,8 @@ public final class SeamlessSleepIntegrityReporter {
         } else {
             details.add("overworld=present, dayTime=" + overworld.getDayTime()
                     + ", gameTime=" + overworld.getGameTime()
-                    + ", playersSleepingPercentage=" + overworld.getGameRules().get(GameRules.PLAYERS_SLEEPING_PERCENTAGE)
-                    + ", randomTickSpeed=" + Math.max(0, overworld.getGameRules().get(GameRules.RANDOM_TICK_SPEED))
+                    + ", playersSleepingPercentage=" + overworld.getGameRules().getInt(GameRules.RULE_PLAYERS_SLEEPING_PERCENTAGE)
+                    + ", randomTickSpeed=" + Math.max(0, overworld.getGameRules().getInt(GameRules.RULE_RANDOMTICKING))
                     + ", simulationDistance=" + server.getPlayerList().getSimulationDistance());
             details.add(describeBedState(overworld));
             details.add(describeAcceleration(overworld));

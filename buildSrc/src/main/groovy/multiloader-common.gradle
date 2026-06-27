@@ -60,6 +60,10 @@ repositories {
     }
 }
 
+dependencies {
+    compileOnly "org.jspecify:jspecify:${project.jspecify_version}"
+}
+
 // Declare capabilities on the outgoing configurations.
 // Read more about capabilities here: https://docs.gradle.org/current/userguide/component_capabilities.html#sec:declaring-additional-capabilities-for-a-local-component
 ['apiElements', 'runtimeElements', 'sourcesElements', 'javadocElements'].each { variant ->

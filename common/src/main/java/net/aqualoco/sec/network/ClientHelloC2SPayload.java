@@ -4,13 +4,13 @@ import net.aqualoco.sec.Constants;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 public record ClientHelloC2SPayload(int protocolVersion,
                                     String modVersion,
                                     int featureFlags) implements CustomPacketPayload {
     public static final Type<ClientHelloC2SPayload> ID =
-            new Type<>(Identifier.fromNamespaceAndPath(Constants.MOD_ID, "client_hello"));
+            new Type<>(ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, "client_hello"));
 
     public static final StreamCodec<FriendlyByteBuf, ClientHelloC2SPayload> CODEC =
             CustomPacketPayload.codec(ClientHelloC2SPayload::write, ClientHelloC2SPayload::read);

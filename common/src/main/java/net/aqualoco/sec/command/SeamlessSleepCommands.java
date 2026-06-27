@@ -38,9 +38,8 @@ import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.permissions.Permissions;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.gamerules.GameRules;
+import net.minecraft.world.level.GameRules;
 
 import java.util.Locale;
 
@@ -52,7 +51,7 @@ public final class SeamlessSleepCommands {
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(
                 Commands.literal("sleep")
-                        .requires(source -> source.permissions().hasPermission(Permissions.COMMANDS_ADMIN))
+                        .requires(source -> source.hasPermission(ServerConfigMutationService.REQUIRED_PERMISSION_LEVEL))
                         .then(Commands.literal("reload")
                                 .executes(SeamlessSleepCommands::reload))
                         .then(Commands.literal("integrity")
@@ -719,7 +718,7 @@ public final class SeamlessSleepCommands {
                     false
             );
         } else {
-            int randomTickSpeed = Math.max(0, overworld.getGameRules().get(GameRules.RANDOM_TICK_SPEED));
+            int randomTickSpeed = Math.max(0, overworld.getGameRules().getInt(GameRules.RULE_RANDOMTICKING));
             context.getSource().sendSuccess(
                     () -> Component.literal(String.format(
                             Locale.ROOT,
@@ -794,7 +793,7 @@ public final class SeamlessSleepCommands {
         SeamlessSleepServerConfig config = SeamlessSleepServerConfigManager.get();
         WorldSleepAccelerationStatus status = WorldSleepAccelerationManager.getDiagnosticStatus(overworld);
         WorldSleepAccelerationGovernorSnapshot governor = status.getGovernorSnapshot();
-        int randomTickSpeed = Math.max(0, overworld.getGameRules().get(GameRules.RANDOM_TICK_SPEED));
+        int randomTickSpeed = Math.max(0, overworld.getGameRules().getInt(GameRules.RULE_RANDOMTICKING));
 
         context.getSource().sendSuccess(
                 () -> Component.literal(

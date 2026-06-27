@@ -18,7 +18,7 @@ import net.aqualoco.sec.sleep.SleepDimensionSupport;
 import net.aqualoco.sec.sleep.SleepAnimationStopReason;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 
@@ -34,7 +34,7 @@ final class ForgeClientNetworkHandler implements ForgeNetworkHelper.ClientHandle
             return;
         }
 
-        Identifier worldId = world.dimension().identifier();
+        ResourceLocation worldId = world.dimension().location();
         if (!worldId.equals(payload.worldId())) {
             return;
         }
@@ -126,12 +126,12 @@ final class ForgeClientNetworkHandler implements ForgeNetworkHelper.ClientHandle
         VivecraftClientCompat.applySyncedBedRoomYOffset(payload);
     }
 
-    private static boolean isMatchingSupportedWorld(ClientLevel world, Identifier payloadWorldId) {
+    private static boolean isMatchingSupportedWorld(ClientLevel world, ResourceLocation payloadWorldId) {
         if (world == null) {
             return false;
         }
 
-        Identifier worldId = world.dimension().identifier();
+        ResourceLocation worldId = world.dimension().location();
         return worldId.equals(payloadWorldId) && SleepDimensionSupport.supportsClientSleepAnimation(world);
     }
 }

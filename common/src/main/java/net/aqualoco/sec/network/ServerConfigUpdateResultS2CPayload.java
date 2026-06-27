@@ -4,7 +4,7 @@ import net.aqualoco.sec.Constants;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 public record ServerConfigUpdateResultS2CPayload(boolean success,
                                                  int serverConfigRevision,
@@ -13,7 +13,7 @@ public record ServerConfigUpdateResultS2CPayload(boolean success,
     private static final int MAX_MESSAGE_LENGTH = 256;
 
     public static final Type<ServerConfigUpdateResultS2CPayload> ID =
-            new Type<>(Identifier.fromNamespaceAndPath(Constants.MOD_ID, "server_config_update_result"));
+            new Type<>(ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, "server_config_update_result"));
 
     public static final StreamCodec<FriendlyByteBuf, ServerConfigUpdateResultS2CPayload> CODEC =
             CustomPacketPayload.codec(ServerConfigUpdateResultS2CPayload::write, ServerConfigUpdateResultS2CPayload::read);

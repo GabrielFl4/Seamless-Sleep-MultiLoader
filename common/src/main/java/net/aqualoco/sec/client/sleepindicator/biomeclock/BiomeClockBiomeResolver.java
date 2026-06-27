@@ -3,7 +3,7 @@ package net.aqualoco.sec.client.sleepindicator.biomeclock;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.Holder;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.biome.Biome;
 
@@ -23,8 +23,8 @@ public final class BiomeClockBiomeResolver {
 
         try {
             Holder<Biome> biome = level.getBiome(player.blockPosition());
-            Identifier id = biome.unwrapKey()
-                    .map(ResourceKey::identifier)
+            ResourceLocation id = biome.unwrapKey()
+                    .map(ResourceKey::location)
                     .orElse(null);
             return resolve(id);
         } catch (RuntimeException ignored) {
@@ -32,7 +32,7 @@ public final class BiomeClockBiomeResolver {
         }
     }
 
-    private static ResolvedBiome resolve(Identifier id) {
+    private static ResolvedBiome resolve(ResourceLocation id) {
         if (id == null) {
             return FALLBACK;
         }

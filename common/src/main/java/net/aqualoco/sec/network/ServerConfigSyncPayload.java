@@ -10,7 +10,7 @@ import net.aqualoco.sec.config.WorldSleepAutomaticMode;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 // Packet used to mirror server config values on connected clients.
 public record ServerConfigSyncPayload(int sleepWeatherClearChancePercent,
@@ -38,7 +38,7 @@ public record ServerConfigSyncPayload(int sleepWeatherClearChancePercent,
                                       boolean vinesAndBambooAccelerationEnabled) implements CustomPacketPayload {
 
     public static final Type<ServerConfigSyncPayload> ID =
-            new Type<>(Identifier.fromNamespaceAndPath(Constants.MOD_ID, "server_config_sync"));
+            new Type<>(ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, "server_config_sync"));
 
     public static final StreamCodec<FriendlyByteBuf, ServerConfigSyncPayload> CODEC =
             CustomPacketPayload.codec(ServerConfigSyncPayload::write, ServerConfigSyncPayload::read);

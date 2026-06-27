@@ -1,10 +1,9 @@
 package net.aqualoco.sec.mixin.compat.vivecraft;
 
-import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
-import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import net.aqualoco.sec.client.ClientBedWorkflow;
 import net.aqualoco.sec.client.VivecraftClientCompat;
 import net.aqualoco.sec.client.VivecraftSleepWristPanel;
+import net.aqualoco.sec.compat.VivecraftInteractModuleBridge;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.phys.Vec3;
@@ -19,7 +18,6 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 @Pseudo
 @Mixin(targets = "org.vivecraft.client_vr.gameplay.trackers.InteractTracker", remap = false)
 public abstract class VivecraftInteractTrackerSleepGateMixin {
-
     @Redirect(
             method = "isActive",
             at = @At(
@@ -36,11 +34,12 @@ public abstract class VivecraftInteractTrackerSleepGateMixin {
                 && ClientBedWorkflow.isManagedBedState(player));
     }
 
-    @WrapOperation(
+    @Redirect(
             method = "activeProcess",
             at = @At(
                     value = "INVOKE",
-                    target = "Lorg/vivecraft/api/client/InteractModule;isActive(Lnet/minecraft/client/player/LocalPlayer;Lnet/minecraft/world/InteractionHand;Lnet/minecraft/world/phys/Vec3;)Z"
+                    target = "Lorg/vivecraft/api/client/InteractModule;isActive(Lnet/minecraft/client/player/LocalPlayer;Lnet/minecraft/world/InteractionHand;Lnet/minecraft/world/phys/Vec3;)Z",
+                    remap = true
             ),
             require = 0,
             remap = false
@@ -48,14 +47,13 @@ public abstract class VivecraftInteractTrackerSleepGateMixin {
     private boolean seamlesssleep$limitManagedBedInteractModules(@Coerce Object module,
                                                                   LocalPlayer player,
                                                                   InteractionHand hand,
-                                                                  Vec3 handPosition,
-                                                                  Operation<Boolean> original) {
+                                                                  Vec3 handPosition) {
         if (VivecraftClientCompat.shouldUseVrBedPolicy(player)
                 && ClientBedWorkflow.isManagedBedState(player)
                 && !VivecraftSleepWristPanel.shouldAllowManagedBedInteractModule(module)) {
             return false;
         }
 
-        return original.call(module, player, hand, handPosition);
+        return VivecraftInteractModuleBridge.isActive(module, player, hand, handPosition);
     }
 }

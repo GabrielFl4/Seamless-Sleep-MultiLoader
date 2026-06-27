@@ -19,7 +19,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.gamerules.GameRules;
+import net.minecraft.world.level.GameRules;
 
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -276,7 +276,7 @@ public final class WorldSleepAccelerationManager {
                     status.getAutomaticMode(),
                     natureStatus.getEffectiveSpeedPercent(),
                     natureStatus.getGovernorAction(),
-                    Math.max(0, level.getGameRules().get(GameRules.RANDOM_TICK_SPEED)),
+                    Math.max(0, level.getGameRules().getInt(GameRules.RULE_RANDOMTICKING)),
                     status.getWorldSleepRate(),
                     natureStatus.getRawNatureExtraAttemptsPerSection(),
                     natureStatus.getExtraRandomTickAttemptsPerSection(),
@@ -371,7 +371,7 @@ public final class WorldSleepAccelerationManager {
             int simulationDistance = WorldSleepAccelerationConfig.clampSimulationDistance(
                     level.getServer().getPlayerList().getSimulationDistance()
             );
-            int randomTickSpeed = Math.max(0, level.getGameRules().get(GameRules.RANDOM_TICK_SPEED));
+            int randomTickSpeed = Math.max(0, level.getGameRules().getInt(GameRules.RULE_RANDOMTICKING));
             WorldSleepAccelerationFilterPolicy filterPolicy = resolveFilterPolicy(accelerationConfig);
             prepareCoverageCache(
                     level.dimension(),

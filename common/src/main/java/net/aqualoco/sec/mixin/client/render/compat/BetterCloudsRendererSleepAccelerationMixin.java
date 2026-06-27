@@ -84,10 +84,11 @@ public abstract class BetterCloudsRendererSleepAccelerationMixin {
     }
 
     @ModifyArg(
-            method = "render(IFLorg/joml/Vector3d;Lorg/joml/Vector3d;Lnet/minecraft/client/renderer/culling/Frustum;)V",
+            method = "render",
             at = @At(
                     value = "INVOKE",
-                    target = "Lcom/qendolin/betterclouds/clouds/Renderer;drawCoverage(FLorg/joml/Vector3d;Lorg/joml/Vector3d;Lnet/minecraft/client/renderer/culling/Frustum;Lcom/qendolin/betterclouds/clouds/fog/FogProvider$Fog;)V"
+                    target = "Lcom/qendolin/betterclouds/clouds/Renderer;drawCoverage(FLorg/joml/Vector3d;Lorg/joml/Vector3d;Lnet/minecraft/client/renderer/culling/Frustum;Lcom/qendolin/betterclouds/clouds/fog/FogProvider$Fog;)V",
+                    remap = true
             ),
             index = 0,
             remap = false,

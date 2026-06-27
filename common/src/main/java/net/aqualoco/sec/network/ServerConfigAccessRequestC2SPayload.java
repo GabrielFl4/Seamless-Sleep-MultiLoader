@@ -4,11 +4,11 @@ import net.aqualoco.sec.Constants;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 public record ServerConfigAccessRequestC2SPayload() implements CustomPacketPayload {
     public static final Type<ServerConfigAccessRequestC2SPayload> ID =
-            new Type<>(Identifier.fromNamespaceAndPath(Constants.MOD_ID, "server_config_access_request"));
+            new Type<>(ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, "server_config_access_request"));
 
     public static final StreamCodec<FriendlyByteBuf, ServerConfigAccessRequestC2SPayload> CODEC =
             CustomPacketPayload.codec(ServerConfigAccessRequestC2SPayload::write, ServerConfigAccessRequestC2SPayload::read);

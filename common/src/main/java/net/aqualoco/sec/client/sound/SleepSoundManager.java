@@ -637,7 +637,7 @@ public final class SleepSoundManager {
     }
 
     private static SoundInstance playOneShot(Minecraft client,
-                                             net.minecraft.resources.Identifier soundId,
+                                             net.minecraft.resources.ResourceLocation soundId,
                                              float volume,
                                              float pitch) {
         if (client == null || volume <= 0.0F) {

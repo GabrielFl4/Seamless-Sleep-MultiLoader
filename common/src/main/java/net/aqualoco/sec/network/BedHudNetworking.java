@@ -6,9 +6,9 @@ import net.aqualoco.sec.platform.Services;
 import net.aqualoco.sec.sleep.SleepDimensionSupport;
 import net.aqualoco.sec.sleep.SleepRequirement;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.level.gamerules.GameRules;
+import net.minecraft.world.level.GameRules;
 
 // Sends bed HUD sleep-progress state to clients so bed users do not depend on the vanilla action bar timing.
 public final class BedHudNetworking {
@@ -17,7 +17,7 @@ public final class BedHudNetworking {
     }
 
     public static void sendSleepProgress(ServerLevel world, int sleepingPlayers, int sleepersNeeded) {
-        Identifier worldId = world.dimension().identifier();
+        ResourceLocation worldId = world.dimension().location();
         BedHudSleepProgressPayload payload = new BedHudSleepProgressPayload(worldId, sleepingPlayers, sleepersNeeded, true);
         for (ServerPlayer player : world.players()) {
             if (ServerSeamlessClientPresenceManager.isConfirmed(player)) {
@@ -27,7 +27,7 @@ public final class BedHudNetworking {
     }
 
     public static void clearSleepProgress(ServerLevel world) {
-        Identifier worldId = world.dimension().identifier();
+        ResourceLocation worldId = world.dimension().location();
         BedHudSleepProgressPayload payload = new BedHudSleepProgressPayload(worldId, 0, 0, false);
         for (ServerPlayer player : world.players()) {
             if (ServerSeamlessClientPresenceManager.isConfirmed(player)) {
@@ -42,7 +42,7 @@ public final class BedHudNetworking {
             return;
         }
 
-        int percentage = world.getGameRules().get(GameRules.PLAYERS_SLEEPING_PERCENTAGE);
+        int percentage = world.getGameRules().getInt(GameRules.RULE_PLAYERS_SLEEPING_PERCENTAGE);
         int activePlayers = 0;
         int sleepingPlayers = 0;
         for (ServerPlayer player : world.players()) {

@@ -8,7 +8,7 @@ import net.aqualoco.sec.sleep.SleepDimensionSupport;
 import net.aqualoco.sec.sleep.SleepAnimationState;
 import net.aqualoco.sec.sleep.SleepAnimationStopReason;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 
@@ -90,7 +90,7 @@ public final class SleepAnimationNetworking {
     }
 
     private static SleepAnimationStartPayload createStartPayload(ServerLevel world, SleepAnimationState state) {
-        Identifier worldId = world.dimension().identifier();
+        ResourceLocation worldId = world.dimension().location();
         return new SleepAnimationStartPayload(
                 worldId,
                 state.getSessionId(),
@@ -117,7 +117,7 @@ public final class SleepAnimationNetworking {
     }
 
     public static void sendStop(ServerLevel world, long sessionId, long finalDayTime, SleepAnimationStopReason reason) {
-        Identifier worldId = world.dimension().identifier();
+        ResourceLocation worldId = world.dimension().location();
         SleepAnimationStopPayload payload = new SleepAnimationStopPayload(worldId, sessionId, finalDayTime, reason);
 
         int sent = sendToConfirmedPlayers(world, payload);

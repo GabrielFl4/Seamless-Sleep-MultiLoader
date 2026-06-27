@@ -3,8 +3,6 @@ package net.aqualoco.sec.sleep;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.attribute.BedRule;
-import net.minecraft.world.attribute.EnvironmentAttributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import org.jspecify.annotations.Nullable;
@@ -26,13 +24,7 @@ public final class SleepDimensionSupport {
             return false;
         }
 
-        try {
-            BedRule bedRule = level.environmentAttributes()
-                    .getValue(EnvironmentAttributes.BED_RULE, bedPos);
-            return supportsManagedBedWorkflow(bedRule);
-        } catch (RuntimeException ignored) {
-            return false;
-        }
+        return level.dimensionType().bedWorks();
     }
 
     public static boolean canCountForSleepNow(ServerPlayer player, @Nullable BlockPos bedPos) {
@@ -40,14 +32,8 @@ public final class SleepDimensionSupport {
             return false;
         }
 
-        try {
-            return player.level()
-                    .environmentAttributes()
-                    .getValue(EnvironmentAttributes.BED_RULE, bedPos)
-                    .canSleep(player.level());
-        } catch (RuntimeException ignored) {
-            return false;
-        }
+        Level level = player.level();
+        return level.dimensionType().natural() && !level.isBrightOutside();
     }
 
     public static boolean supportsSleepAnimation(ServerLevel level) {
@@ -57,11 +43,13 @@ public final class SleepDimensionSupport {
         if (Level.OVERWORLD.equals(level.dimension())) {
             return true;
         }
-        return level.canSleepThroughNights() && hasManagedBedWorkflowPlayer(level);
+        return level.dimensionType().bedWorks()
+                && level.canSleepThroughNights()
+                && hasManagedBedWorkflowPlayer(level);
     }
 
     public static boolean supportsClientSleepAnimation(Level level) {
-        return level != null && !isKnownVanillaExplodingDimension(level);
+        return level != null && level.dimensionType().bedWorks();
     }
 
     public static boolean shouldUseManagedSleepStatus(List<ServerPlayer> players) {
@@ -77,12 +65,6 @@ public final class SleepDimensionSupport {
 
     public static boolean supportsWorldAcceleration(ServerLevel level) {
         return level != null && Level.OVERWORLD.equals(level.dimension());
-    }
-
-    private static boolean supportsManagedBedWorkflow(BedRule bedRule) {
-        return bedRule != null
-                && !bedRule.explodes()
-                && bedRule.canSleep() != BedRule.Rule.NEVER;
     }
 
     private static boolean hasManagedBedWorkflowPlayer(ServerLevel level) {

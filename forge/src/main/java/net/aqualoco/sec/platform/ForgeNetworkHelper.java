@@ -22,7 +22,7 @@ import net.aqualoco.sec.network.VivecraftVrStatePayload;
 import net.aqualoco.sec.platform.services.INetworkHelper;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.event.network.CustomPayloadEvent;
@@ -45,8 +45,8 @@ public class ForgeNetworkHelper implements INetworkHelper {
         void handleVivecraftBedOffset(VivecraftBedOffsetS2CPayload payload);
     }
 
-    private static final Identifier CHANNEL_ID =
-            Identifier.fromNamespaceAndPath(Constants.MOD_ID, "network");
+    private static final ResourceLocation CHANNEL_ID =
+            ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, "network");
     private static Channel<CustomPacketPayload> channel;
     private static boolean registered;
     private static ClientHandler clientHandler;

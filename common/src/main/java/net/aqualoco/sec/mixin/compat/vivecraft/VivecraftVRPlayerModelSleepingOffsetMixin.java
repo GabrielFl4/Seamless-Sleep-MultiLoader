@@ -1,7 +1,7 @@
 package net.aqualoco.sec.mixin.compat.vivecraft;
 
 import net.aqualoco.sec.client.VivecraftSleepingBodyOffsetCompensation;
-import net.minecraft.client.model.player.PlayerModel;
+import net.minecraft.client.model.PlayerModel;
 import net.minecraft.client.renderer.entity.state.AvatarRenderState;
 import org.joml.Matrix3f;
 import org.joml.Vector3f;

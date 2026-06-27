@@ -4,7 +4,7 @@ import net.aqualoco.sec.Constants;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 import java.util.UUID;
 
@@ -12,7 +12,7 @@ import java.util.UUID;
 public record VivecraftBedOffsetS2CPayload(UUID playerId, boolean active, double yOffset) implements CustomPacketPayload {
 
     public static final Type<VivecraftBedOffsetS2CPayload> ID =
-            new Type<>(Identifier.fromNamespaceAndPath(Constants.MOD_ID, "vivecraft_bed_offset_s2c"));
+            new Type<>(ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, "vivecraft_bed_offset_s2c"));
 
     public static final StreamCodec<FriendlyByteBuf, VivecraftBedOffsetS2CPayload> CODEC =
             CustomPacketPayload.codec(VivecraftBedOffsetS2CPayload::write, VivecraftBedOffsetS2CPayload::read);

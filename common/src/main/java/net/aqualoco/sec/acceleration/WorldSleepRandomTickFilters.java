@@ -2,7 +2,7 @@ package net.aqualoco.sec.acceleration;
 
 import it.unimi.dsi.fastutil.objects.Reference2ByteOpenHashMap;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.BambooSaplingBlock;
 import net.minecraft.world.level.block.BambooStalkBlock;
 import net.minecraft.world.level.block.BaseFireBlock;
@@ -210,7 +210,7 @@ public final class WorldSleepRandomTickFilters {
     }
 
     private static boolean isVanillaVinesAndBambooBlock(Block block) {
-        Identifier id = BuiltInRegistries.BLOCK.getKey(block);
+        ResourceLocation id = BuiltInRegistries.BLOCK.getKey(block);
         if (id == null || !"minecraft".equals(id.getNamespace())) {
             return false;
         }
@@ -226,12 +226,12 @@ public final class WorldSleepRandomTickFilters {
     }
 
     private static boolean isVanillaBlock(Block block) {
-        Identifier id = BuiltInRegistries.BLOCK.getKey(block);
+        ResourceLocation id = BuiltInRegistries.BLOCK.getKey(block);
         return id != null && "minecraft".equals(id.getNamespace());
     }
 
     private static boolean isModdedCandidate(Block block, String[] hints) {
-        Identifier id = BuiltInRegistries.BLOCK.getKey(block);
+        ResourceLocation id = BuiltInRegistries.BLOCK.getKey(block);
         if (id == null || "minecraft".equals(id.getNamespace())) {
             return false;
         }

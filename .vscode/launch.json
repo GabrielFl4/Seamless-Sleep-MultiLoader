@@ -12,11 +12,11 @@
       "projectName": "neoforge",
       "mainClass": "net.neoforged.devlaunch.Main",
       "args": [
-        "@C:\\Users\\Gabriel\\Desktop\\Modding\\Seamless-Sleep-Multi\\Seamless-Sleep-MultiLoader\\neoforge\\build\\moddev\\clientRunProgramArgs.txt"
+        "@C:\\Users\\Gabriel\\Desktop\\Modding\\Seamless-Sleep-Multi\\versionamento\\workspace-1.21.9-1.21.10\\Seamless-Sleep-MultiLoader\\neoforge\\build\\moddev\\clientRunProgramArgs.txt"
       ],
       "vmArgs": [
-        "@C:\\Users\\Gabriel\\Desktop\\Modding\\Seamless-Sleep-Multi\\Seamless-Sleep-MultiLoader\\neoforge\\build\\moddev\\clientRunVmArgs.txt",
-        "-Dfml.modFolders\u003dseamlesssleep%%C:\\Users\\Gabriel\\Desktop\\Modding\\Seamless-Sleep-Multi\\Seamless-Sleep-MultiLoader\\neoforge\\bin\\main"
+        "@C:\\Users\\Gabriel\\Desktop\\Modding\\Seamless-Sleep-Multi\\versionamento\\workspace-1.21.9-1.21.10\\Seamless-Sleep-MultiLoader\\neoforge\\build\\moddev\\clientRunVmArgs.txt",
+        "-Dfml.modFolders\u003dseamlesssleep%%C:\\Users\\Gabriel\\Desktop\\Modding\\Seamless-Sleep-Multi\\versionamento\\workspace-1.21.9-1.21.10\\Seamless-Sleep-MultiLoader\\neoforge\\bin\\main"
       ],
       "cwd": "${workspaceFolder}\\neoforge\\run",
       "env": {},
@@ -34,11 +34,11 @@
       "projectName": "neoforge",
       "mainClass": "net.neoforged.devlaunch.Main",
       "args": [
-        "@C:\\Users\\Gabriel\\Desktop\\Modding\\Seamless-Sleep-Multi\\Seamless-Sleep-MultiLoader\\neoforge\\build\\moddev\\dataRunProgramArgs.txt"
+        "@C:\\Users\\Gabriel\\Desktop\\Modding\\Seamless-Sleep-Multi\\versionamento\\workspace-1.21.9-1.21.10\\Seamless-Sleep-MultiLoader\\neoforge\\build\\moddev\\dataRunProgramArgs.txt"
       ],
       "vmArgs": [
-        "@C:\\Users\\Gabriel\\Desktop\\Modding\\Seamless-Sleep-Multi\\Seamless-Sleep-MultiLoader\\neoforge\\build\\moddev\\dataRunVmArgs.txt",
-        "-Dfml.modFolders\u003dseamlesssleep%%C:\\Users\\Gabriel\\Desktop\\Modding\\Seamless-Sleep-Multi\\Seamless-Sleep-MultiLoader\\neoforge\\bin\\main"
+        "@C:\\Users\\Gabriel\\Desktop\\Modding\\Seamless-Sleep-Multi\\versionamento\\workspace-1.21.9-1.21.10\\Seamless-Sleep-MultiLoader\\neoforge\\build\\moddev\\dataRunVmArgs.txt",
+        "-Dfml.modFolders\u003dseamlesssleep%%C:\\Users\\Gabriel\\Desktop\\Modding\\Seamless-Sleep-Multi\\versionamento\\workspace-1.21.9-1.21.10\\Seamless-Sleep-MultiLoader\\neoforge\\bin\\main"
       ],
       "cwd": "${workspaceFolder}\\neoforge\\run",
       "env": {},
@@ -56,11 +56,11 @@
       "projectName": "neoforge",
       "mainClass": "net.neoforged.devlaunch.Main",
       "args": [
-        "@C:\\Users\\Gabriel\\Desktop\\Modding\\Seamless-Sleep-Multi\\Seamless-Sleep-MultiLoader\\neoforge\\build\\moddev\\serverRunProgramArgs.txt"
+        "@C:\\Users\\Gabriel\\Desktop\\Modding\\Seamless-Sleep-Multi\\versionamento\\workspace-1.21.9-1.21.10\\Seamless-Sleep-MultiLoader\\neoforge\\build\\moddev\\serverRunProgramArgs.txt"
       ],
       "vmArgs": [
-        "@C:\\Users\\Gabriel\\Desktop\\Modding\\Seamless-Sleep-Multi\\Seamless-Sleep-MultiLoader\\neoforge\\build\\moddev\\serverRunVmArgs.txt",
-        "-Dfml.modFolders\u003dseamlesssleep%%C:\\Users\\Gabriel\\Desktop\\Modding\\Seamless-Sleep-Multi\\Seamless-Sleep-MultiLoader\\neoforge\\bin\\main"
+        "@C:\\Users\\Gabriel\\Desktop\\Modding\\Seamless-Sleep-Multi\\versionamento\\workspace-1.21.9-1.21.10\\Seamless-Sleep-MultiLoader\\neoforge\\build\\moddev\\serverRunVmArgs.txt",
+        "-Dfml.modFolders\u003dseamlesssleep%%C:\\Users\\Gabriel\\Desktop\\Modding\\Seamless-Sleep-Multi\\versionamento\\workspace-1.21.9-1.21.10\\Seamless-Sleep-MultiLoader\\neoforge\\bin\\main"
       ],
       "cwd": "${workspaceFolder}\\neoforge\\run",
       "env": {},

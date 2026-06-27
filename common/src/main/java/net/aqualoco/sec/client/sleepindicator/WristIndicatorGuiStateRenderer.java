@@ -71,8 +71,8 @@ final class WristIndicatorGuiStateRenderer implements AutoCloseable {
         renderState.forEachText(textState -> {
             textState.ensurePrepared().visit(new Font.GlyphVisitor() {
                 @Override
-                public void acceptGlyph(TextRenderable.Styled styled) {
-                    accept(styled);
+                public void acceptGlyph(TextRenderable textRenderable) {
+                    accept(textRenderable);
                 }
 
                 @Override
@@ -93,7 +93,8 @@ final class WristIndicatorGuiStateRenderer implements AutoCloseable {
                 new Matrix4f().setTranslation(0.0F, 0.0F, -11000.0F),
                 new Vector4f(1.0F, 1.0F, 1.0F, 1.0F),
                 new Vector3f(),
-                new Matrix4f()
+                new Matrix4f(),
+                0.0F
         );
         List<PreparedElement> preparedElements = new ArrayList<>();
         try {
@@ -175,17 +176,16 @@ final class WristIndicatorGuiStateRenderer implements AutoCloseable {
     }
 
     private static void bindTextures(TextureSetup textureSetup, RenderPass renderPass) {
-        bindTexture(renderPass, "Sampler0", textureSetup.texure0(), textureSetup.sampler0());
-        bindTexture(renderPass, "Sampler1", textureSetup.texure1(), textureSetup.sampler1());
-        bindTexture(renderPass, "Sampler2", textureSetup.texure2(), textureSetup.sampler2());
+        bindTexture(renderPass, "Sampler0", textureSetup.texure0());
+        bindTexture(renderPass, "Sampler1", textureSetup.texure1());
+        bindTexture(renderPass, "Sampler2", textureSetup.texure2());
     }
 
     private static void bindTexture(RenderPass renderPass,
                                     String samplerName,
-                                    GpuTextureView textureView,
-                                    com.mojang.blaze3d.textures.GpuSampler sampler) {
-        if (textureView != null && sampler != null) {
-            renderPass.bindTexture(samplerName, textureView, sampler);
+                                    GpuTextureView textureView) {
+        if (textureView != null) {
+            renderPass.bindSampler(samplerName, textureView);
         }
     }
 

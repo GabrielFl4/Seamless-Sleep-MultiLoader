@@ -8,11 +8,11 @@ import net.aqualoco.sec.sleep.SleepAnimationVisualContext;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 // Start/snapshot packet with the authoritative server gameTime timeline.
 public record SleepAnimationStartPayload(
-        Identifier worldId,
+        ResourceLocation worldId,
         long sessionId,
         long sequenceId,
         SleepAnimationMode mode,
@@ -29,7 +29,7 @@ public record SleepAnimationStartPayload(
 
     public static final CustomPacketPayload.Type<SleepAnimationStartPayload> ID =
             new CustomPacketPayload.Type<>(
-                    Identifier.fromNamespaceAndPath(Constants.MOD_ID, "sleep_animation_start")
+                    ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, "sleep_animation_start")
             );
 
     public static final StreamCodec<FriendlyByteBuf, SleepAnimationStartPayload> CODEC =
@@ -37,7 +37,7 @@ public record SleepAnimationStartPayload(
     private static final int LEGACY_REMAINING_BYTES_AFTER_PHASE = Long.BYTES * 5 + Integer.BYTES;
 
     private static void write(SleepAnimationStartPayload payload, FriendlyByteBuf buf) {
-        buf.writeIdentifier(payload.worldId());
+        buf.writeResourceLocation(payload.worldId());
         buf.writeLong(payload.sessionId());
         buf.writeLong(payload.sequenceId());
         buf.writeUtf(payload.mode().name());
@@ -53,7 +53,7 @@ public record SleepAnimationStartPayload(
     }
 
     private static SleepAnimationStartPayload read(FriendlyByteBuf buf) {
-        Identifier worldId = buf.readIdentifier();
+        ResourceLocation worldId = buf.readResourceLocation();
         long sessionId = buf.readLong();
         long sequenceId = buf.readLong();
         SleepAnimationMode mode = readEnum(buf, SleepAnimationMode.class, SleepAnimationMode.NORMAL_SLEEP);
@@ -94,7 +94,7 @@ public record SleepAnimationStartPayload(
     }
 
     private static SleepAnimationStartPayload readLegacyBody(FriendlyByteBuf buf,
-                                                             Identifier worldId,
+                                                             ResourceLocation worldId,
                                                              long sessionId,
                                                              long sequenceId,
                                                              SleepAnimationMode mode,

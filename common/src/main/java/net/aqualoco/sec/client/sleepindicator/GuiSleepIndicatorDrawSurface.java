@@ -4,7 +4,7 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 // GuiGraphics-backed surface used by the normal HUD path.
 public final class GuiSleepIndicatorDrawSurface implements SleepIndicatorDrawSurface {
@@ -31,7 +31,7 @@ public final class GuiSleepIndicatorDrawSurface implements SleepIndicatorDrawSur
     }
 
     @Override
-    public void blit(Identifier texture,
+    public void blit(ResourceLocation texture,
                      int destX,
                      int destY,
                      float sourceU,
@@ -57,7 +57,7 @@ public final class GuiSleepIndicatorDrawSurface implements SleepIndicatorDrawSur
     }
 
     @Override
-    public void blit(Identifier texture,
+    public void blit(ResourceLocation texture,
                      int destX,
                      int destY,
                      float sourceU,

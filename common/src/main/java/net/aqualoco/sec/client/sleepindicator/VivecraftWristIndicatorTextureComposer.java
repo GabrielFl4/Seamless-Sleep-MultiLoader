@@ -6,7 +6,7 @@ import net.aqualoco.sec.Constants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.render.state.GuiRenderState;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
 
@@ -16,7 +16,7 @@ final class VivecraftWristIndicatorTextureComposer {
     private static final int TRANSPARENT_CLEAR_COLOR = 0x00000000;
     private static final int BIOME_BACKING_COLOR = 0xF0000000;
     private static final long MIN_COMPOSE_INTERVAL_NANOS = 33_000_000L;
-    private static final Identifier TEXTURE_ID = Identifier.fromNamespaceAndPath(Constants.MOD_ID, "vivecraft_wrist_indicator_composed");
+    private static final ResourceLocation TEXTURE_ID = ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, "vivecraft_wrist_indicator_composed");
 
     private final GuiRenderState renderState = new GuiRenderState();
     private final WristIndicatorGuiStateRenderer guiRenderer = new WristIndicatorGuiStateRenderer();
@@ -87,7 +87,7 @@ final class VivecraftWristIndicatorTextureComposer {
                                CanvasSpec canvas) {
         IndicatorSize size = renderer.measure(context);
         Placement placement = resolvePlacement(size, canvas);
-        GuiGraphics graphics = new GuiGraphics(Minecraft.getInstance(), this.renderState, 0, 0);
+        GuiGraphics graphics = new GuiGraphics(Minecraft.getInstance(), this.renderState);
 
         drawBacking(graphics, placement, context.alpha());
         graphics.pose().pushMatrix();
@@ -121,7 +121,7 @@ final class VivecraftWristIndicatorTextureComposer {
     }
 
     private static void drawBacking(GuiGraphics graphics, Placement placement, float alpha) {
-        drawCircularBacking(graphics, placement, ARGB.multiplyAlpha(BIOME_BACKING_COLOR, alpha));
+        drawCircularBacking(graphics, placement, multiplyAlpha(BIOME_BACKING_COLOR, alpha));
     }
 
     private static void drawCircularBacking(GuiGraphics graphics, Placement placement, int color) {
@@ -141,7 +141,12 @@ final class VivecraftWristIndicatorTextureComposer {
         }
     }
 
-    record ComposedTexture(Identifier texture) {
+    private static int multiplyAlpha(int color, float alpha) {
+        int alphaByte = Mth.clamp((int) (ARGB.alpha(color) * Mth.clamp(alpha, 0.0F, 1.0F)), 0, 255);
+        return ARGB.color(alphaByte, color);
+    }
+
+    record ComposedTexture(ResourceLocation texture) {
     }
 
     private record CanvasSpec(int width, int height) {

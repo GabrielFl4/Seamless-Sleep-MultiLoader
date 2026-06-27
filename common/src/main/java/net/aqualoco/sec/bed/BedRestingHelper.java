@@ -368,10 +368,13 @@ public final class BedRestingHelper {
 
     @Nullable
     public static Component getCurrentBedProblemMessage(Level level, BlockPos bedPos) {
-        return level.environmentAttributes()
-                .getValue(net.minecraft.world.attribute.EnvironmentAttributes.BED_RULE, bedPos)
-                .asProblem()
-                .message();
+        if (!SleepDimensionSupport.supportsManagedBedWorkflow(level, bedPos)) {
+            return Player.BedSleepingProblem.NOT_POSSIBLE_HERE.getMessage();
+        }
+        if (level.isBrightOutside()) {
+            return Player.BedSleepingProblem.NOT_POSSIBLE_NOW.getMessage();
+        }
+        return null;
     }
 
     public static void showBedHudMessage(ServerPlayer player, @Nullable Component message) {

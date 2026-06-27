@@ -20,7 +20,7 @@ import net.aqualoco.sec.sleep.SleepRequirement;
 import net.aqualoco.sec.sleep.SleepWeatherHelper;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.level.gamerules.GameRules;
+import net.minecraft.world.level.GameRules;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.gen.Invoker;
@@ -294,7 +294,7 @@ public abstract class ServerWorldSleepAnimationMixin {
         if (eligibility == SleepEligibilityMode.VANILLA || eligibility.preventsSleepSkip()) {
             return;
         }
-        if (!world.getGameRules().get(GameRules.ADVANCE_TIME)) {
+        if (!world.getGameRules().getBoolean(GameRules.RULE_DAYLIGHT)) {
             return;
         }
         if (!seamlesssleep$hasEnoughDeepSleeping(world)) {
@@ -315,7 +315,7 @@ public abstract class ServerWorldSleepAnimationMixin {
     @Unique
     private void seamlesssleep$tryStartMadeInHeavenBedSleep(ServerLevel world, SleepAnimationState state) {
         int chancePercent = SeamlessSleepServerConfigManager.get().madeInHeavenChancePercent;
-        if (chancePercent <= 0 || !world.getGameRules().get(GameRules.ADVANCE_TIME)) {
+        if (chancePercent <= 0 || !world.getGameRules().getBoolean(GameRules.RULE_DAYLIGHT)) {
             this.seamlesssleep$madeInHeavenRollLocked = false;
             return;
         }
@@ -365,7 +365,7 @@ public abstract class ServerWorldSleepAnimationMixin {
 
     @Unique
     private boolean seamlesssleep$rollWeatherClearChance(ServerLevel world, int chancePercent) {
-        if (!world.getGameRules().get(GameRules.ADVANCE_WEATHER)) {
+        if (!world.getGameRules().getBoolean(GameRules.RULE_WEATHER_CYCLE)) {
             return false;
         }
         if (chancePercent <= 0) {
@@ -392,7 +392,7 @@ public abstract class ServerWorldSleepAnimationMixin {
 
     @Unique
     private boolean seamlesssleep$hasEnoughSleeping(ServerLevel world) {
-        int percentage = world.getGameRules().get(GameRules.PLAYERS_SLEEPING_PERCENTAGE);
+        int percentage = world.getGameRules().getInt(GameRules.RULE_PLAYERS_SLEEPING_PERCENTAGE);
         int total = 0;
         int sleeping = 0;
         for (ServerPlayer player : world.players()) {
@@ -415,7 +415,7 @@ public abstract class ServerWorldSleepAnimationMixin {
 
     @Unique
     private boolean seamlesssleep$hasEnoughDeepSleeping(ServerLevel world) {
-        int percentage = world.getGameRules().get(GameRules.PLAYERS_SLEEPING_PERCENTAGE);
+        int percentage = world.getGameRules().getInt(GameRules.RULE_PLAYERS_SLEEPING_PERCENTAGE);
         int total = 0;
         int deepSleeping = 0;
         int delayTicks = SeamlessSleepServerConfigManager.get().fallAsleepDelayTicks;
@@ -439,7 +439,7 @@ public abstract class ServerWorldSleepAnimationMixin {
 
     @Unique
     private boolean seamlesssleep$hasEnoughMadeInHeavenSleeping(ServerLevel world) {
-        int percentage = world.getGameRules().get(GameRules.PLAYERS_SLEEPING_PERCENTAGE);
+        int percentage = world.getGameRules().getInt(GameRules.RULE_PLAYERS_SLEEPING_PERCENTAGE);
         int total = 0;
         int sleepers = 0;
         int delayTicks = SeamlessSleepServerConfigManager.get().fallAsleepDelayTicks;

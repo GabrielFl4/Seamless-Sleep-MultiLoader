@@ -18,7 +18,7 @@ import net.aqualoco.sec.sleep.SleepDimensionSupport;
 import net.aqualoco.sec.sleep.SleepAnimationStopReason;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 // NeoForge client packet handlers that start/stop animation and apply synced server config.
 final class NeoForgeClientNetworkHandler implements NeoForgeNetworkHelper.ClientHandler {
@@ -31,7 +31,7 @@ final class NeoForgeClientNetworkHandler implements NeoForgeNetworkHelper.Client
             return;
         }
 
-        Identifier worldId = world.dimension().identifier();
+        ResourceLocation worldId = world.dimension().location();
         if (!worldId.equals(payload.worldId())) {
             return;
         }
@@ -123,12 +123,12 @@ final class NeoForgeClientNetworkHandler implements NeoForgeNetworkHelper.Client
         VivecraftClientCompat.applySyncedBedRoomYOffset(payload);
     }
 
-    private static boolean isMatchingSupportedWorld(ClientLevel world, Identifier payloadWorldId) {
+    private static boolean isMatchingSupportedWorld(ClientLevel world, ResourceLocation payloadWorldId) {
         if (world == null) {
             return false;
         }
 
-        Identifier worldId = world.dimension().identifier();
+        ResourceLocation worldId = world.dimension().location();
         return worldId.equals(payloadWorldId) && SleepDimensionSupport.supportsClientSleepAnimation(world);
     }
 }

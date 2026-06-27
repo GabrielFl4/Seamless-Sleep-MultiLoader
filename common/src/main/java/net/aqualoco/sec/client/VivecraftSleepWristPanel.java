@@ -7,7 +7,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.state.CameraRenderState;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Quaternionfc;
@@ -19,7 +19,7 @@ import java.lang.reflect.Proxy;
 
 // Shared Vivecraft wrist-panel geometry used by both the InteractModule hitbox and the indicator render.
 public final class VivecraftSleepWristPanel {
-    private static final Identifier PANEL_ID = Identifier.fromNamespaceAndPath(Constants.MOD_ID, "sleep_indicator");
+    private static final ResourceLocation PANEL_ID = ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, "sleep_indicator");
     private static final String VIVECRAFT_HOTBAR_MODULE_ID = "vivecraft:interactive_hotbar";
     private static final int INTERACT_PRIORITY_AFTER_HOTBAR = 100;
 

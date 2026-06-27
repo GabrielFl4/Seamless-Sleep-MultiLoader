@@ -2,7 +2,7 @@ package net.aqualoco.sec.client.sound;
 
 import net.minecraft.client.resources.sounds.AbstractTickableSoundInstance;
 import net.minecraft.client.resources.sounds.SoundInstance;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
 
@@ -13,7 +13,7 @@ public final class SleepLoopSoundInstance extends AbstractTickableSoundInstance 
     private int fadeTicks;
     private boolean stopping;
 
-    public SleepLoopSoundInstance(Identifier soundId, SoundSource source, int fadeTicks) {
+    public SleepLoopSoundInstance(ResourceLocation soundId, SoundSource source, int fadeTicks) {
         super(SoundEvent.createVariableRangeEvent(soundId), source, SoundInstance.createUnseededRandom());
         this.looping = true;
         this.relative = true;

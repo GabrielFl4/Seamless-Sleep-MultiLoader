@@ -4,13 +4,13 @@ import net.aqualoco.sec.Constants;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 // Sends the local effective Vivecraft bed room Y offset to a Seamless server for lightweight render sync.
 public record VivecraftBedOffsetC2SPayload(boolean active, double yOffset) implements CustomPacketPayload {
 
     public static final Type<VivecraftBedOffsetC2SPayload> ID =
-            new Type<>(Identifier.fromNamespaceAndPath(Constants.MOD_ID, "vivecraft_bed_offset_c2s"));
+            new Type<>(ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, "vivecraft_bed_offset_c2s"));
 
     public static final StreamCodec<FriendlyByteBuf, VivecraftBedOffsetC2SPayload> CODEC =
             CustomPacketPayload.codec(VivecraftBedOffsetC2SPayload::write, VivecraftBedOffsetC2SPayload::read);

@@ -4,13 +4,13 @@ import net.aqualoco.sec.Constants;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 // Sends the local managed-bed look to the server so sleeping orientation becomes authoritative.
 public record BedLookSyncPayload(float yaw, float pitch) implements CustomPacketPayload {
 
     public static final Type<BedLookSyncPayload> ID =
-            new Type<>(Identifier.fromNamespaceAndPath(Constants.MOD_ID, "bed_look_sync"));
+            new Type<>(ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, "bed_look_sync"));
 
     public static final StreamCodec<FriendlyByteBuf, BedLookSyncPayload> CODEC =
             CustomPacketPayload.codec(BedLookSyncPayload::write, BedLookSyncPayload::read);

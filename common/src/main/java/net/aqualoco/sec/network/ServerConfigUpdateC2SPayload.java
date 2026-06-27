@@ -4,7 +4,7 @@ import net.aqualoco.sec.Constants;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 import java.util.Collections;
 import java.util.EnumMap;
@@ -15,7 +15,7 @@ public record ServerConfigUpdateC2SPayload(int baseRevision,
     private static final int MAX_FIELD_VALUE_LENGTH = 256;
 
     public static final Type<ServerConfigUpdateC2SPayload> ID =
-            new Type<>(Identifier.fromNamespaceAndPath(Constants.MOD_ID, "server_config_update"));
+            new Type<>(ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, "server_config_update"));
 
     public static final StreamCodec<FriendlyByteBuf, ServerConfigUpdateC2SPayload> CODEC =
             CustomPacketPayload.codec(ServerConfigUpdateC2SPayload::write, ServerConfigUpdateC2SPayload::read);

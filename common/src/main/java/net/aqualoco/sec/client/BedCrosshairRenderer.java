@@ -5,7 +5,7 @@ import net.aqualoco.sec.Constants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.RenderPipelines;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -13,8 +13,8 @@ import java.io.InputStream;
 // Draws a fixed-size bed crosshair from a standalone PNG centered on the HUD.
 public final class BedCrosshairRenderer {
 
-    private static final Identifier BED_CROSSHAIR_TEXTURE =
-            Identifier.fromNamespaceAndPath(Constants.MOD_ID, "textures/gui/bed_crosshair.png");
+    private static final ResourceLocation BED_CROSSHAIR_TEXTURE =
+            ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, "textures/gui/bed_crosshair.png");
     private static final int RENDER_SIZE = 15;
     private static final int DEFAULT_TEXTURE_SIZE = 15;
 

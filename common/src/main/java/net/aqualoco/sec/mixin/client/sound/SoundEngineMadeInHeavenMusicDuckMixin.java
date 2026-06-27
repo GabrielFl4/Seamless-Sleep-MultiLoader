@@ -34,6 +34,6 @@ public abstract class SoundEngineMadeInHeavenMusicDuckMixin {
         }
 
         this.seamlesssleep$lastMusicDuckFactor = factor;
-        ((SoundEngine) (Object) this).refreshCategoryVolume(SoundSource.MUSIC);
+        ((SoundEngine) (Object) this).updateCategoryVolume(SoundSource.MUSIC);
     }
 }

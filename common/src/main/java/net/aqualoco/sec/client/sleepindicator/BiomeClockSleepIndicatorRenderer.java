@@ -12,7 +12,7 @@ import net.aqualoco.sec.client.sleepindicator.biomeclock.BiomeClockWeatherKind;
 import net.aqualoco.sec.client.sleepindicator.biomeclock.BiomeClockWeatherResolver;
 import net.aqualoco.sec.client.sleepindicator.biomeclock.BiomeClockWeatherVisualState;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
 
@@ -132,15 +132,15 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
     private static final float GLOW_ALPHA_MULTIPLIER = 0.92F;
     private static final float GLOW_WEATHER_ATTENUATION = 0.85F;
 
-    private static final Identifier CLOUDS = texture("clouds.png");
-    private static final Identifier SKY_LIGHT = texture("sky_light.png");
-    private static final Identifier CLOUDS_ABOVE = texture("clouds_above.png");
-    private static final Identifier SUN = texture("sun.png");
-    private static final Identifier SUN_GLOW = texture("sun_glow.png");
-    private static final Identifier FRAME_CIRCLE = texture("frame/circle.png");
-    private static final Identifier WEATHER_CLOUDS_RAIN = texture("weather/clouds_rain.png");
-    private static final Identifier WEATHER_CLOUDS_THUNDERSTORM = texture("weather/clouds_thunderstorm.png");
-    private static final Identifier[] STARS = new Identifier[] {
+    private static final ResourceLocation CLOUDS = texture("clouds.png");
+    private static final ResourceLocation SKY_LIGHT = texture("sky_light.png");
+    private static final ResourceLocation CLOUDS_ABOVE = texture("clouds_above.png");
+    private static final ResourceLocation SUN = texture("sun.png");
+    private static final ResourceLocation SUN_GLOW = texture("sun_glow.png");
+    private static final ResourceLocation FRAME_CIRCLE = texture("frame/circle.png");
+    private static final ResourceLocation WEATHER_CLOUDS_RAIN = texture("weather/clouds_rain.png");
+    private static final ResourceLocation WEATHER_CLOUDS_THUNDERSTORM = texture("weather/clouds_thunderstorm.png");
+    private static final ResourceLocation[] STARS = new ResourceLocation[] {
             texture("stars/stars_1.png"),
             texture("stars/stars_2.png"),
             texture("stars/stars_3.png"),
@@ -150,17 +150,17 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
             texture("stars/stars_7.png"),
             texture("stars/stars_8.png")
     };
-    private static final Identifier[] ZZZ = new Identifier[] {
+    private static final ResourceLocation[] ZZZ = new ResourceLocation[] {
             texture("zzz/zzz_1.png"),
             texture("zzz/zzz_2.png"),
             texture("zzz/zzz_3.png")
     };
-    private static final Identifier[] CAVERNS = new Identifier[] {
+    private static final ResourceLocation[] CAVERNS = new ResourceLocation[] {
             texture("scenes/caverns/caverns_1.png"),
             texture("scenes/caverns/caverns_2.png"),
             texture("scenes/caverns/caverns_3.png")
     };
-    private static final Identifier[] NETHER = new Identifier[] {
+    private static final ResourceLocation[] NETHER = new ResourceLocation[] {
             texture("scenes/nether/nether_1.png"),
             texture("scenes/nether/nether_2.png"),
             texture("scenes/nether/nether_3.png"),
@@ -172,8 +172,8 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
             texture("scenes/nether/nether_9.png"),
             texture("scenes/nether/nether_10.png")
     };
-    private static final Identifier NETHER_SUN = texture("scenes/nether/nether_sun.png");
-    private static final Identifier[] END = new Identifier[] {
+    private static final ResourceLocation NETHER_SUN = texture("scenes/nether/nether_sun.png");
+    private static final ResourceLocation[] END = new ResourceLocation[] {
             texture("scenes/end/end_1.png"),
             texture("scenes/end/end_2.png"),
             texture("scenes/end/end_3.png"),
@@ -185,8 +185,8 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
             texture("scenes/end/end_9.png"),
             texture("scenes/end/end_10.png")
     };
-    private static final Identifier END_SUN = texture("scenes/end/end_sun.png");
-    private static final Identifier[] NOISE = new Identifier[] {
+    private static final ResourceLocation END_SUN = texture("scenes/end/end_sun.png");
+    private static final ResourceLocation[] NOISE = new ResourceLocation[] {
             texture("scenes/noise/noise_1.png"),
             texture("scenes/noise/noise_2.png"),
             texture("scenes/noise/noise_3.png"),
@@ -198,17 +198,17 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
             texture("scenes/noise/noise_9.png"),
             texture("scenes/noise/noise_10.png")
     };
-    private static final Identifier[] RAIN = new Identifier[] {
+    private static final ResourceLocation[] RAIN = new ResourceLocation[] {
             texture("weather/rain/rain_1.png"),
             texture("weather/rain/rain_2.png"),
             texture("weather/rain/rain_3.png")
     };
-    private static final Identifier[] THUNDERSTORM_RAIN = new Identifier[] {
+    private static final ResourceLocation[] THUNDERSTORM_RAIN = new ResourceLocation[] {
             texture("weather/thunderstorm/thunderstorm_1.png"),
             texture("weather/thunderstorm/thunderstorm_2.png"),
             texture("weather/thunderstorm/thunderstorm_3.png")
     };
-    private static final Identifier[] SANDSTORM = new Identifier[] {
+    private static final ResourceLocation[] SANDSTORM = new ResourceLocation[] {
             texture("weather/sandstorm/sand_1.png"),
             texture("weather/sandstorm/sand_2.png"),
             texture("weather/sandstorm/sand_3.png"),
@@ -220,7 +220,7 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
             texture("weather/sandstorm/sand_9.png"),
             texture("weather/sandstorm/sand_10.png")
     };
-    private static final Identifier[] SNOW = new Identifier[] {
+    private static final ResourceLocation[] SNOW = new ResourceLocation[] {
             texture("weather/snow/snow_1.png"),
             texture("weather/snow/snow_2.png"),
             texture("weather/snow/snow_3.png"),
@@ -232,12 +232,12 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
             texture("weather/snow/snow_9.png"),
             texture("weather/snow/snow_10.png")
     };
-    private static final Identifier[] LIGHTNING = new Identifier[] {
+    private static final ResourceLocation[] LIGHTNING = new ResourceLocation[] {
             texture("weather/lightning/lightning_1.png"),
             texture("weather/lightning/lightning_2.png")
     };
-    private static final Map<BiomeClockCategory, Identifier> BIOME_TEXTURES = createBiomeTextures();
-    private static final Identifier[] MOONS = new Identifier[] {
+    private static final Map<BiomeClockCategory, ResourceLocation> BIOME_TEXTURES = createBiomeTextures();
+    private static final ResourceLocation[] MOONS = new ResourceLocation[] {
             texture("moons/moon_0.png"),
             texture("moons/moon_1.png"),
             texture("moons/moon_2.png"),
@@ -343,7 +343,7 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
         renderStars(graphics, context, nowNanos);
 
         int cloudOffset = updateCloudPhase(context, nowNanos);
-        int cloudColor = ARGB.multiplyAlpha(context.cloudColor(), context.alpha());
+        int cloudColor = multiplyAlpha(context.cloudColor(), context.alpha());
         drawCircularTexture(
                 graphics,
                 CLOUDS,
@@ -405,7 +405,7 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
         );
 
         int cloudAboveOffset = updateCloudAbovePhase(context, nowNanos);
-        int cloudAboveColor = ARGB.multiplyAlpha(
+        int cloudAboveColor = multiplyAlpha(
                 context.cloudColor(),
                 context.alpha() * computeCloudAboveAlpha(context)
         );
@@ -463,7 +463,7 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
 
     private void renderGlitchedSun(
             SleepIndicatorDrawSurface graphics,
-            Identifier texture,
+            ResourceLocation texture,
             SleepIndicatorContext context,
             long nowNanos,
             int seed
@@ -564,19 +564,19 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
     private void renderSkyFromClient(SleepIndicatorDrawSurface graphics, SleepIndicatorContext context) {
         int skyBase = ARGB.opaque(context.skyColor());
         int topColor = ARGB.scaleRGB(skyBase, SKY_TOP_DARKEN);
-        int horizonColor = ARGB.srgbLerp(SKY_HORIZON_LIGHTEN, skyBase, ARGB.color(255, 255, 255));
+        int horizonColor = lerpColor(SKY_HORIZON_LIGHTEN, skyBase, ARGB.color(255, 255, 255));
         int sunriseColor = resolveSunriseTintColor(context);
         float sunriseBlend = computeSunriseEffectAlpha(context) * SKY_SUNRISE_TINT;
         if (sunriseBlend > 0.0F) {
-            horizonColor = ARGB.srgbLerp(Mth.clamp(sunriseBlend, 0.0F, 1.0F), horizonColor, sunriseColor);
+            horizonColor = lerpColor(Mth.clamp(sunriseBlend, 0.0F, 1.0F), horizonColor, sunriseColor);
         }
         final int finalTopColor = topColor;
         final int finalHorizonColor = horizonColor;
 
         forEachCircularSlice((sliceX, sliceY, sliceWidth, ignoredU, ignoredV) -> {
             float rowProgress = sliceY / (float) Math.max(1, CLOCK_SIZE - 1);
-            int rowColor = ARGB.srgbLerp(rowProgress, finalTopColor, finalHorizonColor);
-            graphics.fill(sliceX, sliceY, sliceX + sliceWidth, sliceY + 1, ARGB.multiplyAlpha(rowColor, context.alpha()));
+            int rowColor = lerpColor(rowProgress, finalTopColor, finalHorizonColor);
+            graphics.fill(sliceX, sliceY, sliceX + sliceWidth, sliceY + 1, multiplyAlpha(rowColor, context.alpha()));
         }, 0, 0, 0, 0, CLOCK_SIZE, CLOCK_SIZE);
     }
 
@@ -627,7 +627,7 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
             return;
         }
 
-        Identifier[] frames;
+        ResourceLocation[] frames;
         double fps;
         float alphaMultiplier = 1.0F;
         BiomeClockCategory category = context.biomeClockCategory();
@@ -693,7 +693,7 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
             return;
         }
 
-        Identifier texture = weatherKind.usesThunderClouds() ? WEATHER_CLOUDS_THUNDERSTORM : WEATHER_CLOUDS_RAIN;
+        ResourceLocation texture = weatherKind.usesThunderClouds() ? WEATHER_CLOUDS_THUNDERSTORM : WEATHER_CLOUDS_RAIN;
         int color = weatherCloudTint(context, weatherKind, alpha);
         float slide = this.weatherVisualState.slideProgress();
         int leftX = Math.round(Mth.lerp(slide, LEFT_WEATHER_CLOUD_OUT_X, LEFT_WEATHER_CLOUD_IN_X)
@@ -904,12 +904,12 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
     }
 
     private static int precipitationTintColor(float alpha, float darkeningFactor) {
-        int tintColor = ARGB.srgbLerp(
+        int tintColor = lerpColor(
                 darkeningFactor,
                 ARGB.opaque(0xFFFFFF),
                 ARGB.opaque(BIOME_DARKEN_TINT_RGB)
         );
-        return ARGB.multiplyAlpha(tintColor, alpha);
+        return multiplyAlpha(tintColor, alpha);
     }
 
     private static float precipitationDarkeningFactor(
@@ -939,7 +939,7 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
         if (weatherKind.usesThunderClouds()) {
             baseColor = ARGB.scaleRGB(baseColor, 0.72F);
         }
-        return ARGB.multiplyAlpha(baseColor, alpha);
+        return multiplyAlpha(baseColor, alpha);
     }
 
     private static float computeBiomeDarkeningAlpha(SleepIndicatorContext context, float lightningFlashFactor) {
@@ -1035,6 +1035,15 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
         return (alphaByte << 24) | (rgb & 0x00FFFFFF);
     }
 
+    private static int multiplyAlpha(int color, float alpha) {
+        int alphaByte = Mth.clamp((int) (ARGB.alpha(color) * Mth.clamp(alpha, 0.0F, 1.0F)), 0, 255);
+        return ARGB.color(alphaByte, color);
+    }
+
+    private static int lerpColor(float delta, int from, int to) {
+        return ARGB.lerp(Mth.clamp(delta, 0.0F, 1.0F), from, to);
+    }
+
     private static OrbitPosition orbitPosition(float angleRadians, int size) {
         float centerX = ORBIT_CENTER_X + Mth.sin(angleRadians) * ORBIT_RADIUS_X;
         float centerY = ORBIT_CENTER_Y - Mth.cos(angleRadians) * ORBIT_RADIUS_Y;
@@ -1053,7 +1062,7 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
         return centerY + size * 0.5F;
     }
 
-    private static void drawCircularFullTexture(SleepIndicatorDrawSurface graphics, Identifier texture, int color) {
+    private static void drawCircularFullTexture(SleepIndicatorDrawSurface graphics, ResourceLocation texture, int color) {
         drawCircularTexture(
                 graphics,
                 texture,
@@ -1069,7 +1078,7 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
         );
     }
 
-    private static void drawFullTexture(SleepIndicatorDrawSurface graphics, Identifier texture, int color) {
+    private static void drawFullTexture(SleepIndicatorDrawSurface graphics, ResourceLocation texture, int color) {
         if ((color >>> 24) <= 0) {
             return;
         }
@@ -1107,7 +1116,7 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
 
     private static void drawCircularTexture(
             SleepIndicatorDrawSurface graphics,
-            Identifier texture,
+            ResourceLocation texture,
             int destX,
             int destY,
             int sourceU,
@@ -1132,7 +1141,7 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
 
     private static void drawCircularTextureClippedToHorizon(
             SleepIndicatorDrawSurface graphics,
-            Identifier texture,
+            ResourceLocation texture,
             int destX,
             int destY,
             int sourceU,
@@ -1158,7 +1167,7 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
 
     private static void drawCircularTextureScaled(
             SleepIndicatorDrawSurface graphics,
-            Identifier texture,
+            ResourceLocation texture,
             int destX,
             int destY,
             int drawWidth,
@@ -1182,7 +1191,7 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
 
     private static void drawCircularTextureScaled(
             SleepIndicatorDrawSurface graphics,
-            Identifier texture,
+            ResourceLocation texture,
             int destX,
             int destY,
             int drawWidth,
@@ -1207,7 +1216,7 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
 
     private static void drawCircularTextureScaled(
             SleepIndicatorDrawSurface graphics,
-            Identifier texture,
+            ResourceLocation texture,
             int destX,
             int destY,
             int drawWidth,
@@ -1269,7 +1278,7 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
 
     private static void drawCircularTexture(
             SleepIndicatorDrawSurface graphics,
-            Identifier texture,
+            ResourceLocation texture,
             int destX,
             int destY,
             int sourceU,
@@ -1353,20 +1362,20 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
         }
     }
 
-    private static Identifier texture(String path) {
-        return Identifier.fromNamespaceAndPath(
+    private static ResourceLocation texture(String path) {
+        return ResourceLocation.fromNamespaceAndPath(
                 Constants.MOD_ID,
                 "textures/gui/sleep_indicator/biome_clock/" + path
         );
     }
 
-    private static Identifier biomeTexture(BiomeClockCategory category) {
-        Identifier fallback = BIOME_TEXTURES.get(BiomeClockCategory.DEFAULT);
+    private static ResourceLocation biomeTexture(BiomeClockCategory category) {
+        ResourceLocation fallback = BIOME_TEXTURES.get(BiomeClockCategory.DEFAULT);
         return BIOME_TEXTURES.getOrDefault(category == null ? BiomeClockCategory.DEFAULT : category, fallback);
     }
 
-    private static Map<BiomeClockCategory, Identifier> createBiomeTextures() {
-        EnumMap<BiomeClockCategory, Identifier> textures = new EnumMap<>(BiomeClockCategory.class);
+    private static Map<BiomeClockCategory, ResourceLocation> createBiomeTextures() {
+        EnumMap<BiomeClockCategory, ResourceLocation> textures = new EnumMap<>(BiomeClockCategory.class);
         for (BiomeClockCategory category : BiomeClockCategory.values()) {
             textures.put(category, texture("biomes/" + category.textureId() + ".png"));
         }

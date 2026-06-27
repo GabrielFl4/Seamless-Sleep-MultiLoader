@@ -7,7 +7,7 @@ import net.aqualoco.sec.sleep.SleepDimensionSupport;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.level.Level;
@@ -25,13 +25,19 @@ public final class ComfortsCompat {
 
     private static final String BASE_COMFORTS_BLOCK_CLASS =
             "com.illusivesoulworks.comforts.common.block.BaseComfortsBlock";
+    private static final String SLEEPING_BAG_BLOCK_CLASS =
+            "com.illusivesoulworks.comforts.common.block.SleepingBagBlock";
+    private static final String HAMMOCK_BLOCK_CLASS =
+            "com.illusivesoulworks.comforts.common.block.HammockBlock";
+    private static final double SLEEPING_BAG_SLEEPING_BODY_Y_OFFSET = -0.375D;
+    private static final double HAMMOCK_SLEEPING_BODY_Y_OFFSET = -0.5D;
     private static final TagKey<Block> SLEEPING_BAGS = TagKey.create(
             Registries.BLOCK,
-            Identifier.fromNamespaceAndPath(MOD_ID, "sleeping_bags")
+            ResourceLocation.fromNamespaceAndPath(MOD_ID, "sleeping_bags")
     );
     private static final TagKey<Block> HAMMOCKS = TagKey.create(
             Registries.BLOCK,
-            Identifier.fromNamespaceAndPath(MOD_ID, "hammocks")
+            ResourceLocation.fromNamespaceAndPath(MOD_ID, "hammocks")
     );
 
     private ComfortsCompat() {
@@ -99,6 +105,43 @@ public final class ComfortsCompat {
         return block != null && hasBaseComfortsBlockClass(block.getClass());
     }
 
+    public static double getSleepingBodyYOffset(Level level, @Nullable BlockPos bedPos) {
+        if (level == null || bedPos == null || !level.isLoaded(bedPos)) {
+            return 0.0D;
+        }
+
+        BlockState state = level.getBlockState(bedPos);
+        if (isSleepingBag(state)) {
+            return SLEEPING_BAG_SLEEPING_BODY_Y_OFFSET;
+        }
+        if (isHammock(state)) {
+            return HAMMOCK_SLEEPING_BODY_Y_OFFSET;
+        }
+        return 0.0D;
+    }
+
+    public static boolean isSleepingBag(BlockState state) {
+        if (state == null) {
+            return false;
+        }
+        if (state.is(SLEEPING_BAGS)) {
+            return true;
+        }
+        Block block = state.getBlock();
+        return block != null && hasClassInHierarchy(block.getClass(), SLEEPING_BAG_BLOCK_CLASS);
+    }
+
+    public static boolean isHammock(BlockState state) {
+        if (state == null) {
+            return false;
+        }
+        if (state.is(HAMMOCKS)) {
+            return true;
+        }
+        Block block = state.getBlock();
+        return block != null && hasClassInHierarchy(block.getClass(), HAMMOCK_BLOCK_CLASS);
+    }
+
     private static boolean canCountAcceptedComfortsSleep(ServerPlayer player, BlockPos bedPos) {
         if (!player.isAlive()
                 || SeamlessSleepServerConfigManager.get().sleepEligibility.preventsSleepSkip()
@@ -123,9 +166,13 @@ public final class ComfortsCompat {
     }
 
     private static boolean hasBaseComfortsBlockClass(Class<?> blockClass) {
+        return hasClassInHierarchy(blockClass, BASE_COMFORTS_BLOCK_CLASS);
+    }
+
+    private static boolean hasClassInHierarchy(Class<?> blockClass, String className) {
         Class<?> current = blockClass;
         while (current != null) {
-            if (BASE_COMFORTS_BLOCK_CLASS.equals(current.getName())) {
+            if (className.equals(current.getName())) {
                 return true;
             }
             current = current.getSuperclass();

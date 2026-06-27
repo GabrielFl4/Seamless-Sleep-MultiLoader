@@ -3,7 +3,7 @@ package net.aqualoco.sec.client;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Renderable;
-import net.minecraft.util.Util;
+import net.minecraft.Util;
 
 // Procedural four-corner CTA highlight used by the YACL guide button.
 public final class SeamlessSleepButtonCornerHighlight implements Renderable {

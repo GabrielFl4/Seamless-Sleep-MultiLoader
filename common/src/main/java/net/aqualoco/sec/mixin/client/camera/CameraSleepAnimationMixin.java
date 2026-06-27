@@ -7,7 +7,7 @@ import net.minecraft.client.Camera;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.Level;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -29,7 +29,7 @@ public abstract class CameraSleepAnimationMixin {
     protected abstract void setRotation(float yaw, float pitch);
 
     @Inject(method = "setup", at = @At("TAIL"))
-    private void seamlesssleep$applyBedCamera(Level area,
+    private void seamlesssleep$applyBedCamera(BlockGetter area,
                                               Entity focusedEntity,
                                               boolean thirdPerson,
                                               boolean inverseView,

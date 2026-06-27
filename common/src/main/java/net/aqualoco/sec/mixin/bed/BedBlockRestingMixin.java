@@ -50,7 +50,7 @@ public abstract class BedBlockRestingMixin {
         BedRestingHelper.syncManagedSleepState(serverPlayer, countedForSleep);
         BedRestingHelper.showLeaveBedHint(serverPlayer);
         if (!countedForSleep) {
-            BedRestingHelper.showBedHudMessage(serverPlayer, problem.message());
+            BedRestingHelper.showBedHudMessage(serverPlayer, problem.getMessage());
         }
         return Either.right(Unit.INSTANCE);
     }

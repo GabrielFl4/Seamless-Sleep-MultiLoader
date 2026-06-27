@@ -10,8 +10,6 @@ import net.aqualoco.sec.handshake.ServerSeamlessClientPresenceManager;
 import net.aqualoco.sec.platform.Services;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.server.permissions.Permission;
-import net.minecraft.server.permissions.Permissions;
 import net.minecraft.server.players.NameAndId;
 import net.minecraft.server.players.PlayerList;
 
@@ -19,8 +17,6 @@ import java.util.Map;
 
 public final class ServerConfigMutationService {
     public static final int REQUIRED_PERMISSION_LEVEL = 3;
-    private static final Permission REQUIRED_PERMISSION = Permissions.COMMANDS_ADMIN;
-
     private static int serverConfigRevision;
 
     private ServerConfigMutationService() {
@@ -31,7 +27,7 @@ public final class ServerConfigMutationService {
     }
 
     public static boolean canEditServerConfig(ServerPlayer player) {
-        return player != null && player.permissions().hasPermission(REQUIRED_PERMISSION);
+        return player != null && player.hasPermissions(REQUIRED_PERMISSION_LEVEL);
     }
 
     public static void sendAccessToPlayer(ServerPlayer player) {

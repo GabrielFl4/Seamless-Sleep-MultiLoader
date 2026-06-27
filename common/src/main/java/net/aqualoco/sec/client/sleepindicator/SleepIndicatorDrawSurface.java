@@ -2,7 +2,7 @@ package net.aqualoco.sec.client.sleepindicator;
 
 import net.minecraft.client.gui.Font;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 // Minimal 2D drawing target used by GuiGraphics-backed indicator renderers.
 public interface SleepIndicatorDrawSurface {
@@ -12,7 +12,7 @@ public interface SleepIndicatorDrawSurface {
 
     void fill(int x1, int y1, int x2, int y2, int argb);
 
-    void blit(Identifier texture,
+    void blit(ResourceLocation texture,
               int destX,
               int destY,
               float sourceU,
@@ -23,7 +23,7 @@ public interface SleepIndicatorDrawSurface {
               int textureHeight,
               int argb);
 
-    default void blit(Identifier texture,
+    default void blit(ResourceLocation texture,
                       int destX,
                       int destY,
                       float sourceU,
@@ -35,7 +35,7 @@ public interface SleepIndicatorDrawSurface {
         blit(texture, destX, destY, sourceU, sourceV, width, height, textureWidth, textureHeight, 0xFFFFFFFF);
     }
 
-    void blit(Identifier texture,
+    void blit(ResourceLocation texture,
               int destX,
               int destY,
               float sourceU,
@@ -48,7 +48,7 @@ public interface SleepIndicatorDrawSurface {
               int textureHeight,
               int argb);
 
-    default void blit(Identifier texture,
+    default void blit(ResourceLocation texture,
                       int destX,
                       int destY,
                       float sourceU,

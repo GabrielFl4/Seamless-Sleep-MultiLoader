@@ -21,7 +21,7 @@ import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 // Fabric client packet handlers that start/stop animation and apply synced server config.
 @Environment(EnvType.CLIENT)
@@ -82,7 +82,7 @@ final class FabricClientNetworkHandler {
                         return;
                     }
 
-                    Identifier worldId = world.dimension().identifier();
+                    ResourceLocation worldId = world.dimension().location();
                     if (!worldId.equals(payload.worldId())) {
                         return;
                     }
@@ -154,12 +154,12 @@ final class FabricClientNetworkHandler {
         SleepSoundManager.onSleepStop(payload);
     }
 
-    private static boolean isMatchingSupportedWorld(ClientLevel world, Identifier payloadWorldId) {
+    private static boolean isMatchingSupportedWorld(ClientLevel world, ResourceLocation payloadWorldId) {
         if (world == null) {
             return false;
         }
 
-        Identifier worldId = world.dimension().identifier();
+        ResourceLocation worldId = world.dimension().location();
         return worldId.equals(payloadWorldId) && SleepDimensionSupport.supportsClientSleepAnimation(world);
     }
 }

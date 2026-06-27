@@ -35,7 +35,7 @@ public abstract class LevelRendererBedBodyMixin {
             return;
         }
 
-        Entity cameraEntity = camera.entity();
+        Entity cameraEntity = camera.getEntity();
         if (cameraEntity != player) {
             return;
         }
