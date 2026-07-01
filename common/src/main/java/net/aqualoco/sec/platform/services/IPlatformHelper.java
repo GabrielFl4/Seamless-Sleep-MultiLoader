@@ -29,6 +29,13 @@ public interface IPlatformHelper {
     String getModVersion(String modId);
 
     /**
+     * Gets the mods directory for the current platform.
+     *
+     * @return The mods directory path.
+     */
+    Path getModsDir();
+
+    /**
      * Check if the game is currently in a development environment.
      *
      * @return True if in a development environment, false otherwise.
