@@ -4,8 +4,8 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.aqualoco.sec.client.VivecraftSleepWristPanel;
 import net.minecraft.client.renderer.LightTexture;
+import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
-import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.phys.Vec3;
@@ -26,7 +26,7 @@ final class VivecraftWristIndicatorQuadRenderer {
 
     static void submit(PoseStack poseStack,
                        Vec3 cameraPos,
-                       SubmitNodeCollector submitNodeCollector,
+                       MultiBufferSource bufferSource,
                        VivecraftSleepWristPanel.PanelPose panel,
                        ResourceLocation texture,
                        float physicalSize) {
@@ -35,14 +35,9 @@ final class VivecraftWristIndicatorQuadRenderer {
         poseStack.pushPose();
         Vec3 center = panel.center().add(panel.normal().scale(SURFACE_FORWARD_OFFSET));
         poseStack.translate(center.x() - cameraPos.x(), center.y() - cameraPos.y(), center.z() - cameraPos.z());
-        submitNodeCollector.submitCustomGeometry(
-                poseStack,
-                RenderType.entityTranslucent(texture),
-                (pose, vertexConsumer) -> {
-                    drawFront(pose, vertexConsumer, quad, panel.normal());
-                    drawBack(pose, vertexConsumer, quad, panel.normal().scale(-1.0D));
-                }
-        );
+        VertexConsumer vertexConsumer = bufferSource.getBuffer(RenderType.entityTranslucent(texture));
+        PoseStack.Pose pose = poseStack.last();
+        drawFront(pose, vertexConsumer, quad, panel.normal());
         poseStack.popPose();
     }
 

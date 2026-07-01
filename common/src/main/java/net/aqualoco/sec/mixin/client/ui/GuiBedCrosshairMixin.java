@@ -6,7 +6,6 @@ import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.debug.DebugScreenEntries;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.level.GameType;
@@ -46,7 +45,7 @@ public abstract class GuiBedCrosshairMixin {
             return;
         }
 
-        if (this.minecraft.debugEntries.isCurrentlyEnabled(DebugScreenEntries.THREE_DIMENSIONAL_CROSSHAIR)) {
+        if (((Gui) (Object) this).shouldRenderDebugCrosshair()) {
             return;
         }
 

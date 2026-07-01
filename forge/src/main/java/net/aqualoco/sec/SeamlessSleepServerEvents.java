@@ -45,7 +45,7 @@ final class SeamlessSleepServerEvents {
     }
 
     static void onServerTick(TickEvent.ServerTickEvent.Post event) {
-        ServerSeamlessClientPresenceManager.tick(event.server());
+        ServerSeamlessClientPresenceManager.tick(event.getServer());
     }
 
     static void onServerStopping(ServerStoppingEvent event) {

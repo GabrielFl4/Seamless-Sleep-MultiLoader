@@ -6,7 +6,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.ItemInHandRenderer;
-import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 import org.spongepowered.asm.mixin.Mixin;
@@ -21,7 +21,7 @@ public abstract class ItemInHandBedWorkflowMixin {
     @Inject(method = "renderHandsWithItems", at = @At("HEAD"), cancellable = true)
     private void seamlesssleep$hideHandsWithItems(float tickDelta,
                                                   PoseStack poseStack,
-                                                  SubmitNodeCollector submitNodeCollector,
+                                                  MultiBufferSource.BufferSource bufferSource,
                                                   LocalPlayer player,
                                                   int packedLight,
                                                   CallbackInfo ci) {
@@ -39,7 +39,7 @@ public abstract class ItemInHandBedWorkflowMixin {
                                                ItemStack item,
                                                float equipProgress,
                                                PoseStack poseStack,
-                                               SubmitNodeCollector submitNodeCollector,
+                                               MultiBufferSource bufferSource,
                                                int packedLight,
                                                CallbackInfo ci) {
         LocalPlayer localPlayer = Minecraft.getInstance().player;

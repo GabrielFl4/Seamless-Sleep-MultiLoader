@@ -2,7 +2,7 @@ package net.aqualoco.sec.mixin.compat.vivecraft;
 
 import net.aqualoco.sec.client.VivecraftSleepingBodyOffsetCompensation;
 import net.minecraft.client.model.PlayerModel;
-import net.minecraft.client.renderer.entity.state.AvatarRenderState;
+import net.minecraft.client.renderer.entity.state.PlayerRenderState;
 import org.joml.Matrix3f;
 import org.joml.Vector3f;
 import org.spongepowered.asm.mixin.Mixin;
@@ -22,7 +22,7 @@ public abstract class VivecraftVRPlayerModelSleepingOffsetMixin {
             remap = false
     )
     private static void seamlesssleep$beginSleepingOffsetCompensation(PlayerModel model,
-                                                                      AvatarRenderState renderState,
+                                                                      PlayerRenderState renderState,
                                                                       Vector3f tempV,
                                                                       Vector3f tempV2,
                                                                       Matrix3f tempM,
@@ -37,7 +37,7 @@ public abstract class VivecraftVRPlayerModelSleepingOffsetMixin {
             remap = false
     )
     private static void seamlesssleep$endSleepingOffsetCompensation(PlayerModel model,
-                                                                    AvatarRenderState renderState,
+                                                                    PlayerRenderState renderState,
                                                                     Vector3f tempV,
                                                                     Vector3f tempV2,
                                                                     Matrix3f tempM,

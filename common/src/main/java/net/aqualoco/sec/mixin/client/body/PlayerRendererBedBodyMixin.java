@@ -9,12 +9,12 @@ import net.aqualoco.sec.client.ReplayPlaybackCompat;
 import net.aqualoco.sec.client.VivecraftClientCompat;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.SubmitNodeCollector;
-import net.minecraft.client.renderer.entity.player.AvatarRenderer;
-import net.minecraft.client.renderer.entity.state.AvatarRenderState;
-import net.minecraft.client.renderer.state.CameraRenderState;
+import net.minecraft.client.player.AbstractClientPlayer;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.entity.player.PlayerRenderer;
+import net.minecraft.client.renderer.entity.state.PlayerRenderState;
+import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
-import net.minecraft.world.entity.Avatar;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.player.Player;
@@ -26,8 +26,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 // Marks the local first-person body pass and remaps sleeping head look in bed-local space.
-@Mixin(AvatarRenderer.class)
-public abstract class AvatarRendererBedBodyMixin {
+@Mixin(PlayerRenderer.class)
+public abstract class PlayerRendererBedBodyMixin {
 
     private static final double seamlesssleep$LOCAL_THIRD_PERSON_BED_Y_OFFSET = 0.125D;
     private static final float seamlesssleep$VISUAL_YAW_SOURCE_LIMIT = 80.0F;
@@ -38,48 +38,48 @@ public abstract class AvatarRendererBedBodyMixin {
     private static final float seamlesssleep$VISUAL_UP_PITCH_TARGET_LIMIT = 7.0F;
 
     @Inject(
-            method = "extractRenderState(Lnet/minecraft/world/entity/Avatar;Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;F)V",
+            method = "extractRenderState(Lnet/minecraft/client/player/AbstractClientPlayer;Lnet/minecraft/client/renderer/entity/state/PlayerRenderState;F)V",
             at = @At("TAIL")
     )
-    private void seamlesssleep$markCameraBody(Avatar avatar, AvatarRenderState avatarRenderState, float tickDelta, CallbackInfo ci) {
+    private void seamlesssleep$markCameraBody(AbstractClientPlayer player, PlayerRenderState playerRenderState, float tickDelta, CallbackInfo ci) {
         Minecraft client = Minecraft.getInstance();
         Entity cameraEntity = client.getCameraEntity();
-        boolean managedSleepingAvatar = avatar instanceof Player player && BedRestingHelper.isManagedBedState(player);
+        boolean managedSleepingPlayer = BedRestingHelper.isManagedBedState(player);
         boolean renderCameraBody = client.player != null
                 && cameraEntity == client.player
-                && avatar == cameraEntity
+                && player == cameraEntity
                 && ClientBedWorkflow.shouldRenderFirstPersonBody(client.player);
-        ((BedCameraRenderState) avatarRenderState).seamlesssleep$setCameraBody(renderCameraBody);
+        ((BedCameraRenderState) playerRenderState).seamlesssleep$setCameraBody(renderCameraBody);
 
-        if (!managedSleepingAvatar
-                || !avatarRenderState.hasPose(Pose.SLEEPING)) {
+        if (!managedSleepingPlayer
+                || !playerRenderState.hasPose(Pose.SLEEPING)) {
             return;
         }
         boolean replayPlaybackActive = ReplayPlaybackCompat.isReplayPlaybackActive();
-        if (avatar == client.player && client.options.getCameraType().isFirstPerson() && !replayPlaybackActive) {
+        if (player == client.player && client.options.getCameraType().isFirstPerson() && !replayPlaybackActive) {
             return;
         }
-        if (avatar instanceof Player player && VivecraftClientCompat.shouldPreserveVrPlayerRender(player)) {
+        if (VivecraftClientCompat.shouldPreserveVrPlayerRender(player)) {
             return;
         }
 
-        float lookYaw = avatarRenderState.bodyRot + avatarRenderState.yRot;
-        float lookPitch = avatarRenderState.xRot;
-        if (avatar == client.player && client.player != null && ClientBedWorkflow.isManagedBedState(client.player)) {
+        float lookYaw = playerRenderState.bodyRot + playerRenderState.yRot;
+        float lookPitch = playerRenderState.xRot;
+        if (player == client.player && client.player != null && ClientBedWorkflow.isManagedBedState(client.player)) {
             lookYaw = ClientBedWorkflow.getCameraYaw(client.player);
             lookPitch = ClientBedWorkflow.getCameraPitch(client.player);
-        } else if (avatar instanceof BedRestingPlayer restingPlayer) {
+        } else if (player instanceof BedRestingPlayer restingPlayer) {
             lookYaw = restingPlayer.seamlesssleep$getVisualBedLookYaw(tickDelta);
             lookPitch = restingPlayer.seamlesssleep$getVisualBedLookPitch(tickDelta);
         }
 
-        if (avatarRenderState.bedOrientation != null) {
-            avatarRenderState.bodyRot = BedRestingHelper.getBedBaseYaw(avatarRenderState.bedOrientation);
+        if (playerRenderState.bedOrientation != null) {
+            playerRenderState.bodyRot = BedRestingHelper.getBedBaseYaw(playerRenderState.bedOrientation);
         }
 
         Vec3 lookVector = Vec3.directionFromRotation(lookPitch, lookYaw);
-        Vec3 bedFeetAxis = Vec3.directionFromRotation(0.0F, avatarRenderState.bodyRot);
-        Vec3 bedSideAxis = Vec3.directionFromRotation(0.0F, avatarRenderState.bodyRot + 90.0F);
+        Vec3 bedFeetAxis = Vec3.directionFromRotation(0.0F, playerRenderState.bodyRot);
+        Vec3 bedSideAxis = Vec3.directionFromRotation(0.0F, playerRenderState.bodyRot + 90.0F);
 
         float side = (float) Mth.clamp(lookVector.dot(bedSideAxis), -1.0D, 1.0D);
         float feet = (float) Mth.clamp(lookVector.dot(bedFeetAxis), -1.0D, 1.0D);
@@ -87,20 +87,20 @@ public abstract class AvatarRendererBedBodyMixin {
         float rawHeadYaw = (float) Math.toDegrees(Math.asin(side));
         float rawHeadPitch = (float) Math.toDegrees(Math.asin(feet));
 
-        avatarRenderState.yRot = seamlesssleep$mapVisualYaw(rawHeadYaw);
-        avatarRenderState.xRot = seamlesssleep$mapVisualPitch(rawHeadPitch);
+        playerRenderState.yRot = seamlesssleep$mapVisualYaw(rawHeadYaw);
+        playerRenderState.xRot = seamlesssleep$mapVisualPitch(rawHeadPitch);
     }
 
     @Inject(
-            method = "getRenderOffset(Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;)Lnet/minecraft/world/phys/Vec3;",
+            method = "getRenderOffset(Lnet/minecraft/client/renderer/entity/state/PlayerRenderState;)Lnet/minecraft/world/phys/Vec3;",
             at = @At("RETURN"),
             cancellable = true
     )
-    private void seamlesssleep$liftLocalSleepingAvatarInThirdPerson(AvatarRenderState avatarRenderState, CallbackInfoReturnable<Vec3> cir) {
+    private void seamlesssleep$liftLocalSleepingPlayerInThirdPerson(PlayerRenderState playerRenderState, CallbackInfoReturnable<Vec3> cir) {
         Minecraft client = Minecraft.getInstance();
         if (client.player == null
-                || avatarRenderState.id != client.player.getId()
-                || !avatarRenderState.hasPose(Pose.SLEEPING)) {
+                || playerRenderState.id != client.player.getId()
+                || !playerRenderState.hasPose(Pose.SLEEPING)) {
             return;
         }
         boolean replayPlaybackActive = ReplayPlaybackCompat.isReplayPlaybackActive();
@@ -115,20 +115,21 @@ public abstract class AvatarRendererBedBodyMixin {
     }
 
     @Inject(
-            method = "submitNameTag(Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;Lnet/minecraft/client/renderer/state/CameraRenderState;)V",
+            method = "renderNameTag(Lnet/minecraft/client/renderer/entity/state/PlayerRenderState;Lnet/minecraft/network/chat/Component;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;I)V",
             at = @At("HEAD"),
             cancellable = true
     )
-    private void seamlesssleep$suppressEssentialOwnNameTagOnBedCameraBody(AvatarRenderState avatarRenderState,
+    private void seamlesssleep$suppressEssentialOwnNameTagOnBedCameraBody(PlayerRenderState playerRenderState,
+                                                                           Component component,
                                                                            PoseStack poseStack,
-                                                                           SubmitNodeCollector submitNodeCollector,
-                                                                           CameraRenderState cameraRenderState,
+                                                                           MultiBufferSource multiBufferSource,
+                                                                           int light,
                                                                            CallbackInfo ci) {
         if (!EssentialCompat.shouldSuppressOwnNameTagForBedCameraBody()) {
             return;
         }
 
-        if (!((BedCameraRenderState) avatarRenderState).seamlesssleep$isCameraBody()) {
+        if (!((BedCameraRenderState) playerRenderState).seamlesssleep$isCameraBody()) {
             return;
         }
 

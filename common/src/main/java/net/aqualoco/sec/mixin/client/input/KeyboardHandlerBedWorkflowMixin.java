@@ -3,7 +3,6 @@ package net.aqualoco.sec.mixin.client.input;
 import net.aqualoco.sec.client.ClientBedWorkflow;
 import net.minecraft.client.KeyboardHandler;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.player.LocalPlayer;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -21,13 +20,18 @@ public abstract class KeyboardHandlerBedWorkflowMixin {
     @Shadow @Final private Minecraft minecraft;
 
     @Inject(method = "keyPress", at = @At("HEAD"), cancellable = true)
-    private void seamlesssleep$wakeFromBedSneak(long windowPointer, int action, KeyEvent event, CallbackInfo ci) {
+    private void seamlesssleep$wakeFromBedSneak(long windowPointer,
+                                                int key,
+                                                int scanCode,
+                                                int action,
+                                                int modifiers,
+                                                CallbackInfo ci) {
         if (action != GLFW.GLFW_PRESS || this.minecraft.screen != null) {
             return;
         }
 
         LocalPlayer player = this.minecraft.player;
-        if (player == null || !this.minecraft.options.keyShift.matches(event)) {
+        if (player == null || !this.minecraft.options.keyShift.matches(key, scanCode)) {
             return;
         }
 

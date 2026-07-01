@@ -1,9 +1,12 @@
 package net.aqualoco.sec.mixin.client.sound;
 
 import net.aqualoco.sec.client.sound.MadeInHeavenMusicSuppression;
+import net.minecraft.client.Options;
 import net.minecraft.client.sounds.SoundEngine;
 import net.minecraft.sounds.SoundSource;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -12,6 +15,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(SoundEngine.class)
 public abstract class SoundEngineMadeInHeavenMusicDuckMixin {
+    @Shadow @Final private Options options;
+
     @Unique
     private float seamlesssleep$lastMusicDuckFactor = 1.0F;
 
@@ -34,6 +39,9 @@ public abstract class SoundEngineMadeInHeavenMusicDuckMixin {
         }
 
         this.seamlesssleep$lastMusicDuckFactor = factor;
-        ((SoundEngine) (Object) this).updateCategoryVolume(SoundSource.MUSIC);
+        ((SoundEngine) (Object) this).updateCategoryVolume(
+                SoundSource.MUSIC,
+                this.options.getSoundSourceVolume(SoundSource.MUSIC)
+        );
     }
 }

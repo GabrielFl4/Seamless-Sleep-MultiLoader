@@ -2,6 +2,7 @@ package net.aqualoco.sec.mixin.compat.vivecraft;
 
 import net.aqualoco.sec.client.VivecraftClientCompat;
 import net.minecraft.client.player.LocalPlayer;
+import org.spongepowered.asm.mixin.Dynamic;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -18,6 +19,7 @@ public abstract class VivecraftLocalPlayerRoomYOffsetMixin {
             require = 0,
             remap = false
     )
+    @Dynamic("Vivecraft adds this method to LocalPlayer through PlayerExtension/LocalPlayerVRMixin.")
     private void seamlesssleep$addManagedBedRoomYOffset(CallbackInfoReturnable<Double> cir) {
         if (VivecraftClientCompat.shouldApplyVrBedRoomYOffset()) {
             cir.setReturnValue(cir.getReturnValueD() + VivecraftClientCompat.vrBedRoomYOffset());

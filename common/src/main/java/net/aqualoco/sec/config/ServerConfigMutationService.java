@@ -1,5 +1,6 @@
 package net.aqualoco.sec.config;
 
+import com.mojang.authlib.GameProfile;
 import net.aqualoco.sec.network.ServerConfigAccessS2CPayload;
 import net.aqualoco.sec.network.ServerConfigField;
 import net.aqualoco.sec.network.ServerConfigSync;
@@ -10,7 +11,6 @@ import net.aqualoco.sec.handshake.ServerSeamlessClientPresenceManager;
 import net.aqualoco.sec.platform.Services;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.server.players.NameAndId;
 import net.minecraft.server.players.PlayerList;
 
 import java.util.Map;
@@ -48,12 +48,12 @@ public final class ServerConfigMutationService {
         }
     }
 
-    public static void sendAccessToOnlineProfile(PlayerList playerList, NameAndId profile) {
+    public static void sendAccessToOnlineProfile(PlayerList playerList, GameProfile profile) {
         if (playerList == null || profile == null) {
             return;
         }
 
-        ServerPlayer player = playerList.getPlayer(profile.id());
+        ServerPlayer player = playerList.getPlayer(profile.getId());
         if (player != null) {
             sendAccessToPlayer(player);
             ServerConfigSync.sendToPlayer(player, SeamlessSleepServerConfigManager.get());

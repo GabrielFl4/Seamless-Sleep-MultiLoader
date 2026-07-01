@@ -1,7 +1,7 @@
 package net.aqualoco.sec.client;
 
-import net.minecraft.client.renderer.entity.state.AvatarRenderState;
 import net.minecraft.client.renderer.entity.state.HumanoidRenderState;
+import net.minecraft.client.renderer.entity.state.PlayerRenderState;
 import net.minecraft.world.entity.Pose;
 import org.joml.Vector3f;
 
@@ -36,7 +36,7 @@ public final class VivecraftSleepingBodyOffsetCompensation {
     private VivecraftSleepingBodyOffsetCompensation() {
     }
 
-    public static void begin(AvatarRenderState renderState) {
+    public static void begin(PlayerRenderState renderState) {
         boolean active = isSleepingWithBedOrientation(renderState);
         SLEEPING_VR_BODY_SCOPE.set(active);
         if (active) {
@@ -87,7 +87,7 @@ public final class VivecraftSleepingBodyOffsetCompensation {
         out.add(0.0F, modelYOffset, 0.0F);
     }
 
-    private static boolean isSleepingWithBedOrientation(AvatarRenderState renderState) {
+    private static boolean isSleepingWithBedOrientation(PlayerRenderState renderState) {
         return renderState != null
                 && renderState.hasPose(Pose.SLEEPING)
                 && renderState.bedOrientation != null;

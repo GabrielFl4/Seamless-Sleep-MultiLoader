@@ -142,7 +142,7 @@ public final class ServerSeamlessClientPresenceManager {
             return true;
         }
 
-        String playerName = player == null ? "<null>" : player.getGameProfile().name();
+        String playerName = player == null ? "<null>" : player.getGameProfile().getName();
         Constants.LOG.warn("{} Rejected {} from {} before confirmed handshake.",
                 LOG_PREFIX,
                 payloadName,
@@ -271,7 +271,7 @@ public final class ServerSeamlessClientPresenceManager {
         private Entry(ServerPlayer player) {
             this.player = player;
             this.playerId = player.getUUID();
-            this.playerName = player.getGameProfile().name();
+            this.playerName = player.getGameProfile().getName();
         }
     }
 }

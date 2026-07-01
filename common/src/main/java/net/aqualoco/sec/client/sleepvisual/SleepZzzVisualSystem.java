@@ -9,11 +9,11 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.Camera;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.client.renderer.SubmitNodeCollector;
-import net.minecraft.client.renderer.state.CameraRenderState;
+import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.HashSet;
 import java.util.Iterator;
@@ -143,13 +143,14 @@ public final class SleepZzzVisualSystem {
     }
 
     public static void submitRender(PoseStack poseStack,
-                                    CameraRenderState cameraRenderState,
-                                    SubmitNodeCollector submitNodeCollector) {
+                                    Camera camera,
+                                    MultiBufferSource bufferSource) {
         if (EMITTERS.isEmpty() || SleepZzzConfigBridge.chance() <= 0) {
             return;
         }
 
         Minecraft client = Minecraft.getInstance();
+        Vec3 cameraPos = camera.getPosition();
         float partialTick = resolveRenderPartialTick(client);
         UUID localPlayerId = client.player == null ? null : client.player.getUUID();
         boolean hideLocalFirstPerson = !ReplayPlaybackCompat.isReplayPlaybackActive()
@@ -163,10 +164,10 @@ public final class SleepZzzVisualSystem {
             }
 
             for (SleepZzzGlyph glyph : emitter.glyphs()) {
-                if (glyph.renderPosition(partialTick).distanceToSqr(cameraRenderState.pos) < 0.09D) {
+                if (glyph.renderPosition(partialTick).distanceToSqr(cameraPos) < 0.09D) {
                     continue;
                 }
-                SleepZzzRenderer.submit(poseStack, cameraRenderState, submitNodeCollector, glyph, partialTick);
+                SleepZzzRenderer.render(poseStack, camera, bufferSource, glyph, partialTick);
             }
         }
     }

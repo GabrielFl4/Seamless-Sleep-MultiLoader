@@ -7,7 +7,6 @@ import net.aqualoco.sec.network.SleepAnimationNetworking;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
-import net.neoforged.fml.loading.FMLLoader;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.server.ServerStoppingEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
@@ -31,10 +30,19 @@ public class SeamlessSleep {
         NeoForge.EVENT_BUS.addListener(SeamlessSleepServerEvents::onServerTick);
         NeoForge.EVENT_BUS.addListener(SeamlessSleepServerEvents::onServerStopping);
 
-        if (FMLLoader.getCurrent().getDist().isClient()) {
+        if (seamlesssleep$isClient()) {
             VivecraftClientCompat.registerClientIntegrations();
             SleepAnimationNetworking.initClient();
             NeoForgeConfigScreens.register(modContainer);
+        }
+    }
+
+    private static boolean seamlesssleep$isClient() {
+        try {
+            Class.forName("net.minecraft.client.Minecraft", false, SeamlessSleep.class.getClassLoader());
+            return true;
+        } catch (ClassNotFoundException e) {
+            return false;
         }
     }
 }

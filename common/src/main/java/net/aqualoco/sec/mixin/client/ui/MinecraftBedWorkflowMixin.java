@@ -2,8 +2,8 @@ package net.aqualoco.sec.mixin.client.ui;
 
 import net.aqualoco.sec.client.ClientBedWorkflow;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.components.ChatComponent;
-import net.minecraft.client.gui.screens.ChatScreen;
+import net.minecraft.client.gui.screens.InBedChatScreen;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.player.LocalPlayer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -17,16 +17,17 @@ public abstract class MinecraftBedWorkflowMixin {
             method = "tick",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/client/gui/components/ChatComponent;openScreen(Lnet/minecraft/client/gui/components/ChatComponent$ChatMethod;Lnet/minecraft/client/gui/screens/ChatScreen$ChatConstructor;)V"
+                    target = "Lnet/minecraft/client/Minecraft;setScreen(Lnet/minecraft/client/gui/screens/Screen;)V"
             )
     )
-    private void seamlesssleep$suppressAutoBedChat(ChatComponent chatComponent, ChatComponent.ChatMethod chatMethod, ChatScreen.ChatConstructor<?> chatConstructor) {
-        Minecraft client = (Minecraft) (Object) this;
+    private void seamlesssleep$suppressAutoBedChat(Minecraft client, Screen screen) {
         LocalPlayer player = client.player;
-        if (player != null && ClientBedWorkflow.shouldSuppressBedScreen(player)) {
+        if (screen instanceof InBedChatScreen
+                && player != null
+                && ClientBedWorkflow.shouldSuppressBedScreen(player)) {
             return;
         }
 
-        chatComponent.openScreen(chatMethod, chatConstructor);
+        client.setScreen(screen);
     }
 }

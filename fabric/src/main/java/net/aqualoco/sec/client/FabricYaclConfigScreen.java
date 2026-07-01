@@ -49,9 +49,6 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.narration.NarratableEntry.NarrationPriority;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.gui.navigation.FocusNavigationEvent;
-import net.minecraft.client.input.CharacterEvent;
-import net.minecraft.client.input.KeyEvent;
-import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
@@ -1682,18 +1679,18 @@ final class FabricYaclConfigScreen {
         }
 
         @Override
-        public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-            return delegate.mouseClicked(event, doubleClick);
+        public boolean mouseClicked(double mouseX, double mouseY, int button) {
+            return delegate.mouseClicked(mouseX, mouseY, button);
         }
 
         @Override
-        public boolean mouseReleased(MouseButtonEvent event) {
-            return delegate.mouseReleased(event);
+        public boolean mouseReleased(double mouseX, double mouseY, int button) {
+            return delegate.mouseReleased(mouseX, mouseY, button);
         }
 
         @Override
-        public boolean mouseDragged(MouseButtonEvent event, double deltaX, double deltaY) {
-            return delegate.mouseDragged(event, deltaX, deltaY);
+        public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
+            return delegate.mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
         }
 
         @Override
@@ -1702,13 +1699,13 @@ final class FabricYaclConfigScreen {
         }
 
         @Override
-        public boolean keyPressed(KeyEvent event) {
-            return delegate.keyPressed(event);
+        public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+            return delegate.keyPressed(keyCode, scanCode, modifiers);
         }
 
         @Override
-        public boolean charTyped(CharacterEvent event) {
-            return delegate.charTyped(event);
+        public boolean charTyped(char codePoint, int modifiers) {
+            return delegate.charTyped(codePoint, modifiers);
         }
 
         @Override

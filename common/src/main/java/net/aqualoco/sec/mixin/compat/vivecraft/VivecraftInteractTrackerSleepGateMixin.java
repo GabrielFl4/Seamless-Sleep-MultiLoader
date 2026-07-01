@@ -39,15 +39,39 @@ public abstract class VivecraftInteractTrackerSleepGateMixin {
             at = @At(
                     value = "INVOKE",
                     target = "Lorg/vivecraft/api/client/InteractModule;isActive(Lnet/minecraft/client/player/LocalPlayer;Lnet/minecraft/world/InteractionHand;Lnet/minecraft/world/phys/Vec3;)Z",
-                    remap = true
+                    remap = false
             ),
             require = 0,
             remap = false
     )
-    private boolean seamlesssleep$limitManagedBedInteractModules(@Coerce Object module,
-                                                                  LocalPlayer player,
-                                                                  InteractionHand hand,
-                                                                  Vec3 handPosition) {
+    private boolean seamlesssleep$limitManagedBedInteractModulesNamed(@Coerce Object module,
+                                                                      LocalPlayer player,
+                                                                      InteractionHand hand,
+                                                                      Vec3 handPosition) {
+        return seamlesssleep$allowManagedBedInteractModule(module, player, hand, handPosition);
+    }
+
+    @Redirect(
+            method = "activeProcess",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lorg/vivecraft/api/client/InteractModule;isActive(Lnet/minecraft/class_746;Lnet/minecraft/class_1268;Lnet/minecraft/class_243;)Z",
+                    remap = false
+            ),
+            require = 0,
+            remap = false
+    )
+    private boolean seamlesssleep$limitManagedBedInteractModulesIntermediary(@Coerce Object module,
+                                                                             LocalPlayer player,
+                                                                             InteractionHand hand,
+                                                                             Vec3 handPosition) {
+        return seamlesssleep$allowManagedBedInteractModule(module, player, hand, handPosition);
+    }
+
+    private boolean seamlesssleep$allowManagedBedInteractModule(Object module,
+                                                                LocalPlayer player,
+                                                                InteractionHand hand,
+                                                                Vec3 handPosition) {
         if (VivecraftClientCompat.shouldUseVrBedPolicy(player)
                 && ClientBedWorkflow.isManagedBedState(player)
                 && !VivecraftSleepWristPanel.shouldAllowManagedBedInteractModule(module)) {

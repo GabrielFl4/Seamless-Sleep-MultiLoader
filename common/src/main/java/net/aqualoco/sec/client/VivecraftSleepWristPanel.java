@@ -3,10 +3,10 @@ package net.aqualoco.sec.client;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.aqualoco.sec.Constants;
 import net.aqualoco.sec.client.sleepindicator.VivecraftSleepWristIndicatorRenderer;
+import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.client.renderer.SubmitNodeCollector;
-import net.minecraft.client.renderer.state.CameraRenderState;
+import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.phys.Vec3;
@@ -126,8 +126,8 @@ public final class VivecraftSleepWristPanel {
     }
 
     public static void submitRender(PoseStack poseStack,
-                                    CameraRenderState cameraRenderState,
-                                    SubmitNodeCollector submitNodeCollector) {
+                                    Camera camera,
+                                    MultiBufferSource bufferSource) {
         Minecraft client = Minecraft.getInstance();
         LocalPlayer player = client.player;
         if (player == null || client.level == null || client.options.hideGui) {
@@ -160,8 +160,8 @@ public final class VivecraftSleepWristPanel {
 
         VivecraftSleepWristIndicatorRenderer.submitRender(
                 poseStack,
-                cameraRenderState,
-                submitNodeCollector,
+                camera,
+                bufferSource,
                 panel,
                 isHoveredRecently(player)
         );

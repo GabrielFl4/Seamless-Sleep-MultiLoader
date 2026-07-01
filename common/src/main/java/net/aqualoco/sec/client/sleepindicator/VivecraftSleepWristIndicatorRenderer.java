@@ -10,8 +10,7 @@ import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.client.renderer.SubmitNodeCollector;
-import net.minecraft.client.renderer.state.CameraRenderState;
+import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.util.Mth;
 
 // Renders the configured sleep indicator content onto the Vivecraft wrist panel.
@@ -33,8 +32,8 @@ public final class VivecraftSleepWristIndicatorRenderer {
     }
 
     public static void submitRender(PoseStack poseStack,
-                                    CameraRenderState cameraRenderState,
-                                    SubmitNodeCollector submitNodeCollector,
+                                    Camera camera,
+                                    MultiBufferSource bufferSource,
                                     VivecraftSleepWristPanel.PanelPose panel,
                                     boolean hovered) {
         Minecraft client = Minecraft.getInstance();
@@ -64,8 +63,8 @@ public final class VivecraftSleepWristIndicatorRenderer {
         float physicalSize = panel.halfSize() * 2.0F * WRIST_VISUAL_SCALE * updateHoverScale(hovered);
         VivecraftWristIndicatorQuadRenderer.submit(
                 poseStack,
-                cameraRenderState.pos,
-                submitNodeCollector,
+                camera.getPosition(),
+                bufferSource,
                 panel,
                 texture.texture(),
                 physicalSize

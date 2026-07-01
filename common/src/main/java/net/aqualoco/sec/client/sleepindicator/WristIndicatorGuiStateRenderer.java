@@ -13,9 +13,10 @@ import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.font.TextRenderable;
+import net.minecraft.client.gui.font.glyphs.BakedGlyph;
 import net.minecraft.client.gui.navigation.ScreenRectangle;
 import net.minecraft.client.gui.render.TextureSetup;
+import net.minecraft.client.gui.render.state.GlyphEffectRenderState;
 import net.minecraft.client.gui.render.state.GlyphRenderState;
 import net.minecraft.client.gui.render.state.GuiElementRenderState;
 import net.minecraft.client.gui.render.state.GuiRenderState;
@@ -71,17 +72,17 @@ final class WristIndicatorGuiStateRenderer implements AutoCloseable {
         renderState.forEachText(textState -> {
             textState.ensurePrepared().visit(new Font.GlyphVisitor() {
                 @Override
-                public void acceptGlyph(TextRenderable textRenderable) {
-                    accept(textRenderable);
+                public void acceptGlyph(BakedGlyph.GlyphInstance glyphInstance) {
+                    if (glyphInstance.glyph().textureView() != null) {
+                        renderState.submitGlyphToCurrentLayer(new GlyphRenderState(textState.pose, glyphInstance, textState.scissor));
+                    }
                 }
 
                 @Override
-                public void acceptEffect(TextRenderable textRenderable) {
-                    accept(textRenderable);
-                }
-
-                private void accept(TextRenderable textRenderable) {
-                    renderState.submitGlyphToCurrentLayer(new GlyphRenderState(textState.pose, textRenderable, textState.scissor));
+                public void acceptEffect(BakedGlyph bakedGlyph, BakedGlyph.Effect effect) {
+                    if (bakedGlyph.textureView() != null) {
+                        renderState.submitGlyphToCurrentLayer(new GlyphEffectRenderState(textState.pose, bakedGlyph, effect, textState.scissor));
+                    }
                 }
             });
         });
@@ -99,7 +100,7 @@ final class WristIndicatorGuiStateRenderer implements AutoCloseable {
         List<PreparedElement> preparedElements = new ArrayList<>();
         try {
             renderState.forEachElement(
-                    element -> prepareElement(element, preparedElements),
+                    (element, layer) -> prepareElement(element, layer, preparedElements),
                     GuiRenderState.TraverseRange.ALL
             );
             if (preparedElements.isEmpty()) {
@@ -131,8 +132,8 @@ final class WristIndicatorGuiStateRenderer implements AutoCloseable {
         }
     }
 
-    private void prepareElement(GuiElementRenderState element, List<PreparedElement> preparedElements) {
-        MeshData mesh = buildMesh(element);
+    private void prepareElement(GuiElementRenderState element, int layer, List<PreparedElement> preparedElements) {
+        MeshData mesh = buildMesh(element, layer);
         if (mesh == null) {
             return;
         }
@@ -165,13 +166,13 @@ final class WristIndicatorGuiStateRenderer implements AutoCloseable {
         renderPass.drawIndexed(0, 0, preparedElement.indexCount(), 1);
     }
 
-    private MeshData buildMesh(GuiElementRenderState element) {
+    private MeshData buildMesh(GuiElementRenderState element, int layer) {
         BufferBuilder builder = new BufferBuilder(
                 this.byteBufferBuilder,
                 element.pipeline().getVertexFormatMode(),
                 element.pipeline().getVertexFormat()
         );
-        element.buildVertices(builder);
+        element.buildVertices(builder, (float) layer);
         return builder.build();
     }
 

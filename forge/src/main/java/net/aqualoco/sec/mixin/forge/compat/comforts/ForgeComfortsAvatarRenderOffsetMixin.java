@@ -2,8 +2,8 @@ package net.aqualoco.sec.mixin.forge.compat.comforts;
 
 import net.aqualoco.sec.compat.ComfortsCompat;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.entity.player.AvatarRenderer;
-import net.minecraft.client.renderer.entity.state.AvatarRenderState;
+import net.minecraft.client.renderer.entity.player.PlayerRenderer;
+import net.minecraft.client.renderer.entity.state.PlayerRenderState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Pose;
@@ -14,15 +14,15 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-@Mixin(AvatarRenderer.class)
+@Mixin(PlayerRenderer.class)
 public abstract class ForgeComfortsAvatarRenderOffsetMixin {
 
     @Inject(
-            method = "getRenderOffset(Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;)Lnet/minecraft/world/phys/Vec3;",
+            method = "getRenderOffset(Lnet/minecraft/client/renderer/entity/state/PlayerRenderState;)Lnet/minecraft/world/phys/Vec3;",
             at = @At("RETURN"),
             cancellable = true
     )
-    private void seamlesssleep$lowerRemoteComfortsSleepingBody(AvatarRenderState renderState,
+    private void seamlesssleep$lowerRemoteComfortsSleepingBody(PlayerRenderState renderState,
                                                                CallbackInfoReturnable<Vec3> cir) {
         if (!renderState.hasPose(Pose.SLEEPING)) {
             return;

@@ -70,7 +70,7 @@ public final class SleepAnimationNetworking {
         Constants.debug(
                 "Sent sleep animation snapshot (session {}) to {}",
                 state.getSessionId(),
-                player.getGameProfile().name()
+                player.getGameProfile().getName()
         );
     }
 
