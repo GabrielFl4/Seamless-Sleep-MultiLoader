@@ -1,7 +1,6 @@
 package net.aqualoco.sec;
 
 import net.aqualoco.sec.client.ForgeConfigScreens;
-import net.aqualoco.sec.client.ForgeHudOverlayLayers;
 import net.aqualoco.sec.client.VivecraftClientCompat;
 import net.aqualoco.sec.network.SleepAnimationNetworking;
 import net.minecraftforge.api.distmarker.Dist;
@@ -9,7 +8,6 @@ import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.server.ServerStoppingEvent;
 import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.eventbus.api.bus.BusGroup;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.loading.FMLEnvironment;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
@@ -18,11 +16,8 @@ import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 @Mod(Constants.MOD_ID)
 public class SeamlessSleep {
 
-    public static BusGroup modBusGroup;
-
     public SeamlessSleep(FMLJavaModLoadingContext context) {
 
-        modBusGroup = context.getModBusGroup();
         SeamlessSleepCommon.init();
 
         RegisterCommandsEvent.BUS.addListener(SeamlessSleepCommandRegistration::register);
@@ -37,7 +32,6 @@ public class SeamlessSleep {
             VivecraftClientCompat.registerClientIntegrations();
             SleepAnimationNetworking.initClient();
             ForgeConfigScreens.register(context);
-            ForgeHudOverlayLayers.register(modBusGroup);
         }
     }
 }

@@ -77,7 +77,7 @@ public final class SeamlessSleepMixinPlugin implements IMixinConfigPlugin {
     @Override
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
         if (BETTER_CLOUDS_MIXIN.equals(mixinClassName)) {
-            return betterCloudsAvailable && !isNeoForgePlatform();
+            return betterCloudsAvailable && !isNeoForgePlatform() && !isForgePlatform();
         }
         if (BETTER_DAYS_MIXIN.equals(mixinClassName)) {
             return betterDaysAvailable;

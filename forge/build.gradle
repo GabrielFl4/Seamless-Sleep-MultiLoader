@@ -1,6 +1,6 @@
 plugins {
     id 'multiloader-loader'
-    id 'net.minecraftforge.gradle' version '[6.0.40,6.0.47]'
+    id 'net.minecraftforge.gradle' version '[6.0.40,6.0.46)'
     id 'org.spongepowered.mixin' version '0.7-SNAPSHOT'
 }
 base {
@@ -94,4 +94,16 @@ sourceSets.each {
     def dir = layout.buildDirectory.dir("sourcesSets/$it.name")
     it.output.resourcesDir = dir
     it.java.destinationDirectory = dir
+}
+
+tasks.register('copyPortingClasspath', Copy) {
+    group = 'porting'
+    description = 'Copies resolved compile/runtime classpath jars for porting javap inspection.'
+
+    from configurations.compileClasspath
+    from configurations.runtimeClasspath
+
+    into "$rootDir/PORTING_JARS/${project.name}"
+
+    duplicatesStrategy = org.gradle.api.file.DuplicatesStrategy.EXCLUDE
 }

@@ -7,7 +7,6 @@
   "mixins": [],
   "client": [
     "client.NeoForgeBetterCloudsLevelRendererMixin",
-    "client.NeoForgeModListScreenMutableSortFixMixin",
     "client.NeoForgeVivecraftFirstPersonSelfRenderMixin"
   ],
   "server": [],

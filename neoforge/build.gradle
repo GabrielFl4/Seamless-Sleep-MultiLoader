@@ -9,8 +9,6 @@ dependencies {
     // NeoForge ModDev: mod deps entram como dependências Gradle normais
     // implementation "dev.isxander:yet-another-config-lib:${project.yacl_version}"
 
-    // Se você preferir NÃO compilar “junto” (apenas compilar e rodar, sem expectativa de embutir),
-    // pode trocar por:
     compileOnly  "dev.isxander:yet-another-config-lib:${project.yacl_version_forge}"
     runtimeOnly  "dev.isxander:yet-another-config-lib:${project.yacl_version_forge}"
 
@@ -56,3 +54,15 @@ neoForge {
 }
 
 sourceSets.main.resources { srcDir 'src/generated/resources' }
+
+tasks.register('copyPortingClasspath', Copy) {
+    group = 'porting'
+    description = 'Copies resolved compile/runtime classpath jars for porting javap inspection.'
+
+    from configurations.compileClasspath
+    from configurations.runtimeClasspath
+
+    into "$rootDir/PORTING_JARS/${project.name}"
+
+    duplicatesStrategy = org.gradle.api.file.DuplicatesStrategy.EXCLUDE
+}

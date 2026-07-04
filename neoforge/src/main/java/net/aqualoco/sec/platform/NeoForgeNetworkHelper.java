@@ -25,12 +25,15 @@ import net.aqualoco.sec.platform.services.INetworkHelper;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 import net.neoforged.neoforge.network.registration.NetworkRegistry;
+
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 
 // NeoForge networking bridge that registers payload handlers and dispatches to clients.
 public class NeoForgeNetworkHelper implements INetworkHelper {
@@ -153,7 +156,7 @@ public class NeoForgeNetworkHelper implements INetworkHelper {
 
     @Override
     public void sendToServer(CustomPacketPayload payload) {
-        ClientPacketDistributor.sendToServer(payload);
+        ClientToServerSender.send(payload);
     }
 
     @Override
@@ -290,5 +293,44 @@ public class NeoForgeNetworkHelper implements INetworkHelper {
                 VivecraftCompat.handleClientBedOffset(serverPlayer, payload);
             }
         });
+    }
+
+    // NeoForge moved the client sender between 21.6 and 21.7; keep this path binary-safe for the unified jar.
+    private static final class ClientToServerSender {
+        private static final CustomPacketPayload[] EMPTY_EXTRA_PAYLOADS = new CustomPacketPayload[0];
+        private static final MethodHandle SEND_TO_SERVER = findSendToServer();
+
+        private static void send(CustomPacketPayload payload) {
+            try {
+                SEND_TO_SERVER.invokeExact(payload, EMPTY_EXTRA_PAYLOADS);
+            } catch (RuntimeException | Error exception) {
+                throw exception;
+            } catch (Throwable exception) {
+                throw new IllegalStateException("Failed to send NeoForge client payload to server: " + payload.type().id(), exception);
+            }
+        }
+
+        private static MethodHandle findSendToServer() {
+            MethodType sendToServerType = MethodType.methodType(void.class, CustomPacketPayload.class, CustomPacketPayload[].class);
+            ClassLoader loader = NeoForgeNetworkHelper.class.getClassLoader();
+            Throwable lastFailure = null;
+
+            for (String owner : new String[] {
+                    "net.neoforged.neoforge.client.network.ClientPacketDistributor",
+                    "net.neoforged.neoforge.network.PacketDistributor"
+            }) {
+                try {
+                    Class<?> ownerClass = Class.forName(owner, false, loader);
+                    return MethodHandles.publicLookup().findStatic(ownerClass, "sendToServer", sendToServerType);
+                } catch (ReflectiveOperationException | LinkageError exception) {
+                    lastFailure = exception;
+                }
+            }
+
+            throw new IllegalStateException(
+                    "No compatible NeoForge client-to-server packet sender was found for 1.21.6-1.21.7",
+                    lastFailure
+            );
+        }
     }
 }
