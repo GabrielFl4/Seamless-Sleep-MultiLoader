@@ -4,48 +4,352 @@ import net.aqualoco.sec.Constants;
 import net.aqualoco.sec.config.SeamlessSleepServerConfigManager;
 import net.minecraft.server.level.ServerLevel;
 
-// Server-side state machine that eases world time during the sleep transition.
+// Server driver for sleep day-time interpolation.
 public final class SleepAnimationState {
+    private static final long DAY_TICKS = 24000L;
     private static final long FULL_NIGHT_TICKS = 12000L;
     private static final int MIN_DURATION_TICKS = 40;   // ~2s
     private static final int MAX_DURATION_TICKS = 180;  // ~9s
+    private static final long VISUAL_FINISH_DAY_TIME_THRESHOLD = 2L;
+    private static final double VISUAL_FINISH_PROGRESS_THRESHOLD = 0.985D;
+    private static final int POST_VISUAL_FINISH_WAKE_DELAY_TICKS = 14;
+    private static final long UNSET_START_GAME_TIME = Long.MIN_VALUE;
+    private static final int MADE_IN_HEAVEN_MAX_CYCLES = 21;
+    private static final int MADE_IN_HEAVEN_MANUAL_BRAKE_TICKS = 60;
+    private static final int MADE_IN_HEAVEN_AUTO_BRAKE_TICKS = 120;
+    private static final int COMMAND_TIMELAPSE_STOP_BRAKE_TICKS = 60;
+    private static final int NORMAL_CANCEL_BRAKE_MIN_TICKS = 15;
+    private static final int NORMAL_CANCEL_BRAKE_MAX_TICKS = 40;
+    private static final long NORMAL_CANCEL_BRAKE_MAX_DISTANCE = 2000L;
+    private static final int MADE_IN_HEAVEN_ACCELERATION_TICKS = 400;
+    private static final double MADE_IN_HEAVEN_MAX_SPEED_DAY_TIME_PER_TICK = 2400.0D;
+    private static final long NANOS_PER_ANIMATION_TICK = 50_000_000L;
+    private static final long MAX_ANIMATION_CLOCK_DELTA_NANOS = 1_000_000_000L;
 
     private boolean active;
+    private long nextSessionId;
+    private long sessionId = -1L;
+    private long sequenceId;
+    private SleepAnimationPhase phase = SleepAnimationPhase.IDLE;
+    private SleepAnimationMode mode = SleepAnimationMode.NORMAL_SLEEP;
+    private SleepAnimationVisualContext visualContext = SleepAnimationVisualContext.NIGHT;
+    private SleepAnimationSoundMode soundMode = SleepAnimationSoundMode.MUTED;
     private long startTimeOfDay;
     private long endTimeOfDay;
     private int durationTicks;
-    private long startMillis;
+    private long serverStartGameTime = UNSET_START_GAME_TIME;
+    private long lastAppliedDayTime;
+    private double cachedProgress;
+    private double cachedAnimationElapsedTicks;
+    private long accumulatedAnimationNanos;
+    private long lastAnimationNanoSample;
+    private boolean wakePlayersOnFinish;
+    private int postVisualFinishWakeDelayTicks;
+    private boolean visualFinishEventPending;
+    private boolean visualFinishAnnounced;
+    private boolean cancelTerminalEventPending;
 
     public boolean isActive() {
         return this.active;
     }
 
+    public boolean isGameplaySleepActive() {
+        return this.active && this.phase != SleepAnimationPhase.CANCEL_BRAKING;
+    }
+
+    public boolean start(ServerLevel world, long currentTime, long targetTime, SleepAnimationMode mode) {
+        return this.start(world, currentTime, targetTime, mode, SleepAnimationVisualContext.NIGHT);
+    }
+
+    public boolean start(ServerLevel world,
+                         long currentTime,
+                         long targetTime,
+                         SleepAnimationMode mode,
+                         SleepAnimationVisualContext visualContext) {
+        long startGameTime = world == null ? UNSET_START_GAME_TIME : world.getGameTime();
+        return this.startFiniteInternal(
+                currentTime,
+                targetTime,
+                startGameTime,
+                mode,
+                visualContext,
+                SleepAnimationSoundMode.MUTED,
+                -1,
+                true
+        );
+    }
+
     public void start(long currentTime, long targetTime) {
+        this.startFiniteInternal(
+                currentTime,
+                targetTime,
+                UNSET_START_GAME_TIME,
+                SleepAnimationMode.NORMAL_SLEEP,
+                SleepAnimationVisualContext.NIGHT,
+                SleepAnimationSoundMode.MUTED,
+                -1,
+                true
+        );
+    }
+
+    public boolean startExplicit(ServerLevel world,
+                                 long currentTime,
+                                 long targetTime,
+                                 int durationTicks,
+                                 SleepAnimationMode mode,
+                                 SleepAnimationVisualContext visualContext,
+                                 SleepAnimationSoundMode soundMode) {
+        long startGameTime = world == null ? UNSET_START_GAME_TIME : world.getGameTime();
+        return this.startFiniteInternal(
+                currentTime,
+                targetTime,
+                startGameTime,
+                mode,
+                visualContext,
+                soundMode,
+                durationTicks,
+                false
+        );
+    }
+
+    public boolean startMadeInHeavenBed(ServerLevel world, long currentTime) {
+        long targetTime = computeMadeInHeavenAutoEndTime(currentTime);
         if (targetTime <= currentTime) {
-            this.active = false;
-            return;
+            return false;
         }
 
-        long delta = targetTime - currentTime;
-        int baseDuration = computeDurationTicks(delta);
-        double multiplier = SeamlessSleepServerConfigManager.get().sleepAnimationDurationMultiplier;
-        this.durationTicks = applyDurationMultiplier(baseDuration, multiplier);
-
+        long startGameTime = world == null ? UNSET_START_GAME_TIME : world.getGameTime();
         this.active = true;
+        this.sessionId = ++this.nextSessionId;
+        this.sequenceId = 0L;
+        this.phase = SleepAnimationPhase.RUNNING;
+        this.mode = SleepAnimationMode.MADE_IN_HEAVEN_BED;
+        this.visualContext = SleepAnimationVisualContext.MADE_IN_HEAVEN;
+        this.soundMode = SleepAnimationSoundMode.MUTED;
         this.startTimeOfDay = currentTime;
         this.endTimeOfDay = targetTime;
-        this.startMillis = System.currentTimeMillis();
+        this.durationTicks = MADE_IN_HEAVEN_ACCELERATION_TICKS;
+        this.serverStartGameTime = startGameTime;
+        this.lastAppliedDayTime = currentTime;
+        this.cachedProgress = 0.0D;
+        this.resetAnimationClock();
+        this.wakePlayersOnFinish = true;
+        this.resetVisualFinishState();
 
         Constants.debug(
-                "Sleep animation started on server ({} -> {}, duration {} ticks)",
+                "Made In Heaven bed animation started on server (session {}, {} -> {}, gameTime {})",
+                this.sessionId,
+                this.startTimeOfDay,
+                this.endTimeOfDay,
+                this.serverStartGameTime
+        );
+
+        return true;
+    }
+
+    public boolean startBraking(ServerLevel world) {
+        if (!this.active || this.mode != SleepAnimationMode.MADE_IN_HEAVEN_BED || this.phase != SleepAnimationPhase.RUNNING) {
+            return false;
+        }
+
+        long currentTime = Math.max(world.getDayTime(), this.lastAppliedDayTime);
+        double velocity = this.getCurrentLogicalWorldRate();
+        long brakeDistance = computeBrakeDistance(velocity, MADE_IN_HEAVEN_MANUAL_BRAKE_TICKS);
+        return this.startBrakingInternal(
+                world,
+                currentTime + brakeDistance,
+                MADE_IN_HEAVEN_MANUAL_BRAKE_TICKS,
+                false,
+                "Made In Heaven bed animation braking"
+        );
+    }
+
+    public boolean shouldStartMadeInHeavenAutoBrake(ServerLevel world) {
+        if (!this.active
+                || this.mode != SleepAnimationMode.MADE_IN_HEAVEN_BED
+                || this.phase != SleepAnimationPhase.RUNNING
+                || !this.wakePlayersOnFinish) {
+            return false;
+        }
+
+        long currentTime = Math.max(world.getDayTime(), this.lastAppliedDayTime);
+        long remaining = this.endTimeOfDay - currentTime;
+        if (remaining <= 0L) {
+            return false;
+        }
+
+        long brakeDistance = computeBrakeDistance(this.getCurrentLogicalWorldRate(), MADE_IN_HEAVEN_AUTO_BRAKE_TICKS);
+        return remaining <= brakeDistance;
+    }
+
+    public boolean startMadeInHeavenAutoBraking(ServerLevel world) {
+        if (!this.shouldStartMadeInHeavenAutoBrake(world)) {
+            return false;
+        }
+
+        return this.startBrakingInternal(
+                world,
+                this.endTimeOfDay,
+                MADE_IN_HEAVEN_AUTO_BRAKE_TICKS,
+                true,
+                "Made In Heaven bed animation auto braking"
+        );
+    }
+
+    public boolean startCommandTimelapseStopBraking(ServerLevel world) {
+        if (!this.active || this.mode != SleepAnimationMode.COMMAND_TIMELAPSE || this.phase != SleepAnimationPhase.RUNNING) {
+            return false;
+        }
+
+        long currentTime = Math.max(world.getDayTime(), this.lastAppliedDayTime);
+        double velocity = this.getCurrentLogicalWorldRate();
+        long brakeDistance = computeBrakeDistance(velocity, COMMAND_TIMELAPSE_STOP_BRAKE_TICKS);
+        return this.startBrakingInternal(
+                world,
+                currentTime + brakeDistance,
+                COMMAND_TIMELAPSE_STOP_BRAKE_TICKS,
+                false,
+                "Command timelapse braking"
+        );
+    }
+
+    public boolean startNormalCancelBraking(ServerLevel world) {
+        if (!this.active
+                || this.mode != SleepAnimationMode.NORMAL_SLEEP
+                || this.phase != SleepAnimationPhase.RUNNING) {
+            return false;
+        }
+
+        long currentTime = Math.max(world.getDayTime(), this.lastAppliedDayTime);
+        double currentRate = this.getCurrentLogicalWorldRate();
+        int brakeDurationTicks = computeNormalCancelBrakeDuration(currentRate);
+        long brakeDistance = Math.min(
+                NORMAL_CANCEL_BRAKE_MAX_DISTANCE,
+                computeBrakeDistance(currentRate, brakeDurationTicks)
+        );
+
+        this.sequenceId++;
+        this.phase = SleepAnimationPhase.CANCEL_BRAKING;
+        this.startTimeOfDay = currentTime;
+        this.endTimeOfDay = currentTime + Math.max(1L, brakeDistance);
+        this.durationTicks = brakeDurationTicks;
+        this.serverStartGameTime = world.getGameTime();
+        this.lastAppliedDayTime = currentTime;
+        this.cachedProgress = 0.0D;
+        this.resetAnimationClock();
+        this.wakePlayersOnFinish = false;
+        this.resetVisualFinishState();
+
+        Constants.debug(
+                "Normal sleep cancel braking started (session {}, sequence {}, {} -> {}, duration {} ticks, rate {})",
+                this.sessionId,
+                this.sequenceId,
+                this.startTimeOfDay,
+                this.endTimeOfDay,
+                this.durationTicks,
+                currentRate
+        );
+        return true;
+    }
+
+    private boolean startBrakingInternal(ServerLevel world,
+                                         long targetTime,
+                                         int brakeDurationTicks,
+                                         boolean wakePlayersOnFinish,
+                                         String debugLabel) {
+        long currentTime = Math.max(world.getDayTime(), this.lastAppliedDayTime);
+        if (!this.active || this.phase != SleepAnimationPhase.RUNNING || targetTime <= currentTime) {
+            return false;
+        }
+
+        this.sequenceId++;
+        this.phase = SleepAnimationPhase.BRAKING;
+        this.visualContext = SleepAnimationVisualContext.MADE_IN_HEAVEN;
+        this.startTimeOfDay = currentTime;
+        this.endTimeOfDay = targetTime;
+        this.durationTicks = Math.max(1, brakeDurationTicks);
+        this.serverStartGameTime = world.getGameTime();
+        this.lastAppliedDayTime = currentTime;
+        this.cachedProgress = 0.0D;
+        this.resetAnimationClock();
+        this.wakePlayersOnFinish = wakePlayersOnFinish;
+        this.resetVisualFinishState();
+
+        Constants.debug(
+                "{} (session {}, {} -> {}, duration {} ticks)",
+                debugLabel,
+                this.sessionId,
                 this.startTimeOfDay,
                 this.endTimeOfDay,
                 this.durationTicks
         );
+
+        return true;
+    }
+
+    private boolean startFiniteInternal(long currentTime,
+                                        long targetTime,
+                                        long startGameTime,
+                                        SleepAnimationMode animationMode,
+                                        SleepAnimationVisualContext animationVisualContext,
+                                        SleepAnimationSoundMode animationSoundMode,
+                                        int explicitDurationTicks,
+                                        boolean applyConfiguredMultiplier) {
+        if (targetTime <= currentTime) {
+            this.active = false;
+            this.phase = SleepAnimationPhase.IDLE;
+            this.cachedProgress = 0.0D;
+            this.wakePlayersOnFinish = false;
+            this.resetVisualFinishState();
+            return false;
+        }
+
+        long delta = targetTime - currentTime;
+        if (explicitDurationTicks > 0) {
+            this.durationTicks = Math.max(1, explicitDurationTicks);
+        } else {
+            int baseDuration = computeDurationTicks(delta);
+            double multiplier = applyConfiguredMultiplier
+                    ? SeamlessSleepServerConfigManager.get().sleepAnimationDurationMultiplier
+                    : 1.0D;
+            this.durationTicks = applyDurationMultiplier(baseDuration, multiplier);
+        }
+
+        this.active = true;
+        this.sessionId = ++this.nextSessionId;
+        this.sequenceId = 0L;
+        this.phase = SleepAnimationPhase.RUNNING;
+        this.mode = animationMode == null ? SleepAnimationMode.NORMAL_SLEEP : animationMode;
+        this.visualContext = resolveVisualContext(this.mode, animationVisualContext);
+        this.soundMode = SleepAnimationSoundMode.canonical(animationSoundMode);
+        this.startTimeOfDay = currentTime;
+        this.endTimeOfDay = targetTime;
+        this.serverStartGameTime = startGameTime;
+        this.lastAppliedDayTime = currentTime;
+        this.cachedProgress = 0.0D;
+        this.resetAnimationClock();
+        this.wakePlayersOnFinish = this.mode.wakesPlayersOnFinish();
+        this.resetVisualFinishState();
+
+        Constants.debug(
+                "Sleep animation started on server (session {}, {} -> {}, duration {} ticks, gameTime {})",
+                this.sessionId,
+                this.startTimeOfDay,
+                this.endTimeOfDay,
+                this.durationTicks,
+                this.serverStartGameTime
+        );
+
+        return true;
     }
 
     public void cancel() {
         this.active = false;
+        this.phase = SleepAnimationPhase.CANCELLED;
+        this.cachedProgress = 0.0D;
+        this.cachedAnimationElapsedTicks = 0.0D;
+        this.wakePlayersOnFinish = false;
+        this.resetVisualFinishState();
     }
 
     public void tick(ServerLevel world) {
@@ -53,18 +357,29 @@ public final class SleepAnimationState {
             return;
         }
 
-        long now = System.currentTimeMillis();
-        double elapsedMs = (double) (now - this.startMillis);
-        if (elapsedMs <= 0.0D) {
-            world.setDayTime(this.startTimeOfDay);
+        if (this.phase == SleepAnimationPhase.FINISHED) {
+            this.tickPostVisualFinishWakeHold(world);
             return;
         }
 
-        double totalMs = this.durationTicks * 50.0D;
-        double x = elapsedMs / totalMs;
+        if (this.serverStartGameTime == UNSET_START_GAME_TIME) {
+            this.serverStartGameTime = world.getGameTime();
+        }
+
+        if (this.mode == SleepAnimationMode.MADE_IN_HEAVEN_BED && this.phase == SleepAnimationPhase.RUNNING) {
+            this.tickMadeInHeavenRunning(world);
+            return;
+        }
+
+        double elapsedTicks = this.sampleAnimationElapsedTicks();
+        if (this.durationTicks <= 0) {
+            this.finish(world);
+            return;
+        }
+
+        double x = elapsedTicks / (double) this.durationTicks;
         if (x >= 1.0D) {
-            this.active = false;
-            world.setDayTime(this.endTimeOfDay);
+            this.finish(world);
             return;
         }
 
@@ -74,10 +389,130 @@ public final class SleepAnimationState {
             x = 1.0D;
         }
 
-        double eased = integralEase(x);
+        double eased = easeForPhase(x, this.phase);
         long delta = this.endTimeOfDay - this.startTimeOfDay;
         long interpolated = this.startTimeOfDay + (long) (delta * eased);
+        if (this.endTimeOfDay >= this.startTimeOfDay) {
+            interpolated = Math.max(interpolated, this.lastAppliedDayTime);
+            if (this.isPerceptuallyFinished(x, interpolated)) {
+                this.finish(world);
+                return;
+            }
+        }
+
         world.setDayTime(interpolated);
+        this.lastAppliedDayTime = interpolated;
+        this.cachedProgress = x;
+    }
+
+    private void tickMadeInHeavenRunning(ServerLevel world) {
+        double elapsedTicks = this.sampleAnimationElapsedTicks();
+        double distance = madeInHeavenDistanceForElapsed(elapsedTicks);
+        long interpolated = this.startTimeOfDay + Math.max(0L, (long) distance);
+        if (this.wakePlayersOnFinish) {
+            long autoBrakeDistance = computeBrakeDistance(
+                    madeInHeavenVelocityForElapsed(elapsedTicks),
+                    MADE_IN_HEAVEN_AUTO_BRAKE_TICKS
+            );
+            long autoBrakeThreshold = Math.max(this.startTimeOfDay, this.endTimeOfDay - autoBrakeDistance);
+            if (interpolated >= autoBrakeThreshold) {
+                interpolated = Math.max(this.lastAppliedDayTime, autoBrakeThreshold);
+            }
+        }
+        if (interpolated >= this.endTimeOfDay) {
+            this.finish(world);
+            return;
+        }
+
+        interpolated = Math.max(interpolated, this.lastAppliedDayTime);
+        world.setDayTime(interpolated);
+        this.lastAppliedDayTime = interpolated;
+
+        long delta = this.endTimeOfDay - this.startTimeOfDay;
+        this.cachedProgress = delta <= 0L ? 0.0D : clamp01((interpolated - this.startTimeOfDay) / (double) delta);
+    }
+
+    private void finish(ServerLevel world) {
+        if (this.phase == SleepAnimationPhase.CANCEL_BRAKING) {
+            this.phase = SleepAnimationPhase.CANCELLED;
+            this.active = false;
+            this.cachedProgress = 1.0D;
+            this.cachedAnimationElapsedTicks = Math.max(this.cachedAnimationElapsedTicks, this.durationTicks);
+            this.lastAppliedDayTime = this.endTimeOfDay;
+            world.setDayTime(this.endTimeOfDay);
+            this.cancelTerminalEventPending = true;
+            this.postVisualFinishWakeDelayTicks = 0;
+            this.visualFinishEventPending = false;
+            this.visualFinishAnnounced = false;
+            return;
+        }
+
+        this.phase = SleepAnimationPhase.FINISHED;
+        this.cachedProgress = 1.0D;
+        this.cachedAnimationElapsedTicks = Math.max(this.cachedAnimationElapsedTicks, this.durationTicks);
+        this.lastAppliedDayTime = this.endTimeOfDay;
+        world.setDayTime(this.endTimeOfDay);
+        this.visualFinishEventPending = true;
+        this.visualFinishAnnounced = false;
+        if (this.shouldHoldWakeAfterVisualFinish()) {
+            this.active = true;
+            this.postVisualFinishWakeDelayTicks = POST_VISUAL_FINISH_WAKE_DELAY_TICKS;
+        } else {
+            this.active = false;
+            this.postVisualFinishWakeDelayTicks = 0;
+        }
+    }
+
+    private void tickPostVisualFinishWakeHold(ServerLevel world) {
+        this.cachedProgress = 1.0D;
+        this.lastAppliedDayTime = this.endTimeOfDay;
+        world.setDayTime(this.endTimeOfDay);
+        if (this.postVisualFinishWakeDelayTicks > 0) {
+            this.postVisualFinishWakeDelayTicks--;
+        }
+        if (this.postVisualFinishWakeDelayTicks <= 0) {
+            this.active = false;
+        }
+    }
+
+    private boolean isPerceptuallyFinished(double progress, long interpolatedDayTime) {
+        return progress >= VISUAL_FINISH_PROGRESS_THRESHOLD
+                || this.endTimeOfDay - interpolatedDayTime <= VISUAL_FINISH_DAY_TIME_THRESHOLD;
+    }
+
+    private boolean shouldHoldWakeAfterVisualFinish() {
+        return this.wakePlayersOnFinish && this.mode.isBedSleepMode();
+    }
+
+    private void resetVisualFinishState() {
+        this.postVisualFinishWakeDelayTicks = 0;
+        this.visualFinishEventPending = false;
+        this.visualFinishAnnounced = false;
+        this.cancelTerminalEventPending = false;
+    }
+
+    public long getSessionId() {
+        return this.sessionId;
+    }
+
+    public long getSequenceId() {
+        return this.sequenceId;
+    }
+
+    public SleepAnimationPhase getPhase() {
+        return this.phase;
+    }
+
+    public SleepAnimationMode getMode() {
+        return this.mode;
+    }
+
+    public SleepAnimationVisualContext getVisualContext() {
+        return this.visualContext;
+    }
+
+    public SleepAnimationSoundMode getSoundMode() {
+        return this.soundMode;
     }
 
     public long getStartTimeOfDay() {
@@ -92,8 +527,152 @@ public final class SleepAnimationState {
         return this.durationTicks;
     }
 
-    public long getStartMillis() {
-        return this.startMillis;
+    public long getServerStartGameTime() {
+        return this.serverStartGameTime == UNSET_START_GAME_TIME ? 0L : this.serverStartGameTime;
+    }
+
+    public long getLastAppliedDayTime() {
+        return this.lastAppliedDayTime;
+    }
+
+    public boolean isFinishedNaturally() {
+        return this.phase == SleepAnimationPhase.FINISHED;
+    }
+
+    public boolean consumeVisualFinishEvent() {
+        if (!this.visualFinishEventPending) {
+            return false;
+        }
+        this.visualFinishEventPending = false;
+        this.visualFinishAnnounced = true;
+        return true;
+    }
+
+    public boolean consumeCancelTerminalEvent() {
+        if (!this.cancelTerminalEventPending) {
+            return false;
+        }
+        this.cancelTerminalEventPending = false;
+        return true;
+    }
+
+    public boolean hasVisualFinishBeenAnnounced() {
+        return this.visualFinishAnnounced;
+    }
+
+    public boolean shouldWakePlayersOnFinish() {
+        return this.wakePlayersOnFinish;
+    }
+
+    public void suppressWakePlayersOnFinish() {
+        this.wakePlayersOnFinish = false;
+    }
+
+    public double getLogicalWorldRate() {
+        return getCurrentLogicalWorldRate();
+    }
+
+    public double getAverageLogicalWorldRate() {
+        if (!this.active || this.phase == SleepAnimationPhase.FINISHED) {
+            return 1.0D;
+        }
+
+        if (this.mode == SleepAnimationMode.MADE_IN_HEAVEN_BED && this.phase == SleepAnimationPhase.RUNNING) {
+            return this.getCurrentLogicalWorldRate();
+        }
+
+        long delta = this.endTimeOfDay - this.startTimeOfDay;
+        if (delta <= 0L) {
+            return 1.0D;
+        }
+
+        return Math.max(1.0D, delta / (double) Math.max(1, this.durationTicks));
+    }
+
+    public double getCurrentLogicalWorldRate() {
+        if (!this.active || this.phase == SleepAnimationPhase.FINISHED || this.durationTicks <= 0) {
+            return 1.0D;
+        }
+
+        if (this.mode == SleepAnimationMode.MADE_IN_HEAVEN_BED && this.phase == SleepAnimationPhase.RUNNING) {
+            return Math.max(1.0D, madeInHeavenVelocityForElapsed(this.cachedAnimationElapsedTicks));
+        }
+
+        long delta = this.endTimeOfDay - this.startTimeOfDay;
+        if (delta <= 0L) {
+            return 1.0D;
+        }
+
+        double baseRate = delta / (double) this.durationTicks;
+        return Math.max(1.0D, getEasedVelocityFactor() * baseRate);
+    }
+
+    public double getProgress() {
+        if (this.phase == SleepAnimationPhase.FINISHED) {
+            return 1.0D;
+        }
+        if (!this.active) {
+            return 0.0D;
+        }
+        return clamp01(this.cachedProgress);
+    }
+
+    public double getEasedVelocityFactor() {
+        if (!this.active || this.phase == SleepAnimationPhase.FINISHED) {
+            return 0.0D;
+        }
+
+        double x = getProgress();
+        double epsilon = 1.0D / Math.max(20.0D, this.durationTicks);
+        double from = Math.max(0.0D, x - epsilon);
+        double to = Math.min(1.0D, x + epsilon);
+        if (to <= from) {
+            return 0.0D;
+        }
+
+        double easedFrom = easeForPhase(from, this.phase);
+        double easedTo = easeForPhase(to, this.phase);
+        return Math.max(0.0D, (easedTo - easedFrom) / (to - from));
+    }
+
+    private void resetAnimationClock() {
+        this.accumulatedAnimationNanos = 0L;
+        this.lastAnimationNanoSample = System.nanoTime();
+        this.cachedAnimationElapsedTicks = 0.0D;
+    }
+
+    private double sampleAnimationElapsedTicks() {
+        long now = System.nanoTime();
+        if (this.lastAnimationNanoSample == 0L) {
+            this.lastAnimationNanoSample = now;
+            return this.cachedAnimationElapsedTicks;
+        }
+
+        long deltaNanos = now - this.lastAnimationNanoSample;
+        this.lastAnimationNanoSample = now;
+        if (deltaNanos < 0L) {
+            deltaNanos = 0L;
+        } else if (deltaNanos > MAX_ANIMATION_CLOCK_DELTA_NANOS) {
+            deltaNanos = MAX_ANIMATION_CLOCK_DELTA_NANOS;
+        }
+
+        if (Long.MAX_VALUE - this.accumulatedAnimationNanos < deltaNanos) {
+            this.accumulatedAnimationNanos = Long.MAX_VALUE;
+        } else {
+            this.accumulatedAnimationNanos += deltaNanos;
+        }
+        this.cachedAnimationElapsedTicks = this.accumulatedAnimationNanos / (double) NANOS_PER_ANIMATION_TICK;
+        return this.cachedAnimationElapsedTicks;
+    }
+
+    private static SleepAnimationVisualContext resolveVisualContext(SleepAnimationMode mode,
+                                                                    SleepAnimationVisualContext visualContext) {
+        SleepAnimationMode resolvedMode = mode == null ? SleepAnimationMode.NORMAL_SLEEP : mode;
+        if (resolvedMode == SleepAnimationMode.MADE_IN_HEAVEN_BED
+                || resolvedMode == SleepAnimationMode.COMMAND_TIMELAPSE) {
+            return SleepAnimationVisualContext.MADE_IN_HEAVEN;
+        }
+        return visualContext == null ? SleepAnimationVisualContext.NIGHT : visualContext;
     }
 
     private static int computeDurationTicks(long delta) {
@@ -139,6 +718,16 @@ public final class SleepAnimationState {
         return scaled;
     }
 
+    private static double clamp01(double value) {
+        if (value <= 0.0D) {
+            return 0.0D;
+        }
+        if (value >= 1.0D) {
+            return 1.0D;
+        }
+        return value;
+    }
+
     public static double integralEase(double x) {
         if (x <= 0.0D) {
             return 0.0D;
@@ -151,5 +740,84 @@ public final class SleepAnimationState {
         double base = (x2 - 1.0D) * Math.sqrt(1.0D - x2) + 1.0D;
         double oneMinus = 1.0D - base;
         return 1.0D - Math.pow(oneMinus, 3.0D);
+    }
+
+    public static long computeMadeInHeavenAutoEndTime(long currentTime) {
+        long currentCycle = Math.floorDiv(currentTime, DAY_TICKS);
+        long target = (currentCycle + MADE_IN_HEAVEN_MAX_CYCLES) * DAY_TICKS;
+        if (target <= currentTime) {
+            target += DAY_TICKS;
+        }
+        return target;
+    }
+
+    public static double madeInHeavenVelocityForElapsed(double elapsedTicks) {
+        double elapsed = Math.max(0.0D, elapsedTicks);
+        double x = Math.min(1.0D, elapsed / MADE_IN_HEAVEN_ACCELERATION_TICKS);
+        double factor = x * x;
+        return 1.0D + (MADE_IN_HEAVEN_MAX_SPEED_DAY_TIME_PER_TICK - 1.0D) * factor;
+    }
+
+    public static double madeInHeavenDistanceForElapsed(double elapsedTicks) {
+        double elapsed = Math.max(0.0D, elapsedTicks);
+        double maxExtra = MADE_IN_HEAVEN_MAX_SPEED_DAY_TIME_PER_TICK - 1.0D;
+        double accelerationTicks = MADE_IN_HEAVEN_ACCELERATION_TICKS;
+        if (elapsed <= accelerationTicks) {
+            return elapsed + maxExtra * elapsed * elapsed * elapsed / (3.0D * accelerationTicks * accelerationTicks);
+        }
+
+        double accelerationDistance = accelerationTicks + maxExtra * accelerationTicks / 3.0D;
+        return accelerationDistance + (elapsed - accelerationTicks) * MADE_IN_HEAVEN_MAX_SPEED_DAY_TIME_PER_TICK;
+    }
+
+    private static long estimateMadeInHeavenElapsedTicks(double distance) {
+        double accelerationDistance = madeInHeavenDistanceForElapsed(MADE_IN_HEAVEN_ACCELERATION_TICKS);
+        if (distance <= 0.0D) {
+            return 0L;
+        }
+        if (distance >= accelerationDistance) {
+            return MADE_IN_HEAVEN_ACCELERATION_TICKS
+                    + (long) ((distance - accelerationDistance) / MADE_IN_HEAVEN_MAX_SPEED_DAY_TIME_PER_TICK);
+        }
+
+        double lo = 0.0D;
+        double hi = MADE_IN_HEAVEN_ACCELERATION_TICKS;
+        for (int i = 0; i < 16; i++) {
+            double mid = (lo + hi) * 0.5D;
+            if (madeInHeavenDistanceForElapsed(mid) < distance) {
+                lo = mid;
+            } else {
+                hi = mid;
+            }
+        }
+        return (long) hi;
+    }
+
+    private static long computeBrakeDistance(double velocity, int durationTicks) {
+        double safeVelocity = Double.isFinite(velocity) ? Math.max(1.0D, velocity) : 1.0D;
+        return Math.max(1L, Math.round(safeVelocity * Math.max(1, durationTicks) / 3.0D));
+    }
+
+    private static int computeNormalCancelBrakeDuration(double velocity) {
+        double safeVelocity = Double.isFinite(velocity) ? Math.max(1.0D, velocity) : 1.0D;
+        double normalized = Math.min(1.0D, Math.log10(safeVelocity + 1.0D) / 3.0D);
+        int duration = (int) Math.round(
+                NORMAL_CANCEL_BRAKE_MAX_TICKS
+                        - (NORMAL_CANCEL_BRAKE_MAX_TICKS - NORMAL_CANCEL_BRAKE_MIN_TICKS) * normalized
+        );
+        return Math.max(NORMAL_CANCEL_BRAKE_MIN_TICKS, Math.min(NORMAL_CANCEL_BRAKE_MAX_TICKS, duration));
+    }
+
+    private static double easeForPhase(double x, SleepAnimationPhase phase) {
+        if (phase == SleepAnimationPhase.BRAKING || phase == SleepAnimationPhase.CANCEL_BRAKING) {
+            return brakeEase(x);
+        }
+        return integralEase(x);
+    }
+
+    public static double brakeEase(double x) {
+        double clamped = clamp01(x);
+        double inverse = 1.0D - clamped;
+        return 1.0D - inverse * inverse * inverse;
     }
 }

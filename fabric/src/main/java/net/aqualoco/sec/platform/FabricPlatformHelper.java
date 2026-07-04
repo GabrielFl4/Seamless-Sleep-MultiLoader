@@ -29,6 +29,11 @@ public class FabricPlatformHelper implements IPlatformHelper {
     }
 
     @Override
+    public Path getModsDir() {
+        return FabricLoader.getInstance().getGameDir().resolve("mods");
+    }
+
+    @Override
     public boolean isDevelopmentEnvironment() {
 
         return FabricLoader.getInstance().isDevelopmentEnvironment();
