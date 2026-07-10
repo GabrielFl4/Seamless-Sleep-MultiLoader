@@ -1,11 +1,9 @@
 package net.aqualoco.sec.client.sleepindicator;
 
-import com.mojang.blaze3d.pipeline.TextureTarget;
-import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.platform.NativeImage;
 import net.aqualoco.sec.Constants;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.render.state.GuiRenderState;
+import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
@@ -18,17 +16,16 @@ final class VivecraftWristIndicatorTextureComposer {
     private static final long MIN_COMPOSE_INTERVAL_NANOS = 33_000_000L;
     private static final ResourceLocation TEXTURE_ID = ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, "vivecraft_wrist_indicator_composed");
 
-    private final GuiRenderState renderState = new GuiRenderState();
-    private final WristIndicatorGuiStateRenderer guiRenderer = new WristIndicatorGuiStateRenderer();
-    private TextureTarget target;
-    private WristIndicatorTargetTexture targetTexture;
+    private NativeImage canvasImage;
+    private DynamicTexture texture;
+    private NativeImageSleepIndicatorDrawSurface surface;
     private ComposedTexture lastComposedTexture;
     private long lastComposeNanos;
 
     ComposedTexture compose(SleepIndicatorRenderer renderer,
                             SleepIndicatorContext context,
                             float tickDelta) {
-        if (renderer == null) {
+        if (!(renderer instanceof BiomeClockSleepIndicatorRenderer biomeClockRenderer)) {
             return null;
         }
 
@@ -38,65 +35,59 @@ final class VivecraftWristIndicatorTextureComposer {
         }
 
         CanvasSpec canvas = new CanvasSpec(BIOME_CANVAS_SIZE, BIOME_CANVAS_SIZE);
-        ensureTarget(canvas);
-        if (this.target == null || this.targetTexture == null) {
+        ensureTexture(canvas);
+        if (this.canvasImage == null || this.texture == null || this.surface == null) {
             return null;
         }
 
-        clearTarget();
-        drawIndicator(renderer, context, tickDelta, canvas);
-        this.guiRenderer.render(this.renderState, this.target);
+        clearCanvas();
+        drawIndicator(biomeClockRenderer, context, tickDelta, canvas);
+        this.texture.upload();
         this.lastComposeNanos = System.nanoTime();
         this.lastComposedTexture = new ComposedTexture(TEXTURE_ID);
         return this.lastComposedTexture;
     }
 
     private boolean canReuseLastTexture(long nowNanos) {
-        return this.target != null
-                && this.targetTexture != null
+        return this.canvasImage != null
+                && this.texture != null
                 && this.lastComposedTexture != null
                 && this.lastComposeNanos > 0L
                 && nowNanos >= this.lastComposeNanos
                 && nowNanos - this.lastComposeNanos < MIN_COMPOSE_INTERVAL_NANOS;
     }
 
-    private void ensureTarget(CanvasSpec canvas) {
-        if (this.target == null) {
-            this.target = new TextureTarget("Seamless Sleep Vivecraft wrist indicator", canvas.width(), canvas.height(), true);
-            this.targetTexture = new WristIndicatorTargetTexture(this.target);
-            Minecraft.getInstance().getTextureManager().register(TEXTURE_ID, this.targetTexture);
+    private void ensureTexture(CanvasSpec canvas) {
+        if (this.canvasImage != null
+                && this.canvasImage.getWidth() == canvas.width()
+                && this.canvasImage.getHeight() == canvas.height()
+                && this.texture != null
+                && this.surface != null) {
             return;
         }
 
-        if (this.target.width != canvas.width() || this.target.height != canvas.height()) {
-            this.target.resize(canvas.width(), canvas.height());
-            this.targetTexture.updateTarget(this.target);
-        }
+        this.canvasImage = new NativeImage(canvas.width(), canvas.height(), true);
+        this.texture = new DynamicTexture(() -> "Seamless Sleep Vivecraft wrist indicator", this.canvasImage);
+        this.surface = new NativeImageSleepIndicatorDrawSurface(this.canvasImage);
+        Minecraft.getInstance().getTextureManager().register(TEXTURE_ID, this.texture);
     }
 
-    private void clearTarget() {
-        RenderSystem.getDevice()
-                .createCommandEncoder()
-                .clearColorAndDepthTextures(this.target.getColorTexture(), TRANSPARENT_CLEAR_COLOR, this.target.getDepthTexture(), 1.0);
-        this.renderState.reset();
+    private void clearCanvas() {
+        this.canvasImage.fillRect(0, 0, this.canvasImage.getWidth(), this.canvasImage.getHeight(), TRANSPARENT_CLEAR_COLOR);
+        this.surface.resetTransform();
     }
 
-    private void drawIndicator(SleepIndicatorRenderer renderer,
+    private void drawIndicator(BiomeClockSleepIndicatorRenderer renderer,
                                SleepIndicatorContext context,
                                float tickDelta,
                                CanvasSpec canvas) {
         IndicatorSize size = renderer.measure(context);
         Placement placement = resolvePlacement(size, canvas);
-        GuiGraphics graphics = new GuiGraphics(Minecraft.getInstance(), this.renderState);
 
-        drawBacking(graphics, placement, context.alpha());
-        graphics.pose().pushMatrix();
-        graphics.pose().translate(placement.contentX(), placement.contentY());
-        if (placement.scale() != 1.0F) {
-            graphics.pose().scale(placement.scale(), placement.scale());
-        }
-        renderer.render(graphics, context, tickDelta);
-        graphics.pose().popMatrix();
+        drawBacking(this.surface, placement, context.alpha());
+        this.surface.setTransform(placement.contentX(), placement.contentY(), placement.scale());
+        renderer.render(this.surface, context, tickDelta);
+        this.surface.resetTransform();
     }
 
     private static Placement resolvePlacement(IndicatorSize size, CanvasSpec canvas) {
@@ -120,11 +111,11 @@ final class VivecraftWristIndicatorTextureComposer {
         );
     }
 
-    private static void drawBacking(GuiGraphics graphics, Placement placement, float alpha) {
+    private static void drawBacking(NativeImageSleepIndicatorDrawSurface graphics, Placement placement, float alpha) {
         drawCircularBacking(graphics, placement, multiplyAlpha(BIOME_BACKING_COLOR, alpha));
     }
 
-    private static void drawCircularBacking(GuiGraphics graphics, Placement placement, int color) {
+    private static void drawCircularBacking(NativeImageSleepIndicatorDrawSurface graphics, Placement placement, int color) {
         if ((color >>> 24) <= 0) {
             return;
         }

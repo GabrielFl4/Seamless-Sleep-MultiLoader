@@ -4,7 +4,7 @@ import com.mojang.blaze3d.platform.NativeImage;
 import net.aqualoco.sec.Constants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.renderer.RenderType;
 import net.minecraft.resources.ResourceLocation;
 
 import java.io.IOException;
@@ -30,9 +30,8 @@ public final class BedCrosshairRenderer {
         int x = (graphics.guiWidth() - RENDER_SIZE) / 2;
         int y = (graphics.guiHeight() - RENDER_SIZE) / 2;
 
-        graphics.nextStratum();
         graphics.blit(
-                RenderPipelines.CROSSHAIR,
+                RenderType::crosshair,
                 BED_CROSSHAIR_TEXTURE,
                 x,
                 y,

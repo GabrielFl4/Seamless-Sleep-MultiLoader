@@ -17,9 +17,9 @@ final class VivecraftWristIndicatorQuadRenderer {
     private static final int TEXTURE_ROTATION_QUARTER_TURNS = 2;
     // Keep both faces matched because the quad is submitted double-sided.
     private static final boolean TEXTURE_FRONT_FLIP_X = true;
-    private static final boolean TEXTURE_FRONT_FLIP_Y = false;
+    private static final boolean TEXTURE_FRONT_FLIP_Y = true;
     private static final boolean TEXTURE_BACK_FLIP_X = true;
-    private static final boolean TEXTURE_BACK_FLIP_Y = false;
+    private static final boolean TEXTURE_BACK_FLIP_Y = true;
 
     private VivecraftWristIndicatorQuadRenderer() {
     }

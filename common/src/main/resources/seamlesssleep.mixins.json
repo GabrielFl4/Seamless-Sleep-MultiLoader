@@ -56,7 +56,7 @@
     "client.input.MultiPlayerGameModeBedWorkflowMixin",
     "client.ui.SleepOverlayOpacityMixin",
     "client.ui.InGameHudSleepMessageMixin",
-    "compat.vivecraft.VivecraftPostProcessUboMixin",
+    "compat.vivecraft.VivecraftShaderHelperBlackAlphaMixin",
     "compat.vivecraft.VivecraftLocalPlayerRoomYOffsetMixin",
     "compat.vivecraft.VivecraftInteractTrackerSleepGateMixin",
     "compat.vivecraft.VivecraftVRPlayerMenuHandMixin",

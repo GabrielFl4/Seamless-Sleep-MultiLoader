@@ -2,7 +2,7 @@ package net.aqualoco.sec.client.sleepindicator;
 
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.renderer.RenderType;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 
@@ -16,12 +16,12 @@ public final class GuiSleepIndicatorDrawSurface implements SleepIndicatorDrawSur
 
     @Override
     public void withTranslation(float x, float y, Runnable draw) {
-        this.graphics.pose().pushMatrix();
-        this.graphics.pose().translate(x, y);
+        this.graphics.pose().pushPose();
+        this.graphics.pose().translate(x, y, 0.0F);
         try {
             draw.run();
         } finally {
-            this.graphics.pose().popMatrix();
+            this.graphics.pose().popPose();
         }
     }
 
@@ -42,7 +42,7 @@ public final class GuiSleepIndicatorDrawSurface implements SleepIndicatorDrawSur
                      int textureHeight,
                      int argb) {
         this.graphics.blit(
-                RenderPipelines.GUI_TEXTURED,
+                RenderType::guiTextured,
                 texture,
                 destX,
                 destY,
@@ -70,7 +70,7 @@ public final class GuiSleepIndicatorDrawSurface implements SleepIndicatorDrawSur
                      int textureHeight,
                      int argb) {
         this.graphics.blit(
-                RenderPipelines.GUI_TEXTURED,
+                RenderType::guiTextured,
                 texture,
                 destX,
                 destY,

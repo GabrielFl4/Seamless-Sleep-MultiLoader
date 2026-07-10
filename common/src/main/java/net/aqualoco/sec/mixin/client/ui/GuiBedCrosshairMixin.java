@@ -17,6 +17,7 @@ import org.jspecify.annotations.Nullable;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -34,8 +35,6 @@ public abstract class GuiBedCrosshairMixin {
             return;
         }
 
-        ci.cancel();
-
         if (!this.minecraft.options.getCameraType().isFirstPerson()) {
             return;
         }
@@ -45,10 +44,11 @@ public abstract class GuiBedCrosshairMixin {
             return;
         }
 
-        if (((Gui) (Object) this).shouldRenderDebugCrosshair()) {
+        if (this.seamlesssleep$shouldRenderDebugCrosshair(player)) {
             return;
         }
 
+        ci.cancel();
         BedCrosshairRenderer.render(graphics);
     }
 
@@ -68,5 +68,12 @@ public abstract class GuiBedCrosshairMixin {
         }
 
         return false;
+    }
+
+    @Unique
+    private boolean seamlesssleep$shouldRenderDebugCrosshair(LocalPlayer player) {
+        return this.minecraft.gui.getDebugOverlay().showDebugScreen()
+                && !player.isReducedDebugInfo()
+                && !this.minecraft.options.reducedDebugInfo().get();
     }
 }

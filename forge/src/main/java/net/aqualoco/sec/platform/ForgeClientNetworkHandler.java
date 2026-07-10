@@ -18,6 +18,7 @@ import net.aqualoco.sec.sleep.SleepDimensionSupport;
 import net.aqualoco.sec.sleep.SleepAnimationStopReason;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
@@ -124,6 +125,15 @@ final class ForgeClientNetworkHandler implements ForgeNetworkHelper.ClientHandle
     @Override
     public void handleVivecraftBedOffset(VivecraftBedOffsetS2CPayload payload) {
         VivecraftClientCompat.applySyncedBedRoomYOffset(payload);
+    }
+
+    @Override
+    public boolean canSendToServer(CustomPacketPayload.Type<?> type) {
+        Minecraft client = Minecraft.getInstance();
+        return ForgeNetworkHelper.hasChannel()
+                && type != null
+                && client.getConnection() != null
+                && ForgeNetworkHelper.isRemotePresent(client.getConnection().getConnection());
     }
 
     private static boolean isMatchingSupportedWorld(ClientLevel world, ResourceLocation payloadWorldId) {

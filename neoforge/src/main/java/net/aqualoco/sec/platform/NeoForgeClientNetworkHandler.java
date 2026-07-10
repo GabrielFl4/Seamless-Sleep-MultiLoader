@@ -18,7 +18,10 @@ import net.aqualoco.sec.sleep.SleepDimensionSupport;
 import net.aqualoco.sec.sleep.SleepAnimationStopReason;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.network.ConnectionProtocol;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
+import net.neoforged.neoforge.network.registration.NetworkRegistry;
 
 // NeoForge client packet handlers that start/stop animation and apply synced server config.
 final class NeoForgeClientNetworkHandler implements NeoForgeNetworkHelper.ClientHandler {
@@ -121,6 +124,14 @@ final class NeoForgeClientNetworkHandler implements NeoForgeNetworkHelper.Client
     @Override
     public void handleVivecraftBedOffset(VivecraftBedOffsetS2CPayload payload) {
         VivecraftClientCompat.applySyncedBedRoomYOffset(payload);
+    }
+
+    @Override
+    public boolean canSendToServer(CustomPacketPayload.Type<?> type) {
+        Minecraft client = Minecraft.getInstance();
+        return client.getConnection() != null
+                && type != null
+                && NetworkRegistry.hasChannel(client.getConnection().getConnection(), ConnectionProtocol.PLAY, type.id());
     }
 
     private static boolean isMatchingSupportedWorld(ClientLevel world, ResourceLocation payloadWorldId) {

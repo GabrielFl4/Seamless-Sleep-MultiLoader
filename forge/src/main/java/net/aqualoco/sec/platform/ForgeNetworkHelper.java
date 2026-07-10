@@ -20,7 +20,7 @@ import net.aqualoco.sec.network.VivecraftBedOffsetC2SPayload;
 import net.aqualoco.sec.network.VivecraftBedOffsetS2CPayload;
 import net.aqualoco.sec.network.VivecraftVrStatePayload;
 import net.aqualoco.sec.platform.services.INetworkHelper;
-import net.minecraft.client.Minecraft;
+import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
@@ -43,6 +43,7 @@ public class ForgeNetworkHelper implements INetworkHelper {
         void handleServerConfigUpdateResult(ServerConfigUpdateResultS2CPayload payload);
         void handleServerHello(ServerHelloS2CPayload payload);
         void handleVivecraftBedOffset(VivecraftBedOffsetS2CPayload payload);
+        boolean canSendToServer(CustomPacketPayload.Type<?> type);
     }
 
     private static final ResourceLocation CHANNEL_ID =
@@ -181,13 +182,18 @@ public class ForgeNetworkHelper implements INetworkHelper {
                 && channel.isRemotePresent(player.connection.getConnection());
     }
 
+    static boolean hasChannel() {
+        return channel != null;
+    }
+
+    static boolean isRemotePresent(Connection connection) {
+        return channel != null && connection != null && channel.isRemotePresent(connection);
+    }
+
     @Override
     public boolean canSendToServer(CustomPacketPayload.Type<?> type) {
-        Minecraft client = Minecraft.getInstance();
-        return channel != null
-                && type != null
-                && client.getConnection() != null
-                && channel.isRemotePresent(client.getConnection().getConnection());
+        ClientHandler handler = clientHandler;
+        return handler != null && handler.canSendToServer(type);
     }
 
     private static void handleStart(SleepAnimationStartPayload payload, CustomPayloadEvent.Context context) {

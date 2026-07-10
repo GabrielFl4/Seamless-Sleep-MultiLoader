@@ -78,17 +78,16 @@ public final class BedHudMessageRenderer {
             return;
         }
 
-        graphics.nextStratum();
-        graphics.pose().pushMatrix();
-        graphics.pose().translate(centerX, y);
+        graphics.pose().pushPose();
+        graphics.pose().translate(centerX, y, 0.0F);
         if (message.scale() != 1.0F) {
-            graphics.pose().scale(message.scale(), message.scale());
+            graphics.pose().scale(message.scale(), message.scale(), 1.0F);
         }
 
         int textWidth = font.width(message.text());
         int color = (alpha << 24) | (message.colorRgb() & 0x00FFFFFF);
         graphics.drawStringWithBackdrop(font, message.text(), -textWidth / 2, -4, textWidth, color);
-        graphics.pose().popMatrix();
+        graphics.pose().popPose();
     }
 
     private static int seamlesssleep$getVivecraftBedHintYOffset(Minecraft client) {

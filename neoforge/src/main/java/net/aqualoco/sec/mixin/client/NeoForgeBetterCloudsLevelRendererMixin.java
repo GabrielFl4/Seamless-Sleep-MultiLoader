@@ -28,15 +28,7 @@ public abstract class NeoForgeBetterCloudsLevelRendererMixin {
 
     @Unique
     private static final String seamlesssleep$ADD_CLOUDS_PASS_WITH_MODEL_VIEW =
-            "addCloudsPass(Lcom/mojang/blaze3d/framegraph/FrameGraphBuilder;Lnet/minecraft/client/CloudStatus;Lnet/minecraft/world/phys/Vec3;FIFLorg/joml/Matrix4f;)V";
-
-    @Unique
-    private static final String seamlesssleep$ADD_CLOUDS_PASS_WITH_TICK =
-            "addCloudsPass(Lcom/mojang/blaze3d/framegraph/FrameGraphBuilder;Lnet/minecraft/client/CloudStatus;Lnet/minecraft/world/phys/Vec3;JFIF)V";
-
-    @Unique
-    private static final String seamlesssleep$ADD_CLOUDS_PASS_WITH_TICK_AND_MODEL_VIEW =
-            "addCloudsPass(Lcom/mojang/blaze3d/framegraph/FrameGraphBuilder;Lnet/minecraft/client/CloudStatus;Lnet/minecraft/world/phys/Vec3;JFIFLorg/joml/Matrix4f;)V";
+            "addCloudsPass(Lcom/mojang/blaze3d/framegraph/FrameGraphBuilder;Lnet/minecraft/client/CloudStatus;Lnet/minecraft/world/phys/Vec3;FIFLorg/joml/Matrix4f;Lorg/joml/Matrix4f;)V";
 
     @Unique
     private static final CloudAccelerationController seamlesssleep$cloudController =
@@ -49,17 +41,7 @@ public abstract class NeoForgeBetterCloudsLevelRendererMixin {
 
     @Unique
     private static final Class<?>[] seamlesssleep$ADD_CLOUDS_PASS_WITH_MODEL_VIEW_TYPES = {
-            FrameGraphBuilder.class, CloudStatus.class, Vec3.class, float.class, int.class, float.class, Matrix4f.class
-    };
-
-    @Unique
-    private static final Class<?>[] seamlesssleep$ADD_CLOUDS_PASS_WITH_TICK_TYPES = {
-            FrameGraphBuilder.class, CloudStatus.class, Vec3.class, long.class, float.class, int.class, float.class
-    };
-
-    @Unique
-    private static final Class<?>[] seamlesssleep$ADD_CLOUDS_PASS_WITH_TICK_AND_MODEL_VIEW_TYPES = {
-            FrameGraphBuilder.class, CloudStatus.class, Vec3.class, long.class, float.class, int.class, float.class, Matrix4f.class
+            FrameGraphBuilder.class, CloudStatus.class, Vec3.class, float.class, int.class, float.class, Matrix4f.class, Matrix4f.class
     };
 
     @Unique
@@ -67,12 +49,6 @@ public abstract class NeoForgeBetterCloudsLevelRendererMixin {
 
     @Unique
     private static Method seamlesssleep$addCloudsPassWithModelView;
-
-    @Unique
-    private static Method seamlesssleep$addCloudsPassWithTick;
-
-    @Unique
-    private static Method seamlesssleep$addCloudsPassWithTickAndModelView;
 
     @Unique
     private static boolean seamlesssleep$loggedAddCloudsPassReflectionFailure;
@@ -101,7 +77,7 @@ public abstract class NeoForgeBetterCloudsLevelRendererMixin {
             int color,
             float cloudHeight
     ) {
-        seamlesssleep$redirectAddCloudsPass(instance, frameGraphBuilder, mode, cameraPos, cloudTime, color, cloudHeight, null);
+        seamlesssleep$redirectAddCloudsPass(instance, frameGraphBuilder, mode, cameraPos, cloudTime, color, cloudHeight, null, null);
     }
 
     @Group(name = "seamlesssleep$addCloudsPass", min = 1, max = 1)
@@ -121,54 +97,10 @@ public abstract class NeoForgeBetterCloudsLevelRendererMixin {
             float cloudTime,
             int color,
             float cloudHeight,
-            Matrix4f modelViewMatrix
+            Matrix4f modelViewMatrix,
+            Matrix4f projectionMatrix
     ) {
-        seamlesssleep$redirectAddCloudsPass(instance, frameGraphBuilder, mode, cameraPos, cloudTime, color, cloudHeight, modelViewMatrix);
-    }
-
-    @Group(name = "seamlesssleep$addCloudsPass", min = 1, max = 1)
-    @Redirect(
-            method = "renderLevel",
-            at = @At(
-                    value = "INVOKE",
-                    target = "Lnet/minecraft/client/renderer/LevelRenderer;" + seamlesssleep$ADD_CLOUDS_PASS_WITH_TICK
-            ),
-            require = 0
-    )
-    private void seamlesssleep$redirectAddCloudsPassWithTick(
-            LevelRenderer instance,
-            FrameGraphBuilder frameGraphBuilder,
-            CloudStatus mode,
-            Vec3 cameraPos,
-            long time,
-            float tickDelta,
-            int color,
-            float cloudHeight
-    ) {
-        seamlesssleep$redirectAddCloudsPass(instance, frameGraphBuilder, mode, cameraPos, time, tickDelta, color, cloudHeight, null);
-    }
-
-    @Group(name = "seamlesssleep$addCloudsPass", min = 1, max = 1)
-    @Redirect(
-            method = "renderLevel",
-            at = @At(
-                    value = "INVOKE",
-                    target = "Lnet/minecraft/client/renderer/LevelRenderer;" + seamlesssleep$ADD_CLOUDS_PASS_WITH_TICK_AND_MODEL_VIEW
-            ),
-            require = 0
-    )
-    private void seamlesssleep$redirectAddCloudsPassWithTickAndModelView(
-            LevelRenderer instance,
-            FrameGraphBuilder frameGraphBuilder,
-            CloudStatus mode,
-            Vec3 cameraPos,
-            long time,
-            float tickDelta,
-            int color,
-            float cloudHeight,
-            Matrix4f modelViewMatrix
-    ) {
-        seamlesssleep$redirectAddCloudsPass(instance, frameGraphBuilder, mode, cameraPos, time, tickDelta, color, cloudHeight, modelViewMatrix);
+        seamlesssleep$redirectAddCloudsPass(instance, frameGraphBuilder, mode, cameraPos, cloudTime, color, cloudHeight, modelViewMatrix, projectionMatrix);
     }
 
     @Unique
@@ -179,9 +111,10 @@ public abstract class NeoForgeBetterCloudsLevelRendererMixin {
                                                      float cloudTime,
                                                      int color,
                                                      float cloudHeight,
-                                                     Matrix4f modelViewMatrix) {
+                                                     Matrix4f modelViewMatrix,
+                                                     Matrix4f projectionMatrix) {
         if (!BetterCloudsCompatBridge.isBridgeActive()) {
-            seamlesssleep$callAddCloudsPass(instance, frameGraphBuilder, mode, cameraPos, cloudTime, color, cloudHeight, modelViewMatrix);
+            seamlesssleep$callAddCloudsPass(instance, frameGraphBuilder, mode, cameraPos, cloudTime, color, cloudHeight, modelViewMatrix, projectionMatrix);
             return;
         }
 
@@ -190,50 +123,14 @@ public abstract class NeoForgeBetterCloudsLevelRendererMixin {
         seamlesssleep$cloudController.logApplied(now, cloudTime, sample.adjustedValue());
 
         if (sample.wholeTicks() == this.ticks) {
-            seamlesssleep$callAddCloudsPass(instance, frameGraphBuilder, mode, cameraPos, sample.adjustedValue(), color, cloudHeight, modelViewMatrix);
+            seamlesssleep$callAddCloudsPass(instance, frameGraphBuilder, mode, cameraPos, sample.adjustedValue(), color, cloudHeight, modelViewMatrix, projectionMatrix);
             return;
         }
 
         int originalTicks = this.ticks;
         try {
             this.ticks = sample.wholeTicks();
-            seamlesssleep$callAddCloudsPass(instance, frameGraphBuilder, mode, cameraPos, sample.adjustedValue(), color, cloudHeight, modelViewMatrix);
-        } finally {
-            this.ticks = originalTicks;
-        }
-    }
-
-    @Unique
-    private void seamlesssleep$redirectAddCloudsPass(LevelRenderer instance,
-                                                     FrameGraphBuilder frameGraphBuilder,
-                                                     CloudStatus mode,
-                                                     Vec3 cameraPos,
-                                                     long time,
-                                                     float tickDelta,
-                                                     int color,
-                                                     float cloudHeight,
-                                                     Matrix4f modelViewMatrix) {
-        if (!BetterCloudsCompatBridge.isBridgeActive()) {
-            seamlesssleep$callAddCloudsPass(instance, frameGraphBuilder, mode, cameraPos, time, tickDelta, color, cloudHeight, modelViewMatrix);
-            return;
-        }
-
-        long now = System.currentTimeMillis();
-        float baseTime = this.ticks + tickDelta;
-        var sample = seamlesssleep$cloudController.sample(baseTime, this.level, now);
-        seamlesssleep$cloudController.logApplied(now, baseTime, sample.adjustedValue());
-
-        boolean overrideNeeded = sample.wholeTicks() != this.ticks
-                || Math.abs(sample.partialTick() - tickDelta) > 0.0001F;
-        if (!overrideNeeded) {
-            seamlesssleep$callAddCloudsPass(instance, frameGraphBuilder, mode, cameraPos, time, tickDelta, color, cloudHeight, modelViewMatrix);
-            return;
-        }
-
-        int originalTicks = this.ticks;
-        try {
-            this.ticks = sample.wholeTicks();
-            seamlesssleep$callAddCloudsPass(instance, frameGraphBuilder, mode, cameraPos, time, sample.partialTick(), color, cloudHeight, modelViewMatrix);
+            seamlesssleep$callAddCloudsPass(instance, frameGraphBuilder, mode, cameraPos, sample.adjustedValue(), color, cloudHeight, modelViewMatrix, projectionMatrix);
         } finally {
             this.ticks = originalTicks;
         }
@@ -247,40 +144,17 @@ public abstract class NeoForgeBetterCloudsLevelRendererMixin {
                                                         float cloudTime,
                                                         int color,
                                                         float cloudHeight,
-                                                        Matrix4f modelViewMatrix) {
+                                                        Matrix4f modelViewMatrix,
+                                                        Matrix4f projectionMatrix) {
         try {
-            if (modelViewMatrix == null) {
+            if (modelViewMatrix == null || projectionMatrix == null) {
                 Method method = seamlesssleep$resolveAddCloudsPass();
                 method.invoke(instance, frameGraphBuilder, mode, cameraPos, cloudTime, color, cloudHeight);
                 return;
             }
 
             Method method = seamlesssleep$resolveAddCloudsPassWithModelView();
-            method.invoke(instance, frameGraphBuilder, mode, cameraPos, cloudTime, color, cloudHeight, modelViewMatrix);
-        } catch (ReflectiveOperationException | RuntimeException exception) {
-            seamlesssleep$logAddCloudsPassReflectionFailure(exception);
-        }
-    }
-
-    @Unique
-    private static void seamlesssleep$callAddCloudsPass(LevelRenderer instance,
-                                                        FrameGraphBuilder frameGraphBuilder,
-                                                        CloudStatus mode,
-                                                        Vec3 cameraPos,
-                                                        long cloudTick,
-                                                        float cloudTime,
-                                                        int color,
-                                                        float cloudHeight,
-                                                        Matrix4f modelViewMatrix) {
-        try {
-            if (modelViewMatrix == null) {
-                Method method = seamlesssleep$resolveAddCloudsPassWithTick();
-                method.invoke(instance, frameGraphBuilder, mode, cameraPos, cloudTick, cloudTime, color, cloudHeight);
-                return;
-            }
-
-            Method method = seamlesssleep$resolveAddCloudsPassWithTickAndModelView();
-            method.invoke(instance, frameGraphBuilder, mode, cameraPos, cloudTick, cloudTime, color, cloudHeight, modelViewMatrix);
+            method.invoke(instance, frameGraphBuilder, mode, cameraPos, cloudTime, color, cloudHeight, modelViewMatrix, projectionMatrix);
         } catch (ReflectiveOperationException | RuntimeException exception) {
             seamlesssleep$logAddCloudsPassReflectionFailure(exception);
         }
@@ -300,22 +174,6 @@ public abstract class NeoForgeBetterCloudsLevelRendererMixin {
             seamlesssleep$addCloudsPassWithModelView = seamlesssleep$resolveAddCloudsPass(seamlesssleep$ADD_CLOUDS_PASS_WITH_MODEL_VIEW_TYPES);
         }
         return seamlesssleep$addCloudsPassWithModelView;
-    }
-
-    @Unique
-    private static Method seamlesssleep$resolveAddCloudsPassWithTick() throws NoSuchMethodException {
-        if (seamlesssleep$addCloudsPassWithTick == null) {
-            seamlesssleep$addCloudsPassWithTick = seamlesssleep$resolveAddCloudsPass(seamlesssleep$ADD_CLOUDS_PASS_WITH_TICK_TYPES);
-        }
-        return seamlesssleep$addCloudsPassWithTick;
-    }
-
-    @Unique
-    private static Method seamlesssleep$resolveAddCloudsPassWithTickAndModelView() throws NoSuchMethodException {
-        if (seamlesssleep$addCloudsPassWithTickAndModelView == null) {
-            seamlesssleep$addCloudsPassWithTickAndModelView = seamlesssleep$resolveAddCloudsPass(seamlesssleep$ADD_CLOUDS_PASS_WITH_TICK_AND_MODEL_VIEW_TYPES);
-        }
-        return seamlesssleep$addCloudsPassWithTickAndModelView;
     }
 
     @Unique

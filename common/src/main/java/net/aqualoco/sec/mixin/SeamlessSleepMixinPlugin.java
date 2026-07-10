@@ -29,7 +29,7 @@ public final class SeamlessSleepMixinPlugin implements IMixinConfigPlugin {
     private static final String SUBTLE_EFFECTS_PLAYER_SLEEPING_TICKER_MIXIN = "net.aqualoco.sec.mixin.compat.subtleeffects.SubtleEffectsPlayerSleepingTickerMixin";
     private static final String SUBTLE_EFFECTS_PLAYER_SLEEPING_TICKER_RESOURCE =
             "einstein/subtle_effects/ticking/tickers/entity/sleeping/PlayerSleepingTicker.class";
-    private static final String VIVECRAFT_POST_PROCESS_UBO_MIXIN = "net.aqualoco.sec.mixin.compat.vivecraft.VivecraftPostProcessUboMixin";
+    private static final String VIVECRAFT_POST_PROCESS_SHADER_HELPER_MIXIN = "net.aqualoco.sec.mixin.compat.vivecraft.VivecraftShaderHelperBlackAlphaMixin";
     private static final String VIVECRAFT_LOCAL_PLAYER_ROOM_Y_OFFSET_MIXIN = "net.aqualoco.sec.mixin.compat.vivecraft.VivecraftLocalPlayerRoomYOffsetMixin";
     private static final String VIVECRAFT_INTERACT_TRACKER_SLEEP_GATE_MIXIN = "net.aqualoco.sec.mixin.compat.vivecraft.VivecraftInteractTrackerSleepGateMixin";
     private static final String VIVECRAFT_VR_PLAYER_MENU_HAND_MIXIN = "net.aqualoco.sec.mixin.compat.vivecraft.VivecraftVRPlayerMenuHandMixin";
@@ -45,7 +45,7 @@ public final class SeamlessSleepMixinPlugin implements IMixinConfigPlugin {
     private boolean comfortsEventsAvailable;
     private boolean reactiveMusicPlayerThreadAvailable;
     private boolean subtleEffectsPlayerSleepingTickerAvailable;
-    private boolean vivecraftPostProcessUboAvailable;
+    private boolean vivecraftPostProcessShaderHelperAvailable;
     private boolean vivecraftPlayerExtensionAvailable;
     private boolean vivecraftInteractTrackerAvailable;
     private boolean vivecraftVrPlayerAvailable;
@@ -60,7 +60,7 @@ public final class SeamlessSleepMixinPlugin implements IMixinConfigPlugin {
         comfortsEventsAvailable = isComfortsTargetPresent(ComfortsCompat.COMFORTS_EVENTS_RESOURCE);
         reactiveMusicPlayerThreadAvailable = isReactiveMusicPlayerThreadPresent();
         subtleEffectsPlayerSleepingTickerAvailable = isSubtleEffectsPlayerSleepingTickerPresent();
-        vivecraftPostProcessUboAvailable = isVivecraftTargetPresent(VivecraftCompat.POST_PROCESS_UBO_RESOURCE);
+        vivecraftPostProcessShaderHelperAvailable = isVivecraftExactTargetPresent(VivecraftCompat.POST_PROCESS_SHADER_HELPER_RESOURCE);
         vivecraftPlayerExtensionAvailable = isVivecraftTargetPresent(VivecraftCompat.PLAYER_EXTENSION_RESOURCE);
         vivecraftInteractTrackerAvailable = isVivecraftTargetPresent(VivecraftCompat.INTERACT_TRACKER_RESOURCE);
         vivecraftVrPlayerAvailable = isVivecraftTargetPresent(VivecraftCompat.VR_PLAYER_RESOURCE);
@@ -97,8 +97,8 @@ public final class SeamlessSleepMixinPlugin implements IMixinConfigPlugin {
         if (SUBTLE_EFFECTS_PLAYER_SLEEPING_TICKER_MIXIN.equals(mixinClassName)) {
             return subtleEffectsPlayerSleepingTickerAvailable;
         }
-        if (VIVECRAFT_POST_PROCESS_UBO_MIXIN.equals(mixinClassName)) {
-            return vivecraftPostProcessUboAvailable;
+        if (VIVECRAFT_POST_PROCESS_SHADER_HELPER_MIXIN.equals(mixinClassName)) {
+            return vivecraftPostProcessShaderHelperAvailable;
         }
         if (VIVECRAFT_LOCAL_PLAYER_ROOM_Y_OFFSET_MIXIN.equals(mixinClassName)) {
             return vivecraftPlayerExtensionAvailable;
@@ -226,6 +226,11 @@ public final class SeamlessSleepMixinPlugin implements IMixinConfigPlugin {
             Constants.warn("Vivecraft detected, but target {} was not found; matching Vivecraft compatibility hook will not be applied.", classResourcePath);
         }
         return available;
+    }
+
+    private boolean isVivecraftExactTargetPresent(String classResourcePath) {
+        return hasClassResource(classResourcePath, Thread.currentThread().getContextClassLoader())
+                || hasClassResource(classResourcePath, SeamlessSleepMixinPlugin.class.getClassLoader());
     }
 
     private boolean isOptionalMixinTargetAvailable(boolean modLoaded, boolean targetPresent) {

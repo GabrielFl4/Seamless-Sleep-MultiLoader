@@ -237,7 +237,7 @@ public final class BedRestingHelper {
                 .getEntitiesOfClass(
                         Monster.class,
                         new AABB(center.x() - 8.0D, center.y() - 5.0D, center.z() - 8.0D, center.x() + 8.0D, center.y() + 5.0D, center.z() + 8.0D),
-                        monster -> monster.isPreventingPlayerRest(player.level(), player)
+                        monster -> monster.isPreventingPlayerRest(player.serverLevel(), player)
                 )
                 .isEmpty();
     }

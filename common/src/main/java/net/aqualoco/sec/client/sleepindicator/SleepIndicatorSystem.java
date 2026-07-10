@@ -85,14 +85,15 @@ public final class SleepIndicatorSystem {
         float animatedX = placement.x() + pivotX * placement.scale() - pivotX * animatedScale;
         float animatedY = placement.y() + animatedOffsetY + pivotY * placement.scale() - pivotY * animatedScale;
 
-        graphics.nextStratum();
-        graphics.pose().pushMatrix();
-        graphics.pose().translate(animatedX, animatedY);
+        graphics.flush();
+        graphics.pose().pushPose();
+        graphics.pose().translate(animatedX, animatedY, 0.0F);
         if (animatedScale != 1.0F) {
-            graphics.pose().scale(animatedScale, animatedScale);
+            graphics.pose().scale(animatedScale, animatedScale, 1.0F);
         }
         renderer.render(graphics, animatedContext, tickDelta);
-        graphics.pose().popMatrix();
+        graphics.pose().popPose();
+        graphics.flush();
     }
 
     private static boolean shouldRender(

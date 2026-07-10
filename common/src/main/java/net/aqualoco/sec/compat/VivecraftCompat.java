@@ -18,7 +18,7 @@ public final class VivecraftCompat {
     public static final String MOD_ID = "vivecraft";
     public static final String CLIENT_API_RESOURCE = "org/vivecraft/api/client/VRClientAPI.class";
     public static final String PLAYER_API_RESOURCE = "org/vivecraft/api/VRAPI.class";
-    public static final String POST_PROCESS_UBO_RESOURCE = "org/vivecraft/client_vr/render/ubos/PostProcessUBO.class";
+    public static final String POST_PROCESS_SHADER_HELPER_RESOURCE = "org/vivecraft/client_vr/render/helpers/ShaderHelper.class";
     public static final String PLAYER_EXTENSION_RESOURCE = "org/vivecraft/client_vr/extensions/PlayerExtension.class";
     public static final String INTERACT_TRACKER_RESOURCE = "org/vivecraft/client_vr/gameplay/trackers/InteractTracker.class";
     public static final String VR_PLAYER_RESOURCE = "org/vivecraft/client_vr/gameplay/VRPlayer.class";

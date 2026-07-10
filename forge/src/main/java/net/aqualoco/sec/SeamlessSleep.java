@@ -1,13 +1,8 @@
 package net.aqualoco.sec;
 
-import net.aqualoco.sec.client.ForgeConfigScreens;
-import net.aqualoco.sec.client.VivecraftClientCompat;
-import net.aqualoco.sec.network.SleepAnimationNetworking;
+import net.aqualoco.sec.client.ForgeClientBootstrap;
 import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.event.RegisterCommandsEvent;
-import net.minecraftforge.event.entity.player.PlayerEvent;
-import net.minecraftforge.event.server.ServerStoppingEvent;
-import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.loading.FMLEnvironment;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
@@ -20,18 +15,16 @@ public class SeamlessSleep {
 
         SeamlessSleepCommon.init();
 
-        RegisterCommandsEvent.BUS.addListener(SeamlessSleepCommandRegistration::register);
-        PlayerEvent.PlayerLoggedInEvent.BUS.addListener(SeamlessSleepServerEvents::onPlayerLoggedIn);
-        PlayerEvent.PlayerLoggedOutEvent.BUS.addListener(SeamlessSleepServerEvents::onPlayerLoggedOut);
-        PlayerEvent.PlayerChangedDimensionEvent.BUS.addListener(SeamlessSleepServerEvents::onPlayerChangedDimension);
-        PlayerEvent.PlayerRespawnEvent.BUS.addListener(SeamlessSleepServerEvents::onPlayerRespawn);
-        TickEvent.ServerTickEvent.Post.BUS.addListener(SeamlessSleepServerEvents::onServerTick);
-        ServerStoppingEvent.BUS.addListener(SeamlessSleepServerEvents::onServerStopping);
+        MinecraftForge.EVENT_BUS.addListener(SeamlessSleepCommandRegistration::register);
+        MinecraftForge.EVENT_BUS.addListener(SeamlessSleepServerEvents::onPlayerLoggedIn);
+        MinecraftForge.EVENT_BUS.addListener(SeamlessSleepServerEvents::onPlayerLoggedOut);
+        MinecraftForge.EVENT_BUS.addListener(SeamlessSleepServerEvents::onPlayerChangedDimension);
+        MinecraftForge.EVENT_BUS.addListener(SeamlessSleepServerEvents::onPlayerRespawn);
+        MinecraftForge.EVENT_BUS.addListener(SeamlessSleepServerEvents::onServerTick);
+        MinecraftForge.EVENT_BUS.addListener(SeamlessSleepServerEvents::onServerStopping);
 
         if (FMLEnvironment.dist == Dist.CLIENT) {
-            VivecraftClientCompat.registerClientIntegrations();
-            SleepAnimationNetworking.initClient();
-            ForgeConfigScreens.register(context);
+            ForgeClientBootstrap.init(context);
         }
     }
 }

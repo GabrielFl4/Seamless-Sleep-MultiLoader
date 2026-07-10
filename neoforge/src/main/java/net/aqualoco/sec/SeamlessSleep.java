@@ -1,15 +1,12 @@
 package net.aqualoco.sec;
 
-
-import net.aqualoco.sec.client.NeoForgeConfigScreens;
-import net.aqualoco.sec.client.VivecraftClientCompat;
-import net.aqualoco.sec.network.SleepAnimationNetworking;
+import net.aqualoco.sec.client.NeoForgeClientBootstrap;
+import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.common.NeoForge;
-import net.neoforged.neoforge.event.server.ServerStoppingEvent;
-import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 // NeoForge bootstrap that initializes shared logic and wires NeoForge events.
 @Mod(Constants.MOD_ID)
@@ -31,18 +28,11 @@ public class SeamlessSleep {
         NeoForge.EVENT_BUS.addListener(SeamlessSleepServerEvents::onServerStopping);
 
         if (seamlesssleep$isClient()) {
-            VivecraftClientCompat.registerClientIntegrations();
-            SleepAnimationNetworking.initClient();
-            NeoForgeConfigScreens.register(modContainer);
+            NeoForgeClientBootstrap.init(modContainer);
         }
     }
 
     private static boolean seamlesssleep$isClient() {
-        try {
-            Class.forName("net.minecraft.client.Minecraft", false, SeamlessSleep.class.getClassLoader());
-            return true;
-        } catch (ClassNotFoundException e) {
-            return false;
-        }
+        return FMLEnvironment.dist == Dist.CLIENT;
     }
 }

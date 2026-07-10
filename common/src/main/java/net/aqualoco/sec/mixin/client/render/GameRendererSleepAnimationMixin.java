@@ -5,6 +5,7 @@ import net.aqualoco.sec.client.SeamlessSleepClientState;
 import net.aqualoco.sec.client.sound.SleepSoundManager;
 import net.aqualoco.sec.network.SleepAnimationNetworking;
 import net.aqualoco.sec.sleep.SleepDimensionSupport;
+import net.minecraft.client.Camera;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -57,7 +58,7 @@ public abstract class GameRendererSleepAnimationMixin {
     }
 
     @Inject(method = "renderItemInHand", at = @At("HEAD"), cancellable = true)
-    private void seamlesssleep$hideVanillaHandsWhileBedBound(float tickDelta, boolean renderBlockOutline, Matrix4f projectionMatrix, CallbackInfo ci) {
+    private void seamlesssleep$hideVanillaHandsWhileBedBound(Camera camera, float tickDelta, Matrix4f projectionMatrix, CallbackInfo ci) {
         LocalPlayer player = Minecraft.getInstance().player;
         if (player != null && ClientBedWorkflow.shouldHideVanillaHands(player)) {
             ci.cancel();

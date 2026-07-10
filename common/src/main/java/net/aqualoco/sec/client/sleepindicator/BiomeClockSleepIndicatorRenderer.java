@@ -853,7 +853,8 @@ public final class BiomeClockSleepIndicatorRenderer implements SleepIndicatorRen
             return 0;
         }
 
-        return ARGB.color(finalAlpha, resolveSunriseTintColor(context));
+        int alpha = Mth.clamp(Math.round(finalAlpha * 255.0F), 0, 255);
+        return ARGB.color(alpha, resolveSunriseTintColor(context));
     }
 
     private static float computeSunriseEffectAlpha(SleepIndicatorContext context) {
