@@ -1,0 +1,83 @@
+package net.aqualoco.sec.client.sleepvisual;
+
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.aqualoco.sec.Constants;
+import net.minecraft.client.Camera;
+import net.minecraft.client.renderer.LightTexture;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.phys.Vec3;
+import org.joml.Quaternionf;
+
+// Renders the Z sprite as a tiny world-space billboard in the entity render pass.
+public final class SleepZzzRenderer {
+
+    private static final ResourceLocation Z_TEXTURE = ResourceLocation.fromNamespaceAndPath(
+            Constants.MOD_ID,
+            "textures/gui/sleep/z.png"
+    );
+    private static final float BASE_SIZE = 0.24F;
+
+    private SleepZzzRenderer() {
+    }
+
+    public static void render(PoseStack poseStack,
+                              Camera camera,
+                              MultiBufferSource bufferSource,
+                              SleepZzzGlyph glyph,
+                              float partialTick) {
+        float alpha = glyph.alpha(partialTick);
+        if (alpha <= 0.01F) {
+            return;
+        }
+
+        Vec3 pos = glyph.renderPosition(partialTick);
+        Vec3 cameraPos = camera.getPosition();
+        poseStack.pushPose();
+        poseStack.translate(pos.x() - cameraPos.x(), pos.y() - cameraPos.y(), pos.z() - cameraPos.z());
+        poseStack.mulPose(new Quaternionf(camera.rotation()));
+        poseStack.mulPose(new Quaternionf().rotationZ((float) Math.toRadians(glyph.rotationDegrees())));
+
+        int alphaByte = (int) (clamp01(alpha) * 255.0F);
+        float size = BASE_SIZE * glyph.scale(partialTick);
+        VertexConsumer vertexConsumer = bufferSource.getBuffer(RenderType.entityTranslucent(Z_TEXTURE));
+        drawQuad(poseStack.last(), vertexConsumer, size, alphaByte);
+        poseStack.popPose();
+    }
+
+    private static void drawQuad(PoseStack.Pose pose, VertexConsumer vertexConsumer, float size, int alpha) {
+        float half = size * 0.5F;
+        vertex(vertexConsumer, pose, -half, -half, 0.0F, 1.0F, alpha);
+        vertex(vertexConsumer, pose, half, -half, 1.0F, 1.0F, alpha);
+        vertex(vertexConsumer, pose, half, half, 1.0F, 0.0F, alpha);
+        vertex(vertexConsumer, pose, -half, half, 0.0F, 0.0F, alpha);
+    }
+
+    private static void vertex(VertexConsumer vertexConsumer,
+                               PoseStack.Pose pose,
+                               float x,
+                               float y,
+                               float u,
+                               float v,
+                               int alpha) {
+        vertexConsumer.addVertex(pose, x, y, 0.0F)
+                .setColor(255, 255, 255, alpha)
+                .setUv(u, v)
+                .setOverlay(OverlayTexture.NO_OVERLAY)
+                .setLight(LightTexture.FULL_BRIGHT)
+                .setNormal(pose, 0.0F, 1.0F, 0.0F);
+    }
+
+    private static float clamp01(float value) {
+        if (value < 0.0F) {
+            return 0.0F;
+        }
+        if (value > 1.0F) {
+            return 1.0F;
+        }
+        return value;
+    }
+}

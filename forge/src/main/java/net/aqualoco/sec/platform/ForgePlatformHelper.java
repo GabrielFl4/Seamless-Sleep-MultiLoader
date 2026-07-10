@@ -23,6 +23,20 @@ public class ForgePlatformHelper implements IPlatformHelper {
     }
 
     @Override
+    public String getModVersion(String modId) {
+        return ModList.get()
+                .getModContainerById(modId)
+                .map(container -> container.getModInfo().getVersion().toString())
+                .filter(version -> version != null && !version.isBlank())
+                .orElse("unknown");
+    }
+
+    @Override
+    public Path getModsDir() {
+        return FMLPaths.MODSDIR.get();
+    }
+
+    @Override
     public boolean isDevelopmentEnvironment() {
 
         return !FMLLoader.isProduction();
@@ -31,13 +45,5 @@ public class ForgePlatformHelper implements IPlatformHelper {
     @Override
     public Path getConfigDir() {
         return FMLPaths.CONFIGDIR.get();
-    }
-
-    @Override
-    public String getModVersion(String modId) {
-        return ModList.get()
-                .getModContainerById(modId)
-                .map(container -> container.getModInfo().getVersion().toString())
-                .orElse("unknown");
     }
 }

@@ -1,0 +1,59 @@
+{
+  "sleep.ventania": {
+    "sounds": [
+      {
+        "name": "seamlesssleep:sleep/ventania",
+        "stream": true
+      }
+    ]
+  },
+  "time.accel": {
+    "sounds": [
+      {
+        "name": "seamlesssleep:time/time_accel",
+        "stream": false
+      }
+    ]
+  },
+  "time.decel": {
+    "sounds": [
+      {
+        "name": "seamlesssleep:time/time_decel",
+        "stream": false
+      }
+    ]
+  },
+  "time.bell": {
+    "sounds": [
+      {
+        "name": "seamlesssleep:time/bell",
+        "stream": false
+      }
+    ]
+  },
+  "time.astro": {
+    "sounds": [
+      {
+        "name": "seamlesssleep:time/astro",
+        "stream": false
+      }
+    ]
+  },
+  "made_in_heaven.main": {
+    "sounds": [
+      {
+        "name": "seamlesssleep:made_in_heaven/maido_in_heaven",
+        "stream": false,
+        "preload": true
+      }
+    ]
+  },
+  "made_in_heaven.stop": {
+    "sounds": [
+      {
+        "name": "seamlesssleep:made_in_heaven/made_in_stop",
+        "stream": false
+      }
+    ]
+  }
+}

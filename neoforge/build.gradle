@@ -6,9 +6,13 @@ plugins {
 dependencies {
     compileOnly "com.electronwill.night-config:core:${project.night_config_version}"
     compileOnly "com.electronwill.night-config:toml:${project.night_config_version}"
+    // NeoForge ModDev: mod deps entram como dependências Gradle normais
+    // implementation "dev.isxander:yet-another-config-lib:${project.yacl_version}"
 
-    compileOnly "dev.isxander:yet-another-config-lib:${project.yacl_version_forge}"
-    runtimeOnly "dev.isxander:yet-another-config-lib:${project.yacl_version_forge}"
+    compileOnly  "dev.isxander:yet-another-config-lib:${project.yacl_version_forge}"
+    runtimeOnly  "dev.isxander:yet-another-config-lib:${project.yacl_version_forge}"
+
+    implementation "thedarkcolour:kotlinforforge-neoforge:5.6.0"
 }
 
 neoForge {
@@ -50,3 +54,15 @@ neoForge {
 }
 
 sourceSets.main.resources { srcDir 'src/generated/resources' }
+
+tasks.register('copyPortingClasspath', Copy) {
+    group = 'porting'
+    description = 'Copies resolved compile/runtime classpath jars for porting javap inspection.'
+
+    from configurations.compileClasspath
+    from configurations.runtimeClasspath
+
+    into "$rootDir/PORTING_JARS/${project.name}"
+
+    duplicatesStrategy = org.gradle.api.file.DuplicatesStrategy.EXCLUDE
+}

@@ -7,6 +7,7 @@ base {
     archivesName = "${mod_id}-forge-${minecraft_version}"
 }
 mixin {
+    add sourceSets.main, "${mod_id}.refmap.json"
     config("${mod_id}.mixins.json")
     config("${mod_id}.forge.mixins.json")
 }
@@ -74,6 +75,8 @@ sourceSets.main.resources.srcDir 'src/generated/resources'
 dependencies {
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
     annotationProcessor("org.spongepowered:mixin:0.8.5-SNAPSHOT:processor")
+    compileOnly "com.electronwill.night-config:core:${project.night_config_version}"
+    compileOnly "com.electronwill.night-config:toml:${project.night_config_version}"
 
     // Forge's hack fix
     implementation('net.sf.jopt-simple:jopt-simple:5.0.4') { version { strictly '5.0.4' } }
@@ -91,4 +94,16 @@ sourceSets.each {
     def dir = layout.buildDirectory.dir("sourcesSets/$it.name")
     it.output.resourcesDir = dir
     it.java.destinationDirectory = dir
+}
+
+tasks.register('copyPortingClasspath', Copy) {
+    group = 'porting'
+    description = 'Copies resolved compile/runtime classpath jars for porting javap inspection.'
+
+    from configurations.compileClasspath
+    from configurations.runtimeClasspath
+
+    into "$rootDir/PORTING_JARS/${project.name}"
+
+    duplicatesStrategy = org.gradle.api.file.DuplicatesStrategy.EXCLUDE
 }
