@@ -4,48 +4,68 @@ plugins {
 }
 
 dependencies {
+    compileOnly "com.electronwill.night-config:core:${project.night_config_version}"
+    compileOnly "com.electronwill.night-config:toml:${project.night_config_version}"
+
     // NeoForge ModDev: mod deps entram como dependências Gradle normais
     // implementation "dev.isxander:yet-another-config-lib:${project.yacl_version}"
 
-    // Se você preferir NÃO compilar “junto” (apenas compilar e rodar, sem expectativa de embutir),
-    // pode trocar por:
-    compileOnly  "dev.isxander:yet-another-config-lib:${project.yacl_version_forge}"
-    runtimeOnly  "dev.isxander:yet-another-config-lib:${project.yacl_version_forge}"
-    compileOnly "com.electronwill.night-config:core:${project.night_config_version}"
-    compileOnly "com.electronwill.night-config:toml:${project.night_config_version}"
+    compileOnly "maven.modrinth:yacl:${project.yacl_version_forge}"
+    runtimeOnly "maven.modrinth:yacl:${project.yacl_version_forge}"
+
+    implementation "thedarkcolour:kotlinforforge-neoforge:5.6.0"
 }
 
 neoForge {
     version = neoforge_version
-    // Automatically enable neoforge AccessTransformers if the file exists
-    def at = project(':common').file('src/main/resources/META-INF/accesstransformer.cfg')
+
+    // Automatically enable NeoForge AccessTransformers if the file exists
+    def at = project(':common')
+            .file('src/main/resources/META-INF/accesstransformer.cfg')
+
     if (at.exists()) {
         accessTransformers.from(at.absolutePath)
     }
-    parchment {
-        minecraftVersion = parchment_minecraft
-        mappingsVersion = parchment_version
-    }
+
     runs {
         configureEach {
-            systemProperty('neoforge.enabledGameTestNamespaces', mod_id)
-            ideName = "NeoForge ${it.name.capitalize()} (${project.path})" // Unify the run config names with fabric
+            systemProperty(
+                    'neoforge.enabledGameTestNamespaces',
+                    mod_id
+            )
+
+            ideName = "NeoForge ${it.name.capitalize()} (${project.path})"
         }
+
         client {
             client()
         }
+
         data {
-            data()
+            // Minecraft/NeoForge 1.21.4:
+            // o tipo antigo data() foi substituído por clientData()/serverData().
+            // clientData() é o equivalente usado pelo MDK oficial para gerar
+            // todos os recursos através de --all.
+            clientData()
 
-            // DataGen can be run by - "./gradlew :neoforge:runData" in Terminal.
-            // Specify the modid for data generation, where to output the resulting resource, and where to look for existing resources.
-            programArguments.addAll '--mod', project.mod_id, '--all', '--output', file('src/generated/resources/').getAbsolutePath(), '--existing', file('src/main/resources/').getAbsolutePath()
-
+            // Continua disponível como:
+            // ./gradlew :neoforge:runData
+            programArguments.addAll(
+                    '--mod',
+                    project.mod_id,
+                    '--all',
+                    '--output',
+                    file('src/generated/resources/').getAbsolutePath(),
+                    '--existing',
+                    file('src/main/resources/').getAbsolutePath()
+            )
         }
+
         server {
             server()
         }
     }
+
     mods {
         "${mod_id}" {
             sourceSet sourceSets.main
@@ -53,4 +73,18 @@ neoForge {
     }
 }
 
-sourceSets.main.resources { srcDir 'src/generated/resources' }
+sourceSets.main.resources {
+    srcDir 'src/generated/resources'
+}
+
+tasks.register('copyPortingClasspath', Copy) {
+    group = 'porting'
+    description = 'Copies resolved compile/runtime classpath jars for porting javap inspection.'
+
+    from configurations.compileClasspath
+    from configurations.runtimeClasspath
+
+    into "$rootDir/PORTING_JARS/${project.name}"
+
+    duplicatesStrategy = org.gradle.api.file.DuplicatesStrategy.EXCLUDE
+}

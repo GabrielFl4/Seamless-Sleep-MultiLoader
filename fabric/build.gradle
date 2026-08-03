@@ -4,12 +4,13 @@ plugins {
 }
 dependencies {
     minecraft "com.mojang:minecraft:${minecraft_version}"
-    mappings loom.layered {
-        officialMojangMappings()
-        parchment("org.parchmentmc.data:parchment-${parchment_minecraft}:${parchment_version}@zip")
-    }
+    mappings loom.officialMojangMappings()
     modImplementation "net.fabricmc:fabric-loader:${fabric_loader_version}"
     modImplementation "net.fabricmc.fabric-api:fabric-api:${fabric_version}"
+    implementation "com.electronwill.night-config:core:${project.night_config_version}"
+    implementation "com.electronwill.night-config:toml:${project.night_config_version}"
+    include "com.electronwill.night-config:core:${project.night_config_version}"
+    include "com.electronwill.night-config:toml:${project.night_config_version}"
 
     // Mod Menu (opcional em runtime)
     modCompileOnly "com.terraformersmc:modmenu:${project.modmenu_version}"
@@ -18,11 +19,6 @@ dependencies {
     // YACL (Yet Another Config Lib) para tela de config via Mod Menu
     modCompileOnly "dev.isxander:yet-another-config-lib:${project.yacl_version}"
     modRuntimeOnly "dev.isxander:yet-another-config-lib:${project.yacl_version}"
-
-    implementation "com.electronwill.night-config:core:${project.night_config_version}"
-    implementation "com.electronwill.night-config:toml:${project.night_config_version}"
-    include "com.electronwill.night-config:core:${project.night_config_version}"
-    include "com.electronwill.night-config:toml:${project.night_config_version}"
 }
 
 loom {

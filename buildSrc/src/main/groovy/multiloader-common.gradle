@@ -21,10 +21,6 @@ repositories {
         url = "https://maven.terraformersmc.com/"
     }
     maven {
-        name = "CLOTH"
-        url "https://maven.shedaniel.me/"
-    }
-    maven {
         name = "YACL"
         url = "https://maven.isxander.dev/releases"
     }
@@ -62,6 +58,10 @@ repositories {
     maven {
         url = "https://api.modrinth.com/maven"
     }
+}
+
+dependencies {
+    compileOnly "org.jspecify:jspecify:${project.jspecify_version}"
 }
 
 // Declare capabilities on the outgoing configurations.
@@ -110,18 +110,21 @@ processResources {
             'fabric_minecraft_version_range': fabric_minecraft_version_range,
             'fabric_version'               : fabric_version,
             'fabric_loader_version'        : fabric_loader_version,
+            'fabric_loader_version_range'  : fabric_loader_version_range,
             'mod_name'                     : mod_name,
             'mod_author'                   : mod_author,
             'mod_id'                       : mod_id,
             'license'                      : license,
             'description'                  : project.description,
             'neoforge_version'             : neoforge_version,
+            'neoforge_version_range'       : neoforge_version_range,
             'neoforge_loader_version_range': neoforge_loader_version_range,
             "forge_version": forge_version,
             "forge_loader_version_range": forge_loader_version_range,
-            'cloth_config_version'         : cloth_config_version,
             'credits'                      : credits,
-            'java_version'                 : java_version
+            'java_version'                 : java_version,
+            'night_config_version'         : night_config_version,
+            'forge_version_range'          : forge_version_range
     ]
 
     filesMatching(['pack.mcmeta', 'fabric.mod.json', 'META-INF/mods.toml', 'META-INF/neoforge.mods.toml', '*.mixins.json']) {

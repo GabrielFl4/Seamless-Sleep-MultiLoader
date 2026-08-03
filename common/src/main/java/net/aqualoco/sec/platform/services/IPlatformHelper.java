@@ -21,6 +21,21 @@ public interface IPlatformHelper {
     boolean isModLoaded(String modId);
 
     /**
+     * Gets the resolved version string for a loaded mod.
+     *
+     * @param modId The mod id to query.
+     * @return The resolved version string, or "unknown" when unavailable.
+     */
+    String getModVersion(String modId);
+
+    /**
+     * Gets the mods directory for the current platform.
+     *
+     * @return The mods directory path.
+     */
+    Path getModsDir();
+
+    /**
      * Check if the game is currently in a development environment.
      *
      * @return True if in a development environment, false otherwise.
@@ -33,14 +48,6 @@ public interface IPlatformHelper {
      * @return The config directory path.
      */
     Path getConfigDir();
-
-    /**
-     * Gets a loaded mod's version string.
-     *
-     * @param modId The mod id to resolve.
-     * @return The mod version, or "unknown" if unavailable.
-     */
-    String getModVersion(String modId);
 
     /**
      * Gets the name of the environment type as a string.

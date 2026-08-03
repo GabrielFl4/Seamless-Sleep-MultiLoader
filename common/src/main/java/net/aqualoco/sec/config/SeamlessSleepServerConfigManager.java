@@ -8,32 +8,51 @@ import net.aqualoco.sec.platform.Services;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
+import java.util.List;
+import java.util.stream.Stream;
 
-// Loads, validates, and saves the server config TOML with reload status reporting.
 public final class SeamlessSleepServerConfigManager {
 
     private static final String FILE_NAME = "seamless_sleep-server.toml";
-    private static final String LEGACY_FILE_JSON = "seamless_sleep-server.json";
-    private static final String LEGACY_FILE_JSONC = "seamless_sleep-server.jsonc";
-    private static final int CONFIG_VERSION = 1;
+    private static final String LEGACY_JSON_FILE_NAME = "seamless_sleep-server.json";
+    private static final String LEGACY_JSONC_FILE_NAME = "seamless_sleep-server.jsonc";
+    private static final int CONFIG_VERSION = 10;
+    private static final int LARGE_MODPACK_STAGE_1_THRESHOLD = 110;
+    private static final int LARGE_MODPACK_STAGE_2_THRESHOLD = 140;
+    private static final int LARGE_MODPACK_STAGE_3_THRESHOLD = 170;
+    private static final int LARGE_MODPACK_MAX_THRESHOLD = 200;
 
-    // Distinguishes a clean reload from recovery/fallback scenarios.
     public enum ReloadResult {
         SUCCESS,
         CREATED,
         ERROR
     }
 
+    public record ReloadReport(ReloadResult status,
+                               Path path,
+                               boolean loadedDefaults,
+                               boolean createdFile,
+                               boolean savedCanonicalFile,
+                               String message) {
+    }
+
     private static SeamlessSleepServerConfig config = defaultConfig();
     private static Path configPath;
+    private static ReloadReport lastReloadReport = new ReloadReport(
+            ReloadResult.SUCCESS,
+            null,
+            false,
+            false,
+            false,
+            "Server config has not been reloaded during this run."
+    );
 
     private SeamlessSleepServerConfigManager() {
     }
 
     public static void init() {
         configPath = Services.PLATFORM.getConfigDir().resolve(FILE_NAME);
-        config = loadOrCreate(configPath).config;
+        config = loadOrCreate(configPath, true).config;
     }
 
     public static SeamlessSleepServerConfig get() {
@@ -52,35 +71,61 @@ public final class SeamlessSleepServerConfigManager {
         if (configPath == null) {
             configPath = Services.PLATFORM.getConfigDir().resolve(FILE_NAME);
         }
-        LoadResult result = loadOrCreate(configPath);
+        LoadResult result = loadOrCreate(configPath, false);
         config = result.config;
     }
 
     public static ReloadResult reloadWithStatus() {
+        return reloadWithReport().status();
+    }
+
+    public static ReloadReport reloadWithReport() {
         if (configPath == null) {
             configPath = Services.PLATFORM.getConfigDir().resolve(FILE_NAME);
         }
-        LoadResult result = loadOrCreate(configPath);
+        LoadResult result = loadOrCreate(configPath, false);
         config = result.config;
-        return result.status;
+        lastReloadReport = new ReloadReport(
+                result.status,
+                configPath,
+                result.status == ReloadResult.ERROR || result.status == ReloadResult.CREATED,
+                result.status == ReloadResult.CREATED,
+                true,
+                reloadMessage(result.status)
+        );
+        return lastReloadReport;
     }
 
-    private static LoadResult loadOrCreate(Path path) {
-        deleteLegacyFiles(path);
+    public static ReloadReport lastReloadReport() {
+        return lastReloadReport;
+    }
+
+    public static Path configPath() {
+        if (configPath == null) {
+            configPath = Services.PLATFORM.getConfigDir().resolve(FILE_NAME);
+        }
+        return configPath;
+    }
+
+    private static LoadResult loadOrCreate(Path path, boolean allowFirstGenerationDefaults) {
+        boolean legacyConfigExists = legacyJsonFilesExist(path);
+        deleteLegacyJsonFiles(path);
 
         if (Files.notExists(path)) {
             SeamlessSleepServerConfig cfg = defaultConfig();
+            if (allowFirstGenerationDefaults && !legacyConfigExists) {
+                applyFirstGenerationLargeModpackDefaults(cfg);
+            }
             cfg.clamp();
             save(path, cfg);
             return new LoadResult(cfg, ReloadResult.CREATED);
         }
 
-        try (CommentedFileConfig fileConfig = CommentedFileConfig.builder(path, TomlFormat.instance())
-                .sync()
-                .preserveInsertionOrder()
-                .build()) {
-            fileConfig.load();
-            SeamlessSleepServerConfig cfg = readConfig(fileConfig);
+        try (CommentedFileConfig file = openConfig(path)) {
+            file.load();
+            logMetadataInfo(path, file);
+
+            SeamlessSleepServerConfig cfg = readServerConfig(file);
             cfg.clamp();
             save(path, cfg);
             return new LoadResult(cfg, ReloadResult.SUCCESS);
@@ -93,151 +138,912 @@ public final class SeamlessSleepServerConfigManager {
         }
     }
 
-    private static SeamlessSleepServerConfig readConfig(CommentedFileConfig fileConfig) {
-        SeamlessSleepServerConfig cfg = defaultConfig();
-
-        cfg.sleepClearsWeather = readBoolean(
-                fileConfig,
-                cfg.sleepClearsWeather,
-                "sleep.clears_weather",
-                "sleepClearsWeather"
-        );
-        cfg.sleepAnimationDurationMultiplier = readDouble(
-                fileConfig,
-                cfg.sleepAnimationDurationMultiplier,
-                "sleep.duration_multiplier",
-                "sleepAnimationDurationMultiplier"
-        );
-
-        return cfg;
-    }
-
     private static void save(Path path, SeamlessSleepServerConfig cfg) {
         cfg.clamp();
+
         try {
-            Files.createDirectories(path.getParent());
-            Files.writeString(
-                    path,
-                    toToml(cfg),
-                    StandardOpenOption.CREATE,
-                    StandardOpenOption.TRUNCATE_EXISTING,
-                    StandardOpenOption.WRITE
-            );
+            Path parent = path.getParent();
+            if (parent != null) {
+                Files.createDirectories(parent);
+            }
+            Files.writeString(path, toServerToml(cfg, resolveCurrentModVersion()));
         } catch (IOException e) {
             Constants.warn("Failed to save server config {}: {}", path, e.getMessage());
+        } catch (Exception e) {
+            Constants.warn("Failed to write server config {}: {}", path, e.getMessage());
         }
-    }
-
-    private static String toToml(SeamlessSleepServerConfig cfg) {
-        StringBuilder toml = new StringBuilder();
-        toml.append("# Seamless Sleep server config").append('\n');
-        toml.append("config_version = ").append(CONFIG_VERSION).append('\n');
-        toml.append("mod_version = \"").append(escapeToml(resolveModVersion())).append('"').append('\n');
-        toml.append('\n');
-
-        toml.append("[sleep]").append('\n');
-        toml.append("clears_weather = ").append(cfg.sleepClearsWeather).append('\n');
-        toml.append("duration_multiplier = ").append(cfg.sleepAnimationDurationMultiplier).append('\n');
-
-        return toml.toString();
-    }
-
-    private static Boolean readBoolean(CommentedFileConfig fileConfig, Boolean fallback, String... keys) {
-        for (String key : keys) {
-            if (!fileConfig.contains(key)) {
-                continue;
-            }
-            Object rawValue = fileConfig.get(key);
-            Boolean parsed = parseBoolean(rawValue);
-            if (parsed != null) {
-                return parsed;
-            }
-        }
-        return fallback;
-    }
-
-    private static double readDouble(CommentedFileConfig fileConfig, double fallback, String... keys) {
-        for (String key : keys) {
-            if (!fileConfig.contains(key)) {
-                continue;
-            }
-            Object rawValue = fileConfig.get(key);
-            Double parsed = parseDouble(rawValue);
-            if (parsed != null) {
-                return parsed;
-            }
-        }
-        return fallback;
-    }
-
-    private static Boolean parseBoolean(Object value) {
-        if (value instanceof Boolean boolValue) {
-            return boolValue;
-        }
-        if (value instanceof Number numberValue) {
-            return numberValue.intValue() != 0;
-        }
-        if (value instanceof String stringValue) {
-            if ("true".equalsIgnoreCase(stringValue)) {
-                return true;
-            }
-            if ("false".equalsIgnoreCase(stringValue)) {
-                return false;
-            }
-        }
-        return null;
-    }
-
-    private static Double parseDouble(Object value) {
-        if (value instanceof Number numberValue) {
-            return numberValue.doubleValue();
-        }
-        if (value instanceof String stringValue) {
-            try {
-                return Double.parseDouble(stringValue);
-            } catch (NumberFormatException ignored) {
-                return null;
-            }
-        }
-        return null;
-    }
-
-    private static void deleteLegacyFiles(Path tomlPath) {
-        Path parent = tomlPath.getParent();
-        if (parent == null) {
-            return;
-        }
-        deleteLegacyFile(parent.resolve(LEGACY_FILE_JSON));
-        deleteLegacyFile(parent.resolve(LEGACY_FILE_JSONC));
-    }
-
-    private static void deleteLegacyFile(Path path) {
-        try {
-            if (Files.deleteIfExists(path)) {
-                Constants.info("Deleted legacy server config {}", path);
-            }
-        } catch (IOException e) {
-            Constants.warn("Failed to delete legacy server config {}: {}", path, e.getMessage());
-        }
-    }
-
-    private static String resolveModVersion() {
-        String modVersion = Services.PLATFORM.getModVersion(Constants.MOD_ID);
-        if (modVersion == null || modVersion.isBlank()) {
-            return "unknown";
-        }
-        return modVersion;
-    }
-
-    private static String escapeToml(String value) {
-        return value.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 
     private static SeamlessSleepServerConfig defaultConfig() {
         return new SeamlessSleepServerConfig();
     }
 
-    // Small wrapper so reload can return both config data and a status flag.
+    private static void applyFirstGenerationLargeModpackDefaults(SeamlessSleepServerConfig cfg) {
+        Integer modJarCount = countTopLevelModJars();
+        LargeModpackStage stage = resolveLargeModpackStage(modJarCount);
+        if (stage == null) {
+            return;
+        }
+
+        WorldSleepAccelerationConfig acceleration = cfg.worldSleepAcceleration;
+        acceleration.mode = stage.mode();
+        acceleration.automaticMode = stage.automaticMode();
+        acceleration.grassAndFoliageAccelerationEnabled = false;
+        acceleration.vinesAndBambooAccelerationEnabled = false;
+        acceleration.kelpAccelerationEnabled = false;
+        acceleration.recheckIrrelevantNatureSectionsDuringAcceleration = false;
+        acceleration.accelerationTelemetryEnabled = false;
+        acceleration.vanillaOnlyAcceleration = stage.vanillaOnlyAcceleration();
+
+        logLargeModpackProtocol(modJarCount, stage);
+    }
+
+    private static Integer countTopLevelModJars() {
+        try {
+            Path modsDir = Services.PLATFORM.getModsDir();
+            if (modsDir == null || !Files.isDirectory(modsDir) || !Files.isReadable(modsDir)) {
+                return null;
+            }
+            try (Stream<Path> files = Files.list(modsDir)) {
+                long count = files
+                        .filter(path -> Files.isRegularFile(path))
+                        .filter(SeamlessSleepServerConfigManager::isJarFile)
+                        .count();
+                return count > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) count;
+            }
+        } catch (Throwable t) {
+            Constants.warn("Failed to inspect mods directory for first server config defaults: {}", t.getMessage());
+            return null;
+        }
+    }
+
+    private static boolean isJarFile(Path path) {
+        Path fileName = path.getFileName();
+        if (fileName == null) {
+            return false;
+        }
+        return fileName.toString().toLowerCase(java.util.Locale.ROOT).endsWith(".jar");
+    }
+
+    private static LargeModpackStage resolveLargeModpackStage(Integer modJarCount) {
+        if (modJarCount == null) {
+            return null;
+        }
+        if (modJarCount > LARGE_MODPACK_MAX_THRESHOLD) {
+            return LargeModpackStage.MAX;
+        }
+        if (modJarCount > LARGE_MODPACK_STAGE_3_THRESHOLD) {
+            return LargeModpackStage.STAGE_3;
+        }
+        if (modJarCount > LARGE_MODPACK_STAGE_2_THRESHOLD) {
+            return LargeModpackStage.STAGE_2;
+        }
+        if (modJarCount > LARGE_MODPACK_STAGE_1_THRESHOLD) {
+            return LargeModpackStage.STAGE_1;
+        }
+        return null;
+    }
+
+    private static void logLargeModpackProtocol(int modJarCount, LargeModpackStage stage) {
+        Constants.LOG.info("[Seamless Sleep] First server config generation detected!");
+        Constants.LOG.info("[-            -] Mod files detected: {} .jar files in mods folder.", modJarCount);
+        Constants.LOG.info("[-            -] Large_Modpack_Protocol Stage {} initiated. Good luck sir :salute:",
+                stage.label());
+    }
+
+    private static String reloadMessage(ReloadResult result) {
+        return switch (result) {
+            case SUCCESS -> "Server config reloaded and canonical TOML was written.";
+            case CREATED -> "Server config was missing; defaults were created and loaded.";
+            case ERROR -> "Server config failed to load; defaults were loaded and written.";
+        };
+    }
+
+    private static CommentedFileConfig openConfig(Path path) {
+        return CommentedFileConfig.builder(path, TomlFormat.instance())
+                .sync()
+                .preserveInsertionOrder()
+                .build();
+    }
+
+    private static SeamlessSleepServerConfig readServerConfig(CommentedFileConfig file) {
+        SeamlessSleepServerConfig cfg = defaultConfig();
+        cfg.sleepWeatherClearChancePercent = readWeatherClearChancePercent(file, cfg.sleepWeatherClearChancePercent);
+        cfg.sleepAnimationDurationMultiplier = readDouble(
+                file,
+                List.of("sleep", "sleepAnimationDurationMultiplier"),
+                "sleepAnimationDurationMultiplier",
+                cfg.sleepAnimationDurationMultiplier
+        );
+        cfg.fallAsleepDelayTicks = readInt(
+                file,
+                List.of("sleep", "fall_asleep_delay_ticks"),
+                "fallAsleepDelayTicks",
+                cfg.fallAsleepDelayTicks
+        );
+        cfg.overrideOverlayText = readBoolean(
+                file,
+                List.of("sleep", "text_indicator_override"),
+                List.of("sleep", "override_overlay_text"),
+                "overrideOverlayText",
+                cfg.overrideOverlayText
+        );
+        cfg.overlayCustomText = readString(
+                file,
+                List.of("sleep", "text_indicator_custom_text"),
+                List.of("sleep", "overlay_custom_text"),
+                "overlayCustomText",
+                cfg.overlayCustomText
+        );
+        cfg.sleepEligibility = readEnum(
+                file,
+                List.of("sleep", "sleep_eligibility"),
+                "sleepEligibility",
+                SleepEligibilityMode.class,
+                cfg.sleepEligibility
+        );
+        cfg.madeInHeavenChancePercent = readInt(
+                file,
+                List.of("easter_eggs", "made_in_heaven_chance_percent"),
+                "madeInHeavenChancePercent",
+                cfg.madeInHeavenChancePercent
+        );
+        cfg.betterDaysCompatibilityEnabled = readBoolean(
+                file,
+                List.of("compatibility", "better_days_sleep_compatibility_enabled"),
+                "betterDaysCompatibilityEnabled",
+                cfg.betterDaysCompatibilityEnabled
+        );
+        readWorldSleepAcceleration(file, cfg.worldSleepAcceleration);
+        cfg.clamp();
+        return cfg;
+    }
+
+    private static void readWorldSleepAcceleration(CommentedFileConfig file, WorldSleepAccelerationConfig cfg) {
+        LegacyAccelerationData legacy = hasLegacyAccelerationData(file)
+                ? readLegacyAccelerationData(file)
+                : currentAccelerationData(cfg);
+
+        cfg.mode = readAccelerationMode(
+                file,
+                List.of("world_sleep_acceleration", "mode"),
+                "worldSleepAccelerationMode",
+                legacy.mode
+        );
+        cfg.automaticMode = readAutomaticMode(
+                file,
+                List.of("world_sleep_acceleration", "automatic_mode"),
+                "worldSleepAccelerationAutomaticMode",
+                legacy.automaticMode
+        );
+        cfg.playersAffected = readPlayersAffected(
+                file,
+                List.of("world_sleep_acceleration", "players_affected"),
+                "worldSleepAccelerationPlayersAffected",
+                legacy.playersAffected
+        );
+        cfg.manualAccelerationRadiusChunks = readInt(
+                file,
+                List.of("world_sleep_acceleration", "manual_radius_chunks"),
+                "worldSleepAccelerationManualRadiusChunks",
+                legacy.manualRadiusChunks
+        );
+        cfg.manualAccelerationSpeedPercent = readInt(
+                file,
+                List.of("world_sleep_acceleration", "manual_speed_percent"),
+                "worldSleepAccelerationManualSpeedPercent",
+                legacy.manualSpeedPercent
+        );
+        cfg.grassAndFoliageAccelerationEnabled = readBoolean(
+                file,
+                List.of("world_sleep_acceleration", "grass_and_foliage_acceleration_enabled"),
+                "worldSleepAccelerationGrassAndFoliageEnabled",
+                legacy.grassAndFoliageEnabled
+        );
+        cfg.cropsAndSaplingsAccelerationEnabled = readBoolean(
+                file,
+                List.of("world_sleep_acceleration", "crops_and_saplings_acceleration_enabled"),
+                "worldSleepAccelerationCropsAndSaplingsEnabled",
+                legacy.cropsAndSaplingsEnabled
+        );
+        cfg.vinesAndBambooAccelerationEnabled = readBoolean(
+                file,
+                List.of("world_sleep_acceleration", "vines_and_bamboo_acceleration_enabled"),
+                "worldSleepAccelerationVinesAndBambooEnabled",
+                cfg.vinesAndBambooAccelerationEnabled
+        );
+        cfg.kelpAccelerationEnabled = readBoolean(
+                file,
+                List.of("world_sleep_acceleration", "kelp_acceleration_enabled"),
+                "worldSleepAccelerationKelpEnabled",
+                legacy.kelpEnabled
+        );
+        cfg.vanillaOnlyAcceleration = readBoolean(
+                file,
+                List.of("world_sleep_acceleration", "vanilla_only_acceleration"),
+                "worldSleepAccelerationVanillaOnly",
+                legacy.vanillaOnlyAcceleration
+        );
+        cfg.recheckIrrelevantNatureSectionsDuringAcceleration = readBoolean(
+                file,
+                List.of("world_sleep_acceleration", "recheck_irrelevant_nature_sections_during_acceleration"),
+                "recheckIrrelevantNatureSectionsDuringAcceleration",
+                cfg.recheckIrrelevantNatureSectionsDuringAcceleration
+        );
+        cfg.accelerationTelemetryEnabled = readBoolean(
+                file,
+                List.of("world_sleep_acceleration", "telemetry_enabled"),
+                "worldSleepAccelerationTelemetryEnabled",
+                cfg.accelerationTelemetryEnabled
+        );
+        cfg.processesAccelerationEnabled = readBoolean(
+                file,
+                List.of("world_sleep_acceleration", "processes_acceleration_enabled"),
+                "worldSleepAccelerationProcessesEnabled",
+                legacy.processesAccelerationEnabled
+        );
+        cfg.processesSpeedPercent = readInt(
+                file,
+                List.of("world_sleep_acceleration", "processes_speed_percent"),
+                "worldSleepAccelerationProcessesSpeedPercent",
+                legacy.processesSpeedPercent
+        );
+    }
+
+    private static LegacyAccelerationData currentAccelerationData(WorldSleepAccelerationConfig cfg) {
+        return new LegacyAccelerationData(
+                cfg.mode,
+                cfg.automaticMode,
+                cfg.playersAffected,
+                cfg.manualAccelerationRadiusChunks,
+                cfg.manualAccelerationSpeedPercent,
+                cfg.grassAndFoliageAccelerationEnabled,
+                cfg.cropsAndSaplingsAccelerationEnabled,
+                cfg.kelpAccelerationEnabled,
+                cfg.vanillaOnlyAcceleration,
+                cfg.processesAccelerationEnabled,
+                cfg.processesSpeedPercent
+        );
+    }
+
+    private static boolean hasLegacyAccelerationData(CommentedFileConfig file) {
+        return hasRaw(file, List.of("world_sleep_acceleration", "preset"))
+                || hasRaw(file, List.of("world_sleep_acceleration", "random_tick_acceleration_enabled"))
+                || hasRaw(file, List.of("world_sleep_acceleration", "process_acceleration_enabled"))
+                || hasRaw(file, List.of("world_sleep_acceleration", "nature_filter_profile"))
+                || hasLegacyModuleData(file, List.of("world_sleep_acceleration", "nature"), "worldSleepAccelerationNature")
+                || hasLegacyModuleData(file, List.of("world_sleep_acceleration", "process"), "worldSleepAccelerationProcess")
+                || hasRaw(file, "worldSleepAccelerationPreset")
+                || hasRaw(file, "worldSleepAccelerationRandomTickEnabled")
+                || hasRaw(file, "worldSleepAccelerationProcessEnabled")
+                || hasRaw(file, "worldSleepAccelerationNatureFilterProfile");
+    }
+
+    private static boolean hasLegacyModuleData(CommentedFileConfig file, List<String> pathPrefix, String legacyPrefix) {
+        return hasRaw(file, append(pathPrefix, "base_radius_chunks"))
+                || hasRaw(file, append(pathPrefix, "auto_min_radius_chunks"))
+                || hasRaw(file, append(pathPrefix, "base_rate_fraction"))
+                || hasRaw(file, append(pathPrefix, "auto_min_rate_fraction"))
+                || hasRaw(file, legacyPrefix + "BaseRadiusChunks")
+                || hasRaw(file, legacyPrefix + "AutoMinRadiusChunks")
+                || hasRaw(file, legacyPrefix + "BaseRateFraction")
+                || hasRaw(file, legacyPrefix + "AutoMinRateFraction");
+    }
+
+    private static LegacyAccelerationData readLegacyAccelerationData(CommentedFileConfig file) {
+        WorldSleepAccelerationMode legacyMode = readAccelerationMode(
+                file,
+                List.of("world_sleep_acceleration", "mode"),
+                "worldSleepAccelerationMode",
+                WorldSleepAccelerationMode.AUTOMATIC
+        );
+        WorldSleepAutomaticMode legacyAutomaticMode = readAutomaticMode(
+                file,
+                List.of("world_sleep_acceleration", "preset"),
+                "worldSleepAccelerationPreset",
+                WorldSleepAutomaticMode.AGGRESSIVE
+        );
+        boolean legacyRandomTickEnabled = readBoolean(
+                file,
+                List.of("world_sleep_acceleration", "random_tick_acceleration_enabled"),
+                "worldSleepAccelerationRandomTickEnabled",
+                true
+        );
+        boolean legacyProcessEnabled = readBoolean(
+                file,
+                List.of("world_sleep_acceleration", "process_acceleration_enabled"),
+                "worldSleepAccelerationProcessEnabled",
+                true
+        );
+        WorldSleepNatureFilterProfile legacyNatureProfile = readEnum(
+                file,
+                List.of("world_sleep_acceleration", "nature_filter_profile"),
+                "worldSleepAccelerationNatureFilterProfile",
+                WorldSleepNatureFilterProfile.class,
+                WorldSleepNatureFilterProfile.ALL
+        );
+
+        WorldSleepAccelerationModuleConfig legacyNature = new WorldSleepAccelerationModuleConfig();
+        readLegacyModuleConfig(
+                file,
+                List.of("world_sleep_acceleration", "nature"),
+                "worldSleepAccelerationNature",
+                legacyNature
+        );
+        WorldSleepAccelerationModuleConfig legacyProcess = new WorldSleepAccelerationModuleConfig();
+        legacyProcess.baseRateFraction = 1.0D;
+        legacyProcess.autoMinRateFraction = 0.25D;
+        readLegacyModuleConfig(
+                file,
+                List.of("world_sleep_acceleration", "process"),
+                "worldSleepAccelerationProcess",
+                legacyProcess
+        );
+
+        LegacyNatureFilterMapping filters = mapLegacyNatureFilters(legacyRandomTickEnabled, legacyNatureProfile);
+        int manualRadiusChunks = legacyNature.baseRadiusChunks > 0
+                ? legacyNature.baseRadiusChunks
+                : legacyProcess.baseRadiusChunks;
+        int manualSpeedPercent = WorldSleepAccelerationConfig.DEFAULT_MANUAL_SPEED_PERCENT;
+        int processesSpeedPercent = fractionToPercent(legacyProcess.baseRateFraction, 100);
+
+        return new LegacyAccelerationData(
+                legacyMode,
+                legacyAutomaticMode,
+                WorldSleepAccelerationPlayersAffected.ALL_PLAYERS,
+                manualRadiusChunks,
+                manualSpeedPercent,
+                filters.grassAndFoliageEnabled,
+                filters.cropsAndSaplingsEnabled,
+                filters.kelpEnabled,
+                filters.vanillaOnlyAcceleration,
+                legacyProcessEnabled,
+                processesSpeedPercent
+        );
+    }
+
+    private static void readLegacyModuleConfig(CommentedFileConfig file,
+                                               List<String> pathPrefix,
+                                               String legacyPrefix,
+                                               WorldSleepAccelerationModuleConfig cfg) {
+        cfg.baseRadiusChunks = readInt(
+                file,
+                append(pathPrefix, "base_radius_chunks"),
+                legacyPrefix + "BaseRadiusChunks",
+                cfg.baseRadiusChunks
+        );
+        cfg.autoMinRadiusChunks = readInt(
+                file,
+                append(pathPrefix, "auto_min_radius_chunks"),
+                legacyPrefix + "AutoMinRadiusChunks",
+                cfg.autoMinRadiusChunks
+        );
+        cfg.baseRateFraction = readDouble(
+                file,
+                append(pathPrefix, "base_rate_fraction"),
+                legacyPrefix + "BaseRateFraction",
+                cfg.baseRateFraction
+        );
+        cfg.autoMinRateFraction = readDouble(
+                file,
+                append(pathPrefix, "auto_min_rate_fraction"),
+                legacyPrefix + "AutoMinRateFraction",
+                cfg.autoMinRateFraction
+        );
+        cfg.clamp();
+    }
+
+    private static LegacyNatureFilterMapping mapLegacyNatureFilters(boolean randomTickEnabled,
+                                                                    WorldSleepNatureFilterProfile profile) {
+        boolean grassAndFoliageEnabled = false;
+        boolean cropsAndSaplingsEnabled = false;
+        boolean kelpEnabled = false;
+        boolean vanillaOnlyAcceleration = profile == WorldSleepNatureFilterProfile.VANILLA_ONLY;
+
+        if (randomTickEnabled) {
+            switch (profile) {
+                case ALL -> {
+                    grassAndFoliageEnabled = true;
+                    cropsAndSaplingsEnabled = true;
+                    kelpEnabled = true;
+                }
+                case VANILLA_ONLY -> {
+                    grassAndFoliageEnabled = true;
+                    cropsAndSaplingsEnabled = true;
+                    kelpEnabled = true;
+                }
+                case FARM_ONLY -> {
+                    grassAndFoliageEnabled = false;
+                    cropsAndSaplingsEnabled = true;
+                    kelpEnabled = false;
+                }
+            }
+        }
+
+        return new LegacyNatureFilterMapping(
+                grassAndFoliageEnabled,
+                cropsAndSaplingsEnabled,
+                kelpEnabled,
+                vanillaOnlyAcceleration
+        );
+    }
+
+    private static String toServerToml(SeamlessSleepServerConfig cfg, String modVersion) {
+        StringBuilder sb = new StringBuilder(2048);
+
+        sb.append("config_version = ").append(CONFIG_VERSION).append('\n');
+        sb.append("mod_version = ").append(toTomlString(modVersion)).append('\n');
+
+        appendSectionGap(sb, 2);
+        appendSectionHeader(sb, "sleep");
+        appendEntry(sb,
+                "Chance to clear rain or thunder after sleeping. Range: 0 to 100. 0=never, 100=always",
+                "weather_clear_chance_percent",
+                Integer.toString(cfg.sleepWeatherClearChancePercent));
+        appendEntry(sb,
+                "Sleep animation duration multiplier. Range: 0.25 to 8.0. Default: 1.0",
+                "sleepAnimationDurationMultiplier",
+                Double.toString(cfg.sleepAnimationDurationMultiplier));
+        appendEntry(sb,
+                "Ticks a counted player must stay in bed before counting as deep asleep. Range: 0 to 200. 100=vanilla",
+                "fall_asleep_delay_ticks",
+                Integer.toString(cfg.fallAsleepDelayTicks));
+        appendEntry(sb,
+                "When true, the Text indicator uses text_indicator_custom_text for normal Night/Day/Storm skips",
+                "text_indicator_override",
+                Boolean.toString(cfg.overrideOverlayText));
+        appendEntry(sb,
+                "Plain global Text indicator text. Max 128 characters. Formatting codes are stripped",
+                "text_indicator_custom_text",
+                toTomlString(cfg.overlayCustomText));
+        appendEntry(sb,
+                "Sleep eligibility policy. Values: INSOMNIA, VANILLA, DAY_INCLUDED. Default: VANILLA. Legacy manual value ALWAYS is still accepted",
+                "sleep_eligibility",
+                toTomlString(cfg.sleepEligibility.name()));
+
+        appendSectionGap(sb, 1);
+        appendSectionHeader(sb, "easter_eggs");
+        appendEntry(sb,
+                "Chance for bed sleep to use Made In Heaven. Range: 0 to 100. 0=off",
+                "made_in_heaven_chance_percent",
+                Integer.toString(cfg.madeInHeavenChancePercent));
+
+        appendSectionGap(sb, 1);
+        appendSectionHeader(sb, "compatibility");
+        appendEntry(sb,
+                "When true, Seamless Sleep disables Better Days sleep features while leaving Better Days day/night duration active",
+                "better_days_sleep_compatibility_enabled",
+                Boolean.toString(cfg.betterDaysCompatibilityEnabled));
+
+        appendSectionGap(sb, 1);
+        appendSectionHeader(sb, "world_sleep_acceleration");
+        appendEntry(sb,
+                "Acceleration mode during sleep. Values: OFF, AUTOMATIC, MANUAL. Default: AUTOMATIC",
+                "mode",
+                toTomlString(cfg.worldSleepAcceleration.mode.name()));
+        appendEntry(sb,
+                "Governor ceiling used by AUTOMATIC. Values: PERFORMANCE, BALANCED, AGGRESSIVE. Default: AGGRESSIVE",
+                "automatic_mode",
+                toTomlString(cfg.worldSleepAcceleration.automaticMode.name()));
+        appendEntry(sb,
+                "Players affected by the acceleration area in MANUAL. Values: SLEEPERS, ALL_PLAYERS. AUTOMATIC overrides this based on the automatic mode. Default: ALL_PLAYERS",
+                "players_affected",
+                toTomlString(cfg.worldSleepAcceleration.playersAffected.name()));
+        appendEntry(sb,
+                "Manual acceleration radius in chunks. Range: 1 to current simulation distance. Default fallback: 12. The effective runtime value is always clamped by the live server simulation distance",
+                "manual_radius_chunks",
+                Integer.toString(cfg.worldSleepAcceleration.manualAccelerationRadiusChunks));
+        appendEntry(sb,
+                "Manual random tick acceleration speed percent. Range: 0 to 100. 0=none, 100=max. Default: 100",
+                "manual_speed_percent",
+                Integer.toString(cfg.worldSleepAcceleration.manualAccelerationSpeedPercent));
+        appendEntry(sb,
+                "Enable grass, spreadables, foliage and copper weathering acceleration. Heavy in dense natural worlds. Default: false",
+                "grass_and_foliage_acceleration_enabled",
+                Boolean.toString(cfg.worldSleepAcceleration.grassAndFoliageAccelerationEnabled));
+        appendEntry(sb,
+                "Enable crop, farm and sapling acceleration for random ticks",
+                "crops_and_saplings_acceleration_enabled",
+                Boolean.toString(cfg.worldSleepAcceleration.cropsAndSaplingsAccelerationEnabled));
+        appendEntry(sb,
+                "Enable bamboo, jungle vines and cave vines/glow berry acceleration. Can be heavy in jungles and lush caves. Default: false",
+                "vines_and_bamboo_acceleration_enabled",
+                Boolean.toString(cfg.worldSleepAcceleration.vinesAndBambooAccelerationEnabled));
+        appendEntry(sb,
+                "Enable kelp acceleration for random ticks",
+                "kelp_acceleration_enabled",
+                Boolean.toString(cfg.worldSleepAcceleration.kelpAccelerationEnabled));
+        appendEntry(sb,
+                "When true, only vanilla blocks remain eligible for nature acceleration. Default: false",
+                "vanilla_only_acceleration",
+                Boolean.toString(cfg.worldSleepAcceleration.vanillaOnlyAcceleration));
+        appendEntry(sb,
+                "When true, nature sections marked irrelevant are rechecked every 20 ticks during the same acceleration session. Default: false",
+                "recheck_irrelevant_nature_sections_during_acceleration",
+                Boolean.toString(cfg.worldSleepAcceleration.recheckIrrelevantNatureSectionsDuringAcceleration));
+        appendEntry(sb,
+                "Collect detailed world acceleration counters for /sleep acceleration status. Adds hot-path diagnostic bookkeeping. Default: false",
+                "telemetry_enabled",
+                Boolean.toString(cfg.worldSleepAcceleration.accelerationTelemetryEnabled));
+        appendEntry(sb,
+                "Enable furnace, smoker and blast furnace acceleration during sleep",
+                "processes_acceleration_enabled",
+                Boolean.toString(cfg.worldSleepAcceleration.processesAccelerationEnabled));
+        appendEntry(sb,
+                "Process acceleration speed percent. Range: 0 to 100. 0=none, 100=max",
+                "processes_speed_percent",
+                Integer.toString(cfg.worldSleepAcceleration.processesSpeedPercent));
+
+        trimTrailingBlankLines(sb);
+        sb.append('\n');
+        return sb.toString();
+    }
+
+    private static void appendSectionHeader(StringBuilder sb, String name) {
+        sb.append('[').append(name).append("]\n");
+    }
+
+    private static void appendEntry(StringBuilder sb, String comment, String key, String valueLiteral) {
+        sb.append("    #").append(comment).append('\n');
+        sb.append("    ").append(key).append(" = ").append(valueLiteral).append("\n\n");
+    }
+
+    private static void appendSectionGap(StringBuilder sb, int blankLines) {
+        for (int i = 0; i < blankLines; i++) {
+            sb.append('\n');
+        }
+    }
+
+    private static void trimTrailingBlankLines(StringBuilder sb) {
+        while (sb.length() > 0) {
+            char c = sb.charAt(sb.length() - 1);
+            if (c != '\n' && c != '\r') {
+                break;
+            }
+            sb.setLength(sb.length() - 1);
+        }
+    }
+
+    private static String toTomlString(String value) {
+        String safe = (value == null || value.isBlank()) ? "unknown" : value;
+        String escaped = safe
+                .replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\r", "\\r")
+                .replace("\n", "\\n")
+                .replace("\t", "\\t");
+        return "\"" + escaped + "\"";
+    }
+
+    private static WorldSleepAccelerationMode readAccelerationMode(CommentedFileConfig file,
+                                                                   List<String> path,
+                                                                   String legacyKey,
+                                                                   WorldSleepAccelerationMode fallback) {
+        Object value = readRaw(file, path, legacyKey);
+        if (!(value instanceof String string)) {
+            return fallback;
+        }
+        return switch (string.trim().toUpperCase()) {
+            case "NONE", "OFF" -> WorldSleepAccelerationMode.OFF;
+            case "AUTO", "AUTOMATIC" -> WorldSleepAccelerationMode.AUTOMATIC;
+            case "CUSTOM", "MANUAL" -> WorldSleepAccelerationMode.MANUAL;
+            default -> fallback;
+        };
+    }
+
+    private static WorldSleepAutomaticMode readAutomaticMode(CommentedFileConfig file,
+                                                             List<String> path,
+                                                             String legacyKey,
+                                                             WorldSleepAutomaticMode fallback) {
+        Object value = readRaw(file, path, legacyKey);
+        if (!(value instanceof String string)) {
+            return fallback;
+        }
+        return switch (string.trim().toUpperCase()) {
+            case "ECO", "PERFORMANCE" -> WorldSleepAutomaticMode.PERFORMANCE;
+            case "BALANCED" -> WorldSleepAutomaticMode.BALANCED;
+            case "AGGRESSIVE" -> WorldSleepAutomaticMode.AGGRESSIVE;
+            default -> fallback;
+        };
+    }
+
+    private static WorldSleepAccelerationPlayersAffected readPlayersAffected(CommentedFileConfig file,
+                                                                             List<String> path,
+                                                                             String legacyKey,
+                                                                             WorldSleepAccelerationPlayersAffected fallback) {
+        Object value = readRaw(file, path, legacyKey);
+        if (!(value instanceof String string)) {
+            return fallback;
+        }
+        return switch (string.trim().toUpperCase()) {
+            case "SLEEPERS", "SLEEPING" -> WorldSleepAccelerationPlayersAffected.SLEEPERS;
+            case "ALL", "ALL_PLAYERS", "PLAYERS" -> WorldSleepAccelerationPlayersAffected.ALL_PLAYERS;
+            default -> fallback;
+        };
+    }
+
+    private static double readDouble(CommentedFileConfig file, List<String> path, String legacyKey, double fallback) {
+        Object value = readRaw(file, path, legacyKey);
+        return value instanceof Number number ? number.doubleValue() : fallback;
+    }
+
+    private static int readWeatherClearChancePercent(CommentedFileConfig file, int fallback) {
+        Object value = file.getRaw(List.of("sleep", "weather_clear_chance_percent"));
+        if (value == null) {
+            value = file.getRaw(List.of("sleep", "sleepWeatherClearChancePercent"));
+        }
+        if (value == null) {
+            value = file.getRaw("weather_clear_chance_percent");
+        }
+        if (value == null) {
+            value = file.getRaw("sleepWeatherClearChancePercent");
+        }
+        if (value == null) {
+            value = file.getRaw(List.of("sleep", "sleepClearsWeather"));
+        }
+        if (value == null) {
+            value = file.getRaw("sleepClearsWeather");
+        }
+
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        if (value instanceof Boolean bool) {
+            return bool ? 100 : 0;
+        }
+        if (value instanceof String text) {
+            String normalized = text.trim();
+            if (normalized.equalsIgnoreCase("true")) {
+                return 100;
+            }
+            if (normalized.equalsIgnoreCase("false")) {
+                return 0;
+            }
+            try {
+                return Integer.parseInt(normalized);
+            } catch (NumberFormatException ignored) {
+                return fallback;
+            }
+        }
+        return fallback;
+    }
+
+    private static int readInt(CommentedFileConfig file, List<String> path, String legacyKey, int fallback) {
+        Object value = readRaw(file, path, legacyKey);
+        return value instanceof Number number ? number.intValue() : fallback;
+    }
+
+    private static String readString(CommentedFileConfig file, List<String> path, String legacyKey, String fallback) {
+        Object value = readRaw(file, path, legacyKey);
+        return value instanceof String string ? string : fallback;
+    }
+
+    private static String readString(CommentedFileConfig file,
+                                     List<String> path,
+                                     List<String> legacyPath,
+                                     String legacyKey,
+                                     String fallback) {
+        Object value = readRaw(file, path, legacyPath, legacyKey);
+        return value instanceof String string ? string : fallback;
+    }
+
+    private static boolean readBoolean(CommentedFileConfig file, List<String> path, String legacyKey, boolean fallback) {
+        Object value = readRaw(file, path, legacyKey);
+        if (value instanceof Boolean bool) {
+            return bool;
+        }
+        if (value instanceof String string) {
+            if (string.equalsIgnoreCase("true")) {
+                return true;
+            }
+            if (string.equalsIgnoreCase("false")) {
+                return false;
+            }
+        }
+        return fallback;
+    }
+
+    private static boolean readBoolean(CommentedFileConfig file,
+                                       List<String> path,
+                                       List<String> legacyPath,
+                                       String legacyKey,
+                                       boolean fallback) {
+        Object value = readRaw(file, path, legacyPath, legacyKey);
+        if (value instanceof Boolean bool) {
+            return bool;
+        }
+        if (value instanceof String string) {
+            if (string.equalsIgnoreCase("true")) {
+                return true;
+            }
+            if (string.equalsIgnoreCase("false")) {
+                return false;
+            }
+        }
+        return fallback;
+    }
+
+    private static <E extends Enum<E>> E readEnum(CommentedFileConfig file,
+                                                  List<String> path,
+                                                  String legacyKey,
+                                                  Class<E> enumType,
+                                                  E fallback) {
+        Object value = readRaw(file, path, legacyKey);
+        if (!(value instanceof String string)) {
+            return fallback;
+        }
+
+        try {
+            return Enum.valueOf(enumType, string.trim().toUpperCase());
+        } catch (IllegalArgumentException ignored) {
+            return fallback;
+        }
+    }
+
+    private static Object readRaw(CommentedFileConfig file, List<String> path, String legacyKey) {
+        Object value = file.getRaw(path);
+        return value != null ? value : file.getRaw(legacyKey);
+    }
+
+    private static boolean hasRaw(CommentedFileConfig file, List<String> path) {
+        return file.getRaw(path) != null;
+    }
+
+    private static boolean hasRaw(CommentedFileConfig file, String key) {
+        return file.getRaw(key) != null;
+    }
+
+    private static Object readRaw(CommentedFileConfig file, List<String> path, List<String> legacyPath, String legacyKey) {
+        Object value = file.getRaw(path);
+        if (value != null) {
+            return value;
+        }
+        value = file.getRaw(legacyPath);
+        return value != null ? value : file.getRaw(legacyKey);
+    }
+
+    private static List<String> append(List<String> path, String key) {
+        java.util.ArrayList<String> fullPath = new java.util.ArrayList<>(path.size() + 1);
+        fullPath.addAll(path);
+        fullPath.add(key);
+        return fullPath;
+    }
+
+    private static int fractionToPercent(double fraction, int fallback) {
+        if (Double.isNaN(fraction) || Double.isInfinite(fraction)) {
+            return fallback;
+        }
+        return SeamlessSleepServerConfig.clampInt((int) Math.round(fraction * 100.0D), 0, 100);
+    }
+
+    private static Integer readOptionalInt(CommentedFileConfig file, String key) {
+        Object value = file.getRaw(key);
+        return value instanceof Number number ? number.intValue() : null;
+    }
+
+    private static String readOptionalString(CommentedFileConfig file, String key) {
+        Object value = file.getRaw(key);
+        return value instanceof String string ? string : null;
+    }
+
+    private static void logMetadataInfo(Path path, CommentedFileConfig file) {
+        Integer fileConfigVersion = readOptionalInt(file, "config_version");
+        String fileModVersion = readOptionalString(file, "mod_version");
+        String currentModVersion = resolveCurrentModVersion();
+
+        if (fileConfigVersion != null && fileConfigVersion.intValue() != CONFIG_VERSION) {
+            Constants.warn(
+                    "Server config {} uses config_version {} but current version is {}.",
+                    path.getFileName(),
+                    fileConfigVersion,
+                    CONFIG_VERSION
+            );
+        }
+        if (fileModVersion != null && !fileModVersion.isBlank() && !fileModVersion.equals(currentModVersion)) {
+            Constants.info(
+                    "Server config {} was generated by mod version {} (current {}).",
+                    path.getFileName(),
+                    fileModVersion,
+                    currentModVersion
+            );
+        }
+    }
+
+    private static String resolveCurrentModVersion() {
+        try {
+            String version = Services.PLATFORM.getModVersion(Constants.MOD_ID);
+            return (version == null || version.isBlank()) ? "unknown" : version;
+        } catch (Exception e) {
+            Constants.warn("Failed to resolve mod version for config metadata: {}", e.getMessage());
+            return "unknown";
+        }
+    }
+
+    private static void deleteLegacyJsonFiles(Path tomlPath) {
+        Path parent = tomlPath.getParent();
+        if (parent == null) {
+            return;
+        }
+        deleteIfExists(parent.resolve(LEGACY_JSON_FILE_NAME));
+        deleteIfExists(parent.resolve(LEGACY_JSONC_FILE_NAME));
+    }
+
+    private static boolean legacyJsonFilesExist(Path tomlPath) {
+        Path parent = tomlPath.getParent();
+        if (parent == null) {
+            return false;
+        }
+        return Files.exists(parent.resolve(LEGACY_JSON_FILE_NAME))
+                || Files.exists(parent.resolve(LEGACY_JSONC_FILE_NAME));
+    }
+
+    private static void deleteIfExists(Path file) {
+        try {
+            if (Files.deleteIfExists(file)) {
+                Constants.info("Deleted legacy config file {}", file.getFileName());
+            }
+        } catch (IOException e) {
+            Constants.warn("Failed to delete legacy config {}: {}", file, e.getMessage());
+        }
+    }
+
+    private record LegacyNatureFilterMapping(boolean grassAndFoliageEnabled,
+                                             boolean cropsAndSaplingsEnabled,
+                                             boolean kelpEnabled,
+                                             boolean vanillaOnlyAcceleration) {
+    }
+
+    private record LegacyAccelerationData(WorldSleepAccelerationMode mode,
+                                          WorldSleepAutomaticMode automaticMode,
+                                          WorldSleepAccelerationPlayersAffected playersAffected,
+                                          int manualRadiusChunks,
+                                          int manualSpeedPercent,
+                                          boolean grassAndFoliageEnabled,
+                                          boolean cropsAndSaplingsEnabled,
+                                          boolean kelpEnabled,
+                                          boolean vanillaOnlyAcceleration,
+                                          boolean processesAccelerationEnabled,
+                                          int processesSpeedPercent) {
+    }
+
+    private enum LargeModpackStage {
+        STAGE_1("1", WorldSleepAccelerationMode.AUTOMATIC, WorldSleepAutomaticMode.BALANCED, false),
+        STAGE_2("2", WorldSleepAccelerationMode.AUTOMATIC, WorldSleepAutomaticMode.BALANCED, true),
+        STAGE_3("3", WorldSleepAccelerationMode.AUTOMATIC, WorldSleepAutomaticMode.PERFORMANCE, true),
+        MAX("MAX", WorldSleepAccelerationMode.OFF, WorldSleepAutomaticMode.PERFORMANCE, true);
+
+        private final String label;
+        private final WorldSleepAccelerationMode mode;
+        private final WorldSleepAutomaticMode automaticMode;
+        private final boolean vanillaOnlyAcceleration;
+
+        LargeModpackStage(String label,
+                          WorldSleepAccelerationMode mode,
+                          WorldSleepAutomaticMode automaticMode,
+                          boolean vanillaOnlyAcceleration) {
+            this.label = label;
+            this.mode = mode;
+            this.automaticMode = automaticMode;
+            this.vanillaOnlyAcceleration = vanillaOnlyAcceleration;
+        }
+
+        private String label() {
+            return label;
+        }
+
+        private WorldSleepAccelerationMode mode() {
+            return mode;
+        }
+
+        private WorldSleepAutomaticMode automaticMode() {
+            return automaticMode;
+        }
+
+        private boolean vanillaOnlyAcceleration() {
+            return vanillaOnlyAcceleration;
+        }
+    }
+
     private static final class LoadResult {
         private final SeamlessSleepServerConfig config;
         private final ReloadResult status;
