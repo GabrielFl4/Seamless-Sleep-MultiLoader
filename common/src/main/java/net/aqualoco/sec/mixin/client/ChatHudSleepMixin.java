@@ -89,7 +89,7 @@ public abstract class ChatHudSleepMixin {
         return this.minecraft != null
                 && this.minecraft.player != null
                 && this.minecraft.player.isSleeping()
-                && this.minecraft.screen instanceof InBedChatScreen;
+                && this.minecraft.gui.screen() instanceof InBedChatScreen;
     }
 
     private SeamlessSleepClientConfig seamlesssleep$getConfig() {

@@ -97,10 +97,6 @@ processResources {
             'mod_id'                       : mod_id,
             'license'                      : license,
             'description'                  : project.description,
-            'neoforge_version'             : neoforge_version,
-            'neoforge_loader_version_range': neoforge_loader_version_range,
-            'forge_version'                : forge_version,
-            'forge_loader_version_range'   : forge_loader_version_range,
             'credits'                      : credits,
             'java_version'                 : java_version,
             'night_config_version'         : night_config_version
@@ -110,10 +106,8 @@ processResources {
         key, value -> [(key): value instanceof String ? value.replace("\n", "\\\\n") : value]
     }
 
-    filesMatching(['META-INF/mods.toml', 'META-INF/neoforge.mods.toml']) {
-        expand expandProps
-    }
-
+    // Forge/NeoForge are no longer part of this Fabric-only port, so 'META-INF/mods.toml'
+    // and 'META-INF/neoforge.mods.toml' are gone and no longer need expanding here.
     filesMatching(['pack.mcmeta', 'fabric.mod.json', '*.mixins.json']) {
         expand jsonExpandProps
     }

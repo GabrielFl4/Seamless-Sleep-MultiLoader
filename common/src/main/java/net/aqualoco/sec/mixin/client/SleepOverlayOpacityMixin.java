@@ -2,14 +2,17 @@ package net.aqualoco.sec.mixin.client;
 
 import net.aqualoco.sec.config.SeamlessSleepClientConfig;
 import net.aqualoco.sec.config.SeamlessSleepClientConfigManager;
-import net.minecraft.client.gui.Gui;
+import net.minecraft.client.gui.Hud;
 import net.minecraft.client.player.LocalPlayer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 
 // Scales vanilla sleep overlay darkness using the client config multiplier.
-@Mixin(Gui.class)
+//
+// In 26.2, `extractSleepOverlay(GuiGraphicsExtractor, DeltaTracker)` moved off `Gui` onto the
+// new `Hud` class, unchanged (same pattern as GuiSleepOverlayMixin). Retargeted accordingly.
+@Mixin(Hud.class)
 public abstract class SleepOverlayOpacityMixin {
 
     @Redirect(
