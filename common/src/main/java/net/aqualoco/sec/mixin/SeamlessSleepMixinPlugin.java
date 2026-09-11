@@ -12,7 +12,11 @@ import java.util.Set;
 public final class SeamlessSleepMixinPlugin implements IMixinConfigPlugin {
 
     private static final String BETTER_CLOUDS_MOD_ID = "betterclouds";
-    private static final String BETTER_CLOUDS_MIXIN = "net.aqualoco.sec.mixin.client.compat.BetterCloudsRendererSleepAccelerationMixin";
+    private static final Set<String> BETTER_CLOUDS_MIXINS = Set.of(
+            "net.aqualoco.sec.mixin.client.compat.BetterCloudsRendererSleepAccelerationMixin",
+            "net.aqualoco.sec.mixin.client.compat.BetterCloudsOpenGLSleepAccelerationMixin",
+            "net.aqualoco.sec.mixin.client.compat.BetterCloudsBlaze3DSleepAccelerationMixin"
+    );
 
     private boolean betterCloudsAvailable;
 
@@ -28,7 +32,7 @@ public final class SeamlessSleepMixinPlugin implements IMixinConfigPlugin {
 
     @Override
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
-        if (BETTER_CLOUDS_MIXIN.equals(mixinClassName)) {
+        if (BETTER_CLOUDS_MIXINS.contains(mixinClassName)) {
             return betterCloudsAvailable;
         }
         return true;

@@ -73,3 +73,15 @@ sourceSets.configureEach {
         }
     }
 }
+
+tasks.register('copyPortingClasspath', Copy) {
+    group = 'porting'
+    description = 'Copies resolved compile/runtime classpath jars for porting javap inspection.'
+
+    from configurations.compileClasspath
+    from configurations.runtimeClasspath
+
+    into "$rootDir/PORTING_JARS/${project.name}"
+
+    duplicatesStrategy = org.gradle.api.file.DuplicatesStrategy.EXCLUDE
+}

@@ -10,7 +10,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-// Forge short-circuits Gui.extractRenderState() through ForgeLayeredDraw, so the common Gui TAIL hook never runs here.
+// Forge short-circuits Hud.extractRenderState() through ForgeLayeredDraw, so the common Hud TAIL hook never runs here.
 @Mixin(ForgeLayeredDraw.class)
 public abstract class ForgeLayeredDrawSleepOverlayMixin {
 

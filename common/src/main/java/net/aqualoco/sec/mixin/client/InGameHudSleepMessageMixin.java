@@ -1,6 +1,6 @@
 package net.aqualoco.sec.mixin.client;
 
-import net.minecraft.client.gui.Gui;
+import net.minecraft.client.gui.Hud;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.contents.TranslatableContents;
 import org.spongepowered.asm.mixin.Mixin;
@@ -9,7 +9,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 // Hides the vanilla "skipping night" toast so the custom overlay owns that feedback.
-@Mixin(Gui.class)
+@Mixin(Hud.class)
 public abstract class InGameHudSleepMessageMixin {
 
     @Inject(method = "setOverlayMessage(Lnet/minecraft/network/chat/Component;Z)V", at = @At("HEAD"), cancellable = true)

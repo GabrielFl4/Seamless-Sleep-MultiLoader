@@ -1,28 +1,20 @@
 package net.aqualoco.sec.mixin.client.compat;
 
 import net.aqualoco.sec.Constants;
+import net.aqualoco.sec.client.BetterCloudsSleepTimeAccess;
 import net.aqualoco.sec.client.CloudAccelerationController;
-import net.minecraft.client.multiplayer.ClientLevel;
-import org.joml.Matrix4f;
-import org.joml.Vector3d;
+import net.minecraft.client.Minecraft;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Pseudo;
-import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.ModifyArgs;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import org.spongepowered.asm.mixin.injection.invoke.arg.Args;
 
 // Reuses the vanilla sleep acceleration curve for Better Clouds by overriding the custom renderer time inputs.
 @Pseudo
-@Mixin(targets = "com.qendolin.betterclouds.clouds.Renderer", remap = false)
-public abstract class BetterCloudsRendererSleepAccelerationMixin {
-
-    @Shadow
-    private ClientLevel world;
+@Mixin(targets = "com.qendolin.betterclouds.rendering.CloudRenderer", remap = false)
+public abstract class BetterCloudsRendererSleepAccelerationMixin implements BetterCloudsSleepTimeAccess {
 
     @Unique
     private static boolean seamlesssleep$loggedHookOnce;
@@ -31,73 +23,39 @@ public abstract class BetterCloudsRendererSleepAccelerationMixin {
     private final CloudAccelerationController seamlesssleep$cloudController = new CloudAccelerationController("Better Clouds");
 
     @Unique
-    private boolean seamlesssleep$preparedSampleValid;
-
-    @Unique
-    private float seamlesssleep$preparedAdjustedTime;
-
-    @Unique
-    private int seamlesssleep$preparedWholeTicks;
-
-    @Unique
-    private float seamlesssleep$preparedPartialTick;
-
-    @Inject(
-            method = "prepare(Lorg/joml/Matrix4f;Lorg/joml/Matrix4f;IFLorg/joml/Vector3d;)Lcom/qendolin/betterclouds/clouds/Renderer$PrepareResult;",
-            at = @At("HEAD"),
-            remap = false,
-            require = 0
-    )
-    private void seamlesssleep$prepareBetterCloudsTime(Matrix4f viewMat, Matrix4f projMat, int ticks, float tickDelta, Vector3d cam, CallbackInfoReturnable<Object> cir) {
-        if (!seamlesssleep$loggedHookOnce) {
-            seamlesssleep$loggedHookOnce = true;
-            Constants.debug("Better Clouds acceleration hook active: Renderer.prepare/render visual time override.");
-        }
-
-        long now = System.currentTimeMillis();
-        float baseTime = ticks + tickDelta;
-        var sample = seamlesssleep$cloudController.sample(baseTime, this.world, now);
-        seamlesssleep$cloudController.logApplied(now, baseTime, sample.adjustedValue());
-
-        seamlesssleep$preparedSampleValid = true;
-        seamlesssleep$preparedAdjustedTime = sample.adjustedValue();
-        seamlesssleep$preparedWholeTicks = sample.wholeTicks();
-        seamlesssleep$preparedPartialTick = sample.partialTick();
-    }
+    private float seamlesssleep$preparedExtraTicks;
 
     @ModifyArgs(
-            method = "prepare(Lorg/joml/Matrix4f;Lorg/joml/Matrix4f;IFLorg/joml/Vector3d;)Lcom/qendolin/betterclouds/clouds/Renderer$PrepareResult;",
+            method = "updateGenerator(Lorg/joml/Vector3d;JJF)V",
             at = @At(
                     value = "INVOKE",
-                    target = "Lcom/qendolin/betterclouds/clouds/ChunkedGenerator;update(Lorg/joml/Vector3d;IFLcom/qendolin/betterclouds/config/Config;F)V"
+                    target = "Lcom/qendolin/betterclouds/generator/ChunkedGenerator;update(Lorg/joml/Vector3d;JJFLcom/qendolin/betterclouds/config/Config;F)V"
             ),
             remap = false,
             require = 0
     )
     private void seamlesssleep$adjustBetterCloudsGeneratorTime(Args args) {
-        if (!seamlesssleep$preparedSampleValid) {
-            return;
+        if (!seamlesssleep$loggedHookOnce) {
+            seamlesssleep$loggedHookOnce = true;
+            Constants.debug("Better Clouds acceleration hook active: CloudRenderer.updateGenerator and renderer visual time override.");
         }
 
-        args.set(1, seamlesssleep$preparedWholeTicks);
-        args.set(2, seamlesssleep$preparedPartialTick);
+        long now = System.currentTimeMillis();
+        long cloudTicks = args.get(1);
+        float tickDelta = args.get(3);
+        var sample = seamlesssleep$cloudController.sample(tickDelta, Minecraft.getInstance().level, now);
+        seamlesssleep$preparedExtraTicks = sample.extraTicks();
+
+        // Keep the full cloud clock and the generator's client tick counter independent.
+        args.set(1, cloudTicks + sample.wholeTicks());
+        args.set(3, sample.partialTick());
+
+        float baseTime = cloudTicks + tickDelta;
+        seamlesssleep$cloudController.logApplied(now, baseTime, baseTime + sample.extraTicks());
     }
 
-    @ModifyArg(
-            method = "render(IFLorg/joml/Vector3d;Lorg/joml/Vector3d;Lnet/minecraft/client/renderer/culling/Frustum;)V",
-            at = @At(
-                    value = "INVOKE",
-                    target = "Lcom/qendolin/betterclouds/clouds/Renderer;drawCoverage(FLorg/joml/Vector3d;Lorg/joml/Vector3d;Lnet/minecraft/client/renderer/culling/Frustum;Lcom/qendolin/betterclouds/clouds/fog/FogProvider$Fog;)V"
-            ),
-            index = 0,
-            remap = false,
-            require = 0
-    )
-    private float seamlesssleep$adjustBetterCloudsCoverageTime(float originalTime) {
-        if (!seamlesssleep$preparedSampleValid) {
-            return originalTime;
-        }
-
-        return seamlesssleep$preparedAdjustedTime;
+    @Override
+    public float seamlesssleep$getCloudPhaseOffset() {
+        return seamlesssleep$preparedExtraTicks;
     }
 }
